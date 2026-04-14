@@ -73,16 +73,17 @@ export default function Categories() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex justify-between items-center bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-emerald-50">
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-emerald-50 gap-4">
         <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 pl-2">
           <Tag className="text-emerald-500" size={20} /> Gestion des Catégories
         </h3>
-        <button onClick={() => setShowModal(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl flex items-center gap-2 font-bold transition-all shadow-lg shadow-emerald-100">
+        <button onClick={() => setShowModal(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-emerald-100">
           <Plus size={18} /> <span>Nouvelle Catégorie</span>
         </button>
       </div>
 
-      <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl overflow-hidden shadow-sm">
+      {/* Desktop Table */}
+      <div className="hidden sm:block bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-emerald-50/50">
@@ -117,6 +118,32 @@ export default function Categories() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="sm:hidden space-y-4">
+        {loading ? (
+          <p className="text-center py-10 text-gray-400">Chargement...</p>
+        ) : categories.length > 0 ? (
+          categories.map((cat) => (
+            <div key={cat.id} className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-5 shadow-sm flex justify-between items-center">
+              <div>
+                <h4 className="font-bold text-gray-800">{cat.name}</h4>
+                <p className="text-[10px] text-gray-400 uppercase mt-1">Créé le {new Date(cat.created_at).toLocaleDateString()}</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => handleEdit(cat)} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                  <Edit2 size={16} />
+                </button>
+                <button onClick={() => deleteCategory(cat.id)} className="p-2 bg-red-50 text-red-600 rounded-lg">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="text-center py-10 text-gray-400">Aucune catégorie définie.</p>
+        )}
       </div>
 
       {showModal && (

@@ -5,7 +5,7 @@ node_modules/
 .env.*.local
 
 # Build
-dist/
+
 build/
 
 # IDE

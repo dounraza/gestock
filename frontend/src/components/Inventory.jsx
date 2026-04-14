@@ -114,8 +114,8 @@ export default function Inventory() {
   return (
     <div className="space-y-6">
       {/* Action Bar */}
-      <div className="flex justify-between items-center bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-emerald-50">
-        <div className="flex gap-4 flex-1 max-w-2xl">
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-emerald-50 gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 flex-1 max-w-2xl">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
@@ -135,7 +135,7 @@ export default function Inventory() {
             {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
-        <button onClick={() => setShowModal(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl flex items-center gap-2 font-bold transition-all shadow-lg shadow-emerald-100">
+        <button onClick={() => setShowModal(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-emerald-100">
           <Plus size={18} /> <span>Ajouter</span>
         </button>
       </div>

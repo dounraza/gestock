@@ -252,7 +252,7 @@ export default function Billing() {
   return (
     <div className="space-y-6">
       {/* Action Bar */}
-      <div className="flex justify-between items-center bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-emerald-50">
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-emerald-50 gap-4">
         <div className="flex gap-4 flex-1 max-w-lg">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -265,13 +265,13 @@ export default function Billing() {
             />
           </div>
         </div>
-        <button onClick={() => { resetForm(); setShowModal(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl flex items-center gap-2 font-bold transition-all shadow-lg shadow-emerald-100">
+        <button onClick={() => { resetForm(); setShowModal(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-emerald-100">
           <Plus size={18} /> <span>Nouvelle Facture</span>
         </button>
       </div>
 
-      {/* Invoice List */}
-      <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl overflow-hidden shadow-sm">
+      {/* Invoice List - Desktop Table */}
+      <div className="hidden md:block bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-emerald-50/50">
@@ -333,6 +333,61 @@ export default function Billing() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Invoice List - Mobile Cards */}
+      <div className="md:hidden space-y-4">
+        {loading ? (
+          <p className="text-center py-10 text-gray-400">Chargement des factures...</p>
+        ) : filteredInvoices.length > 0 ? (
+          filteredInvoices.map((inv) => (
+            <div key={inv.id} className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-5 shadow-sm space-y-4">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-800">{inv.number}</h4>
+                    <p className="text-xs text-gray-500">{inv.clients?.name || 'Client inconnu'}</p>
+                  </div>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-[9px] font-bold uppercase border flex items-center gap-1 ${getStatusStyle(inv.status)}`}>
+                  {getStatusIcon(inv.status)} {inv.status}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-end pt-2 border-t border-emerald-50">
+                <div>
+                  <p className="text-[9px] text-gray-400 uppercase font-bold tracking-widest">Montant Total</p>
+                  <p className="text-lg font-black text-gray-800">{inv.total_amount.toLocaleString('fr-MG')} MGA</p>
+                </div>
+                <div className="flex gap-1">
+                  <button 
+                    onClick={() => downloadPDF(inv)} 
+                    disabled={isGeneratingPDF}
+                    className="p-2 bg-blue-50 text-blue-600 rounded-lg"
+                  >
+                    <Download size={16} />
+                  </button>
+                  <button onClick={() => handleEdit(inv)} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                    <Edit2 size={16} />
+                  </button>
+                  <button onClick={() => deleteInvoice(inv.id)} className="p-2 bg-red-50 text-red-600 rounded-lg">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                <Calendar size={12} />
+                <span>Échéance : {inv.due_date ? new Date(inv.due_date).toLocaleDateString('fr-FR') : '-'}</span>
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="text-center py-10 text-gray-400">Aucune facture enregistrée.</p>
+        )}
       </div>
 
       {/* Modal */}

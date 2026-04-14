@@ -13,7 +13,9 @@ import {
   AlertCircle,
   CheckCircle2,
   Truck,
-  Tag
+  Tag,
+  Menu,
+  X
 } from 'lucide-react';
 import Inventory from '../components/Inventory';
 import Clients from '../components/Clients';
@@ -23,6 +25,7 @@ import Billing from '../components/Billing';
 
 export default function Dashboard({ session }) {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [dashboardSearchTerm, setDashboardSearchTerm] = useState('');
   const [stats, setStats] = useState({
     totalSales: 0,
@@ -77,6 +80,8 @@ export default function Dashboard({ session }) {
     }
   };
 
+  const closeSidebar = () => setIsSidebarOpen(false);
+
   return (
     <div className="relative min-h-screen flex bg-white font-sans overflow-hidden">
       {/* Background Image (Idem Login) */}
@@ -85,14 +90,27 @@ export default function Dashboard({ session }) {
         style={{ backgroundImage: "url('https://images.unsplash.com/photo-1631549916768-4119b2e5f926?q=80&w=2000&auto=format&fit=crop')" }}
       ></div>
 
+      {/* Mobile Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-20 lg:hidden"
+          onClick={closeSidebar}
+        ></div>
+      )}
+
       {/* Sidebar */}
-      <aside className="relative z-10 w-72 bg-white/40 backdrop-blur-xl border-r border-emerald-50 flex flex-col">
+      <aside className={`fixed lg:static inset-y-0 left-0 z-30 w-72 bg-white/90 lg:bg-white/40 backdrop-blur-xl border-r border-emerald-50 flex flex-col transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-8">
-          <div className="flex items-center gap-3 mb-10">
-            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
-              <span className="text-white text-xl font-bold">+</span>
+          <div className="flex items-center justify-between mb-10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
+                <span className="text-white text-xl font-bold">+</span>
+              </div>
+              <h1 className="text-xl font-bold text-gray-800 tracking-tight">Gestock<span className="text-emerald-500">Pharma</span></h1>
             </div>
-            <h1 className="text-xl font-bold text-gray-800 tracking-tight">Gestock<span className="text-emerald-500">Pharma</span></h1>
+            <button className="lg:hidden text-gray-400 hover:text-emerald-500" onClick={closeSidebar}>
+              <X size={24} />
+            </button>
           </div>
 
           <nav className="space-y-2">
@@ -100,37 +118,37 @@ export default function Dashboard({ session }) {
               icon={<LayoutDashboard size={20} />} 
               label="Vue d'ensemble" 
               active={activeTab === 'dashboard'} 
-              onClick={() => setActiveTab('dashboard')} 
+              onClick={() => { setActiveTab('dashboard'); closeSidebar(); }} 
             />
             <NavItem 
               icon={<Package size={20} />} 
               label="Stock & Produits" 
               active={activeTab === 'inventory'} 
-              onClick={() => setActiveTab('inventory')} 
+              onClick={() => { setActiveTab('inventory'); closeSidebar(); }} 
             />
             <NavItem 
               icon={<Tag size={20} />} 
               label="Catégories" 
               active={activeTab === 'categories'} 
-              onClick={() => setActiveTab('categories')} 
+              onClick={() => { setActiveTab('categories'); closeSidebar(); }} 
             />
             <NavItem 
               icon={<Users size={20} />} 
               label="Clients" 
               active={activeTab === 'clients'} 
-              onClick={() => setActiveTab('clients')} 
+              onClick={() => { setActiveTab('clients'); closeSidebar(); }} 
             />
             <NavItem 
               icon={<Truck size={20} />} 
               label="Fournisseurs" 
               active={activeTab === 'suppliers'} 
-              onClick={() => setActiveTab('suppliers')} 
+              onClick={() => { setActiveTab('suppliers'); closeSidebar(); }} 
             />
             <NavItem 
               icon={<FileText size={20} />} 
               label="Facturation" 
               active={activeTab === 'billing'} 
-              onClick={() => setActiveTab('billing')} 
+              onClick={() => { setActiveTab('billing'); closeSidebar(); }} 
             />
           </nav>
         </div>
@@ -158,13 +176,21 @@ export default function Dashboard({ session }) {
       {/* Main Content Area */}
       <main className="relative z-10 flex-1 flex flex-col h-screen overflow-hidden">
         {/* Header */}
-        <header className="h-20 bg-white/20 backdrop-blur-md border-b border-emerald-50 px-8 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-gray-800 capitalize">
-            {getTitle()}
-          </h2>
+        <header className="h-20 bg-white/20 backdrop-blur-md border-b border-emerald-50 px-4 md:px-8 flex justify-between items-center shrink-0">
+          <div className="flex items-center gap-4">
+            <button 
+              className="lg:hidden p-2 text-gray-500 hover:bg-emerald-50 rounded-lg transition-colors"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <Menu size={24} />
+            </button>
+            <h2 className="text-lg md:text-xl font-bold text-gray-800 capitalize truncate">
+              {getTitle()}
+            </h2>
+          </div>
 
-          <div className="flex items-center gap-6">
-            <div className="relative w-64">
+          <div className="flex items-center gap-3 md:gap-6">
+            <div className="relative w-40 md:w-64 hidden sm:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input 
                 type="text" 
@@ -174,19 +200,19 @@ export default function Dashboard({ session }) {
                 onChange={(e) => setDashboardSearchTerm(e.target.value)}
               />
             </div>
-            <button className="relative text-gray-400 hover:text-emerald-500" onClick={fetchStats}>
+            <button className="relative text-gray-400 hover:text-emerald-500 p-2" onClick={fetchStats}>
               <Bell size={20} />
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
           </div>
         </header>
 
         {/* Dashboard Body */}
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8">
           {activeTab === 'dashboard' && (
-            <div className="space-y-8">
+            <div className="space-y-6 md:space-y-8">
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                 <StatCard 
                   title="Ventes Totales (Encaissées)" 
                   value={`${stats.totalSales.toLocaleString('fr-MG')} MGA`} 
@@ -209,7 +235,7 @@ export default function Dashboard({ session }) {
               </div>
 
               {/* Recent Activity Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                 <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-6 shadow-sm">
                   <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
                     <Package size={20} className="text-emerald-500" /> État du Stock
