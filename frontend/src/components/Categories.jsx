@@ -1,0 +1,157 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient';
+import { Plus, Edit2, Trash2, Tag, Loader2 } from 'lucide-react';
+
+export default function Categories() {
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fetchCategories = async () => {
+    setLoading(true);
+    const { data } = await supabase.from('categories').select('*').order('name');
+    if (data) setCategories(data);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!newCatName.trim()) return;
+    setIsSubmitting(true);
+
+    if (editingCategory) {
+      const { error } = await supabase
+        .from('categories')
+        .update({ name: newCatName })
+        .eq('id', editingCategory.id);
+      
+      if (error) alert(error.message);
+      else {
+        setNewCatName('');
+        setEditingCategory(null);
+        setShowModal(false);
+        fetchCategories();
+      }
+    } else {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from('categories').insert([{ name: newCatName, user_id: user.id }]);
+      if (error) alert(error.message);
+      else {
+        setNewCatName('');
+        setShowModal(false);
+        fetchCategories();
+      }
+    }
+    setIsSubmitting(false);
+  };
+
+  const handleEdit = (category) => {
+    setEditingCategory(category);
+    setNewCatName(category.name);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingCategory(null);
+    setNewCatName('');
+  };
+
+  const deleteCategory = async (id) => {
+    if (confirm('Supprimer cette catégorie ? Cela n\'affectera pas les produits existants mais ils n\'auront plus de catégorie.')) {
+      await supabase.from('categories').delete().eq('id', id);
+      fetchCategories();
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex justify-between items-center bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-emerald-50">
+        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 pl-2">
+          <Tag className="text-emerald-500" size={20} /> Gestion des Catégories
+        </h3>
+        <button onClick={() => setShowModal(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl flex items-center gap-2 font-bold transition-all shadow-lg shadow-emerald-100">
+          <Plus size={18} /> <span>Nouvelle Catégorie</span>
+        </button>
+      </div>
+
+      <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl overflow-hidden shadow-sm">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-emerald-50/50">
+              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Nom de la catégorie</th>
+              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Date de création</th>
+              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-emerald-50">
+            {loading ? (
+              <tr><td colSpan="3" className="p-10 text-center text-gray-400">Chargement...</td></tr>
+            ) : categories.length > 0 ? (
+              categories.map((cat) => (
+                <tr key={cat.id} className="hover:bg-emerald-50/20 transition-colors">
+                  <td className="p-5 font-bold text-gray-800">{cat.name}</td>
+                  <td className="p-5 text-sm text-gray-500">{new Date(cat.created_at).toLocaleDateString()}</td>
+                  <td className="p-5 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        onClick={() => handleEdit(cat)}
+                        className="p-2 text-gray-400 hover:text-emerald-600 transition-colors"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button onClick={() => deleteCategory(cat.id)} className="p-2 text-gray-400 hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr><td colSpan="3" className="p-10 text-center text-gray-400">Aucune catégorie définie.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-900/20 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-8 border-b border-emerald-50 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-gray-800">
+                {editingCategory ? 'Modifier la catégorie' : 'Ajouter une catégorie'}
+              </h3>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-8 space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-emerald-700 uppercase ml-1">Nom</label>
+                <input 
+                  autoFocus
+                  required 
+                  placeholder="Ex: Antibiotiques, Antalgiques..." 
+                  className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" 
+                  value={newCatName} 
+                  onChange={e => setNewCatName(e.target.value)} 
+                />
+              </div>
+              <button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="w-full bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-100 mt-4 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : (editingCategory ? "Mettre à jour" : "Créer la catégorie")}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
