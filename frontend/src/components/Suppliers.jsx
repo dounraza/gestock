@@ -26,6 +26,20 @@ export default function Suppliers() {
     fetchSuppliers();
   }, []);
 
+  useEffect(() => {
+    if (searchTerm) {
+      const currentSuppliers = suppliers.filter(supplier =>
+        supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        supplier.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        supplier.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        supplier.address?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredSuppliers(currentSuppliers);
+    } else {
+      setFilteredSuppliers(suppliers);
+    }
+  }, [suppliers, searchTerm]);
+
   const handleSave = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);

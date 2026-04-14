@@ -41,6 +41,23 @@ export default function Inventory() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    let currentProducts = [...products];
+
+    if (searchTerm) {
+      currentProducts = currentProducts.filter(p =>
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (selectedCategory) {
+      currentProducts = currentProducts.filter(p => p.category_id === selectedCategory);
+    }
+
+    setFilteredProducts(currentProducts);
+  }, [products, searchTerm, selectedCategory]);
+
   const handleSave = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);

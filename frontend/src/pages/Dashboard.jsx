@@ -23,6 +23,7 @@ import Billing from '../components/Billing';
 
 export default function Dashboard({ session }) {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [dashboardSearchTerm, setDashboardSearchTerm] = useState('');
   const [stats, setStats] = useState({
     totalSales: 0,
     stockAlerts: 0,
@@ -169,6 +170,8 @@ export default function Dashboard({ session }) {
                 type="text" 
                 placeholder="Rechercher..."
                 className="w-full bg-emerald-50/30 border border-emerald-100 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/10"
+                value={dashboardSearchTerm}
+                onChange={(e) => setDashboardSearchTerm(e.target.value)}
               />
             </div>
             <button className="relative text-gray-400 hover:text-emerald-500" onClick={fetchStats}>

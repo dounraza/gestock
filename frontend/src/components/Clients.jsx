@@ -26,6 +26,20 @@ export default function Clients() {
     fetchClients();
   }, []);
 
+  useEffect(() => {
+    if (searchTerm) {
+      const currentClients = clients.filter(client =>
+        client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.address?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredClients(currentClients);
+    } else {
+      setFilteredClients(clients);
+    }
+  }, [clients, searchTerm]);
+
   const handleSave = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
