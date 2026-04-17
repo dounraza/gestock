@@ -15,13 +15,15 @@ import {
   Truck,
   Tag,
   Menu,
-  X
+  X,
+  ShoppingCart
 } from 'lucide-react';
 import Inventory from '../components/Inventory';
 import Clients from '../components/Clients';
 import Suppliers from '../components/Suppliers';
 import Categories from '../components/Categories';
 import Billing from '../components/Billing';
+import POS from '../components/POS';
 
 export default function Dashboard({ session }) {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -71,7 +73,8 @@ export default function Dashboard({ session }) {
   const getTitle = () => {
     switch(activeTab) {
       case 'dashboard': return "Vue d'ensemble";
-      case 'inventory': return "Stock & Produits";
+      case 'pos': return "Caisse / Vente Directe";
+      case 'inventory': return "Stock & Denrées";
       case 'clients': return "Clients";
       case 'suppliers': return "Fournisseurs";
       case 'categories': return "Catégories";
@@ -87,7 +90,7 @@ export default function Dashboard({ session }) {
       {/* Background Image (Idem Login) */}
       <div 
         className="absolute inset-0 z-0 opacity-[0.05] bg-cover bg-center bg-no-repeat pointer-events-none"
-        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1631549916768-4119b2e5f926?q=80&w=2000&auto=format&fit=crop')" }}
+        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=2000&auto=format&fit=crop')" }}
       ></div>
 
       {/* Mobile Overlay */}
@@ -106,7 +109,7 @@ export default function Dashboard({ session }) {
               <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
                 <span className="text-white text-xl font-bold">+</span>
               </div>
-              <h1 className="text-xl font-bold text-gray-800 tracking-tight">Gestock<span className="text-emerald-500">Pharma</span></h1>
+              <h1 className="text-xl font-bold text-gray-800 tracking-tight">Gestock<span className="text-emerald-500">PPN</span></h1>
             </div>
             <button className="lg:hidden text-gray-400 hover:text-emerald-500" onClick={closeSidebar}>
               <X size={24} />
@@ -119,6 +122,12 @@ export default function Dashboard({ session }) {
               label="Vue d'ensemble" 
               active={activeTab === 'dashboard'} 
               onClick={() => { setActiveTab('dashboard'); closeSidebar(); }} 
+            />
+            <NavItem 
+              icon={<ShoppingCart size={20} />} 
+              label="Caisse / Commande" 
+              active={activeTab === 'pos'} 
+              onClick={() => { setActiveTab('pos'); closeSidebar(); }} 
             />
             <NavItem 
               icon={<Package size={20} />} 
@@ -160,7 +169,7 @@ export default function Dashboard({ session }) {
             </div>
             <div className="overflow-hidden">
               <p className="text-sm font-bold text-gray-800 truncate">{session.user.email.split('@')[0]}</p>
-              <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Pharmacien</p>
+              <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Gestionnaire Stock</p>
             </div>
           </div>
           <button 
@@ -214,15 +223,15 @@ export default function Dashboard({ session }) {
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                 <StatCard 
-                  title="Ventes Totales (Encaissées)" 
+                  title="Ventes de Produits PPN" 
                   value={`${stats.totalSales.toLocaleString('fr-MG')} MGA`} 
                   trend="+ Actuel" 
                   icon={<TrendingUp className="text-emerald-600" size={24} />} 
                 />
                 <StatCard 
-                  title="Ruptures / Alertes Stock" 
+                  title="Alertes Stock PPN" 
                   value={`${stats.stockAlerts} articles`} 
-                  trend={stats.stockAlerts > 0 ? "Action requise" : "Correct"} 
+                  trend={stats.stockAlerts > 0 ? "Réapprovisionner" : "Correct"} 
                   negative={stats.stockAlerts > 0} 
                   icon={<AlertCircle className={stats.stockAlerts > 0 ? "text-orange-500" : "text-emerald-500"} size={24} />} 
                 />
@@ -270,6 +279,7 @@ export default function Dashboard({ session }) {
             </div>
           )}
 
+          {activeTab === 'pos' && <POS />}
           {activeTab === 'inventory' && <Inventory />}
           {activeTab === 'categories' && <Categories />}
           {activeTab === 'clients' && <Clients />}

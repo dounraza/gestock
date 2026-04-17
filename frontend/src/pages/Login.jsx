@@ -36,7 +36,7 @@ export default function Login() {
       {/* Image de fond en filigrane (Transparent sur blanc) */}
       <div 
         className="absolute inset-0 z-0 opacity-[0.15] bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1631549916768-4119b2e5f926?q=80&w=2000&auto=format&fit=crop')" }}
+        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=2000&auto=format&fit=crop')" }}
       ></div>
 
       {/* Dégradé radial pour un effet de lumière centrale */}
@@ -50,10 +50,10 @@ export default function Login() {
               <span className="text-white text-3xl font-bold">+</span>
             </div>
             <h2 className="text-2xl font-bold text-gray-800 tracking-tight">
-              {isSignUp ? 'Créer un compte' : 'Gestock Pharma'}
+              {isSignUp ? 'Créer un compte' : 'Gestock PPN'}
             </h2>
             <p className="mt-1 text-gray-500 text-sm">
-              Logiciel de gestion d'officine
+              Logiciel de gestion de stock PPN
             </p>
           </div>
 
@@ -109,13 +109,13 @@ export default function Login() {
               onClick={() => setIsSignUp(!isSignUp)}
               className="text-sm font-medium text-emerald-600 hover:text-emerald-800 transition-colors"
             >
-              {isSignUp ? "Déjà inscrit ? Connexion" : "Nouvelle pharmacie ? Créer un profil"}
+              {isSignUp ? "Déjà inscrit ? Connexion" : "Nouveau gestionnaire ? Créer un profil"}
             </button>
           </div>
         </div>
         
         <p className="mt-8 text-center text-xs text-gray-400 font-medium">
-          © 2026 Gestock Pharma — Système d'Inventaire Certifié
+          © 2026 Gestock PPN — Système d'Inventaire PPN
         </p>
       </div>
     </div>

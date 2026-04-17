@@ -201,12 +201,12 @@ export default function Inventory() {
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 border-b border-emerald-50 flex justify-between items-center">
               <h3 className="text-xl font-bold text-gray-800">
-                {editingProduct ? 'Modifier le produit' : 'Ajouter un produit'}
+                {editingProduct ? 'Modifier le PPN' : 'Ajouter un nouveau PPN'}
               </h3>
               <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
             </div>
             <form onSubmit={handleSave} className="p-8 space-y-4">
-              <input required placeholder="Nom du médicament" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              <input required placeholder="Nom du produit PPN (ex: Riz, Huile...)" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Prix (MGA)</label>

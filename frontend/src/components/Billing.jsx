@@ -156,8 +156,8 @@ export default function Billing() {
     invoiceElement.innerHTML = `
       <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #10b981; padding-bottom: 30px; margin-bottom: 40px;">
         <div style="flex: 1;">
-          <h1 style="font-size: 28px; font-weight: 900; color: #059669; margin: 0; text-transform: uppercase;">GestockPharma</h1>
-          <p style="font-size: 14px; color: #6b7280; margin: 5px 0;">Solution de Gestion de Pharmacie</p>
+          <h1 style="font-size: 28px; font-weight: 900; color: #059669; margin: 0; text-transform: uppercase;">Gestock PPN</h1>
+          <p style="font-size: 14px; color: #6b7280; margin: 5px 0;">Solution de Gestion de Stock PPN</p>
           <p style="font-size: 12px; color: #9ca3af; font-style: italic;">Madagascar</p>
         </div>
         <div style="flex: 1; text-align: right;">
@@ -213,7 +213,7 @@ export default function Billing() {
       </div>
 
       <div style="margin-top: 80px; padding-top: 30px; border-top: 1px solid #f3f4f6; text-align: center;">
-        <p style="font-size: 11px; color: #9ca3af; font-weight: 500;">Merci de votre confiance. GestockPharma - Madagascar</p>
+        <p style="font-size: 11px; color: #9ca3af; font-weight: 500;">Merci de votre confiance. Gestock PPN - Madagascar</p>
       </div>
     `;
 

@@ -161,7 +161,7 @@ export default function Categories() {
                 <input 
                   autoFocus
                   required 
-                  placeholder="Ex: Antibiotiques, Antalgiques..." 
+                  placeholder="Ex: Céréales, Huiles, Savons..." 
                   className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" 
                   value={newCatName} 
                   onChange={e => setNewCatName(e.target.value)} 
