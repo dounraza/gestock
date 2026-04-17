@@ -180,8 +180,14 @@ export default function Billing() {
 
   const downloadPDF = async (inv) => {
     setIsGeneratingPDF(true);
+    
+    // Fetch items with product names for the invoice
+    const { data: items } = await supabase
+      .from('facture_items')
+      .select('quantity, price_at_sale, produits(name)')
+      .eq('facture_id', inv.id);
+
     const invoiceElement = document.createElement('div');
-    // Position absolute and far away instead of fixed to avoid some html2canvas issues
     invoiceElement.style.position = 'absolute';
     invoiceElement.style.left = '-9999px';
     invoiceElement.style.top = '-9999px';
@@ -192,38 +198,24 @@ export default function Billing() {
     
     const amount = Number(inv.total_amount || 0).toLocaleString('fr-MG');
     
+    const itemsHtml = items ? items.map(item => `
+      <tr style="border-bottom: 1px solid #f9fafb;">
+        <td style="padding: 20px 0; font-size: 14px; font-weight: 700; color: #1f2937;">${item.produits?.name || 'Produit inconnu'}</td>
+        <td style="padding: 20px 0; text-align: center; font-size: 14px;">${item.quantity}</td>
+        <td style="padding: 20px 0; text-align: right; font-size: 14px;">${Number(item.price_at_sale).toLocaleString('fr-MG')}</td>
+        <td style="padding: 20px 0; text-align: right; font-size: 14px; font-weight: 900; color: #1f2937;">${(item.quantity * item.price_at_sale).toLocaleString('fr-MG')} MGA</td>
+      </tr>
+    `).join('') : '';
+
     invoiceElement.innerHTML = `
       <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #10b981; padding-bottom: 30px; margin-bottom: 40px;">
         <div style="flex: 1;">
           <h1 style="font-size: 28px; font-weight: 900; color: #059669; margin: 0; text-transform: uppercase;">Gestock PPN</h1>
           <p style="font-size: 14px; color: #6b7280; margin: 5px 0;">Solution de Gestion de Stock PPN</p>
-          <p style="font-size: 12px; color: #9ca3af; font-style: italic;">Madagascar</p>
         </div>
         <div style="flex: 1; text-align: right;">
           <h2 style="font-size: 32px; font-weight: 900; color: #e5e7eb; margin: 0; text-transform: uppercase;">FACTURE</h2>
           <p style="font-size: 18px; font-weight: 900; color: #1f2937; margin: 5px 0;">${inv.number}</p>
-          <p style="font-size: 14px; color: #6b7280; margin: 0;">${new Date().toLocaleDateString('fr-FR')}</p>
-        </div>
-      </div>
-
-      <div style="display: flex; gap: 40px; margin-bottom: 40px;">
-        <div style="flex: 1; background-color: #f9fafb; padding: 20px; border-radius: 15px;">
-          <p style="font-size: 10px; font-weight: 900; color: #047857; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">DESTINATAIRE</p>
-          <p style="font-size: 16px; font-weight: 900; color: #1f2937; margin: 0 0 5px 0;">${inv.clients?.name || 'Client Inconnu'}</p>
-          <p style="font-size: 13px; color: #4b5563; margin: 2px 0;">${inv.clients?.email || "Pas d'email"}</p>
-          <p style="font-size: 13px; color: #4b5563; margin: 2px 0;">${inv.clients?.phone || "Pas de téléphone"}</p>
-          <p style="font-size: 12px; color: #6b7280; margin: 10px 0 0 0; font-style: italic;">${inv.clients?.address || "Pas d'adresse"}</p>
-        </div>
-        <div style="flex: 1; background-color: #ecfdf5; padding: 20px; border-radius: 15px; border: 1px solid #d1fae5;">
-          <p style="font-size: 10px; font-weight: 900; color: #047857; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">DÉTAILS</p>
-          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span style="font-size: 13px; color: #047857; font-weight: 700;">Échéance :</span>
-            <span style="font-size: 13px; color: #1f2937; font-weight: 900;">${new Date(inv.due_date).toLocaleDateString('fr-FR')}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="font-size: 13px; color: #047857; font-weight: 700;">Statut :</span>
-            <span style="font-size: 13px; color: #059669; font-weight: 900; text-transform: uppercase;">${inv.status}</span>
-          </div>
         </div>
       </div>
 
@@ -231,15 +223,14 @@ export default function Billing() {
         <table style="width: 100%; border-collapse: collapse;">
           <thead>
             <tr style="border-bottom: 2px solid #f3f4f6;">
-              <th style="padding: 15px 0; text-align: left; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Description</th>
-              <th style="padding: 15px 0; text-align: right; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Montant</th>
+              <th style="padding: 15px 0; text-align: left; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Produit</th>
+              <th style="padding: 15px 0; text-align: center; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Qté</th>
+              <th style="padding: 15px 0; text-align: right; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Prix</th>
+              <th style="padding: 15px 0; text-align: right; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Total</th>
             </tr>
           </thead>
           <tbody>
-            <tr style="border-bottom: 1px solid #f9fafb;">
-              <td style="padding: 20px 0; font-size: 14px; font-weight: 700; color: #1f2937;">Prestations / Produits - Réf ${inv.number}</td>
-              <td style="padding: 20px 0; text-align: right; font-size: 14px; font-weight: 900; color: #1f2937;">${amount} MGA</td>
-            </tr>
+            ${itemsHtml}
           </tbody>
         </table>
       </div>
@@ -249,10 +240,6 @@ export default function Billing() {
           <p style="font-size: 11px; font-weight: 700; text-transform: uppercase; margin: 0 0 5px 0; opacity: 0.8;">Total à payer</p>
           <p style="font-size: 24px; font-weight: 900; margin: 0;">${amount} MGA</p>
         </div>
-      </div>
-
-      <div style="margin-top: 80px; padding-top: 30px; border-top: 1px solid #f3f4f6; text-align: center;">
-        <p style="font-size: 11px; color: #9ca3af; font-weight: 500;">Merci de votre confiance. Gestock PPN - Madagascar</p>
       </div>
     `;
 
