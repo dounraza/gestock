@@ -414,6 +414,11 @@ export default function Billing() {
                   >
                     <Download size={16} />
                   </button>
+                  {inv.status === 'paid' && (
+                    <button onClick={() => cancelInvoice(inv)} className="p-2 bg-orange-50 text-orange-600 rounded-lg">
+                      <XCircle size={16} />
+                    </button>
+                  )}
                   <button onClick={() => handleEdit(inv)} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
                     <Edit2 size={16} />
                   </button>
