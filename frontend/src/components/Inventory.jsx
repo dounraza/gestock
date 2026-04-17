@@ -12,12 +12,8 @@ export default function Inventory() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ 
-    name: '', 
-    price: '', 
-    stock_quantity: '', 
-    category_id: '', 
-    fournisseur_id: '',
-    description: '' 
+    name: '', price: '', stock_quantity: '', category_id: '', fournisseur_id: '', description: '',
+    unite_base: 'unité', unite_superieure: '', quantite_par_unite: 1
   });
   const [editingProduct, setEditingProduct] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,10 +58,18 @@ export default function Inventory() {
     e.preventDefault();
     setIsSubmitting(true);
     
+    // Conversion sécurisée des données numériques
+    const dataToSave = {
+      ...formData,
+      price: parseFloat(formData.price) || 0,
+      stock_quantity: parseInt(formData.stock_quantity) || 0,
+      quantite_par_unite: parseInt(formData.quantite_par_unite) || 1
+    };
+    
     if (editingProduct) {
       const { error } = await supabase
         .from('produits')
-        .update(formData)
+        .update(dataToSave)
         .eq('id', editingProduct.id);
       
       if (error) alert(error.message);
@@ -75,7 +79,7 @@ export default function Inventory() {
       }
     } else {
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from('produits').insert([{ ...formData, user_id: user.id }]);
+      const { error } = await supabase.from('produits').insert([{ ...dataToSave, user_id: user.id }]);
       if (error) alert(error.message);
       else {
         resetForm();
@@ -93,7 +97,10 @@ export default function Inventory() {
       stock_quantity: product.stock_quantity,
       category_id: product.category_id || '',
       fournisseur_id: product.fournisseur_id || '',
-      description: product.description || ''
+      description: product.description || '',
+      unite_base: product.unite_base || 'unité',
+      unite_superieure: product.unite_superieure || '',
+      quantite_par_unite: product.quantite_par_unite || 1
     });
     setShowModal(true);
   };
@@ -171,17 +178,24 @@ export default function Inventory() {
                   </p>
                 )}
               </div>
-              <p className="text-xs text-gray-500 line-clamp-2 h-8">{p.description || 'Aucune description.'}</p>
+              <p className="text-xs text-gray-500 line-clamp-2 h-8">
+                {p.description || 'Aucune description.'}
+              </p>
+              {p.unite_superieure && p.quantite_par_unite > 1 && (
+                <p className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-1 rounded-lg mt-2 inline-block">
+                  {p.quantite_par_unite} {p.unite_base} par {p.unite_superieure}
+                </p>
+              )}
               
               <div className="mt-4 pt-4 border-t border-emerald-50 flex justify-between items-end">
                 <div>
-                  <p className="text-[9px] text-gray-400 uppercase font-bold tracking-widest">Prix Unitaire</p>
+                  <p className="text-[9px] text-gray-400 uppercase font-bold tracking-widest">Prix par {p.unite_base || 'unité'}</p>
                   <p className="text-lg font-black text-gray-800">{Number(p.price).toLocaleString('fr-MG')} MGA</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[9px] text-gray-400 uppercase font-bold tracking-widest mb-1">Stock</p>
                   <span className={`px-2 py-0.5 rounded-lg font-bold text-xs ${p.stock_quantity < 10 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                    {p.stock_quantity}
+                    {p.stock_quantity} {p.unite_base || 'unité(s)'}
                   </span>
                 </div>
               </div>
@@ -208,14 +222,25 @@ export default function Inventory() {
             <form onSubmit={handleSave} className="p-8 space-y-4">
               <input required placeholder="Nom du produit PPN (ex: Riz, Huile...)" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Prix (MGA)</label>
-                  <input required type="number" step="1" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Quantité stock</label>
-                  <input required type="number" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.stock_quantity} onChange={e => setFormData({...formData, stock_quantity: e.target.value})} />
-                </div>
+                <input required type="number" placeholder="Prix par unité de base (MGA)" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
+                <input required type="number" placeholder="Stock" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none" value={formData.stock_quantity} onChange={e => setFormData({...formData, stock_quantity: e.target.value})} />
+              </div>
+              <p className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Paramètre de conditionnement (ex: 6 bouteille par Cartons)</p>
+              <div className="grid grid-cols-3 gap-4">
+                <input type="number" placeholder="Qté" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none" value={formData.quantite_par_unite} onChange={e => setFormData({...formData, quantite_par_unite: e.target.value})} />
+                <select required className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none" value={formData.unite_base} onChange={e => setFormData({...formData, unite_base: e.target.value})}>
+                  <option value="unité">Unité</option>
+                  <option value="Bouteille">Bouteille</option>
+                  <option value="Paquet">Paquet</option>
+                  <option value="Kg">Kg</option>
+                </select>
+                <select className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none" value={formData.unite_superieure} onChange={e => setFormData({...formData, unite_superieure: e.target.value})}>
+                  <option value="">Sélectionner...</option>
+                  <option value="Carton(s)">Carton(s)</option>
+                  <option value="Sac">Sac</option>
+                  <option value="Sachet">Sachet</option>
+                  <option value="Pack">Pack</option>
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">

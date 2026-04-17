@@ -20,6 +20,8 @@ import html2canvas from 'html2canvas';
 export default function POS() {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [selectedClientId, setSelectedClientId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +32,7 @@ export default function POS() {
 
   useEffect(() => {
     fetchProducts();
+    fetchClients();
   }, []);
 
   const fetchProducts = async () => {
@@ -44,6 +47,11 @@ export default function POS() {
       setFilteredProducts(data);
     }
     setLoading(false);
+  };
+
+  const fetchClients = async () => {
+    const { data } = await supabase.from('clients').select('id, name').order('name');
+    if (data) setClients(data);
   };
 
   useEffect(() => {
@@ -105,14 +113,23 @@ export default function POS() {
           status: 'paid',
           due_date: new Date().toISOString().split('T')[0],
           user_id: user.id,
-          // Note: On pourrait ajouter un client par défaut "Client Comptoir" si besoin
+          client_id: selectedClientId || null
         }])
         .select()
         .single();
 
       if (invError) throw invError;
 
-      // 2. Mettre à jour les stocks pour chaque produit
+      // 2. Enregistrer les articles
+      const itemsToInsert = cart.map(item => ({
+        facture_id: invoice.id,
+        produit_id: item.id,
+        quantity: item.quantity,
+        price_at_sale: item.price
+      }));
+      await supabase.from('facture_items').insert(itemsToInsert);
+
+      // 3. Mettre à jour les stocks pour chaque produit
       for (const item of cart) {
         const { error: stockError } = await supabase
           .from('produits')
@@ -161,7 +178,7 @@ export default function POS() {
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 py-6">
+        <div className="flex-1 overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 py-4 auto-rows-min">
           {loading ? (
             <p className="col-span-full text-center py-20 text-gray-400">Chargement des produits...</p>
           ) : filteredProducts.length > 0 ? (
@@ -169,30 +186,35 @@ export default function POS() {
               <button 
                 key={p.id}
                 onClick={() => addToCart(p)}
-                className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-2xl p-2.5 shadow-sm hover:shadow-md transition-all group active:scale-[0.98] text-left flex items-center gap-2 h-[70px]"
+                className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-2xl p-3 shadow-sm hover:shadow-md transition-all group active:scale-[0.98] text-left flex items-center gap-3 h-[75px] w-full"
               >
-                <div className="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors shrink-0">
-                  <Package size={16} />
+                <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors shrink-0">
+                  <Package size={18} />
                 </div>
                 
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 flex flex-col justify-center">
                   <h4 className="text-[11px] font-bold text-gray-800 truncate leading-tight">{p.name}</h4>
                   <div className="flex items-center gap-1 mt-0.5">
-                    <span className="text-[7px] text-emerald-600 font-bold uppercase bg-emerald-50 px-1 rounded">
+                    <span className="text-[7px] text-emerald-600 font-bold uppercase bg-emerald-50 px-1.5 rounded">
                       {p.categories?.name || 'PPN'}
                     </span>
                   </div>
                 </div>
 
-                <div className="text-right shrink-0">
+                <div className="text-right shrink-0 flex flex-col justify-center">
                   <p className="text-[11px] font-black text-gray-800">{Number(p.price).toLocaleString('fr-MG')}</p>
-                  <p className={`text-[8px] font-bold ${p.stock_quantity < 5 ? 'text-red-500' : 'text-emerald-500'}`}>S:{p.stock_quantity}</p>
+                  <p className={`text-[8px] font-bold ${p.stock_quantity < 5 ? 'text-red-500' : 'text-emerald-500'}`}>
+                    {p.unite_superieure && p.quantite_par_unite > 1 
+                      ? `${Math.floor(p.stock_quantity / p.quantite_par_unite)} ${p.unite_superieure} + ${p.stock_quantity % p.quantite_par_unite} ${p.unite_base}`
+                      : `${p.stock_quantity} ${p.unite_base}`}
+                  </p>
                 </div>
               </button>
             ))
           ) : (
             <p className="col-span-full text-center py-20 text-gray-400">Aucun produit trouvé.</p>
           )}
+          <div className="h-[36%]" aria-hidden="true"></div>
         </div>
       </div>
 
@@ -216,7 +238,17 @@ export default function POS() {
                 </div>
                 <div className="flex items-center gap-2 bg-emerald-50 rounded-xl p-1">
                   <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-white text-emerald-600 rounded-lg transition-colors"><Minus size={12} /></button>
-                  <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
+                  <input 
+                    type="number" 
+                    className="w-8 text-center text-xs font-bold bg-transparent outline-none"
+                    value={item.quantity}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (!isNaN(val) && val > 0 && val <= item.stock_quantity) {
+                        setCart(cart.map(i => i.id === item.id ? { ...i, quantity: val } : i));
+                      }
+                    }}
+                  />
                   <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-white text-emerald-600 rounded-lg transition-colors"><Plus size={12} /></button>
                 </div>
                 <button onClick={() => removeFromCart(item.id)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>

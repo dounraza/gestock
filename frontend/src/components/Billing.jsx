@@ -109,6 +109,45 @@ export default function Billing() {
     }
   };
 
+  const cancelInvoice = async (invoice) => {
+    if (!confirm('Annuler cette facture et réintégrer les stocks ?')) return;
+
+    try {
+      const { data: items, error: itemsError } = await supabase
+        .from('facture_items')
+        .select('produit_id, quantity')
+        .eq('facture_id', invoice.id);
+
+      if (itemsError) throw itemsError;
+
+      for (const item of items) {
+        const { data: currentProd } = await supabase
+          .from('produits')
+          .select('stock_quantity')
+          .eq('id', item.produit_id)
+          .single();
+
+        const newQty = (currentProd?.stock_quantity || 0) + item.quantity;
+        
+        await supabase
+          .from('produits')
+          .update({ stock_quantity: newQty })
+          .eq('id', item.produit_id);
+      }
+
+      await supabase
+        .from('factures')
+        .update({ status: 'cancelled' })
+        .eq('id', invoice.id);
+
+      alert('Facture annulée et stocks réintégrés !');
+      fetchData();
+    } catch (error) {
+      console.error('Erreur annulation:', error);
+      alert('Erreur lors de l\'annulation : ' + error.message);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       client_id: '',
@@ -318,6 +357,11 @@ export default function Billing() {
                       >
                         <Download size={16} />
                       </button>
+                      {inv.status === 'paid' && (
+                        <button onClick={() => cancelInvoice(inv)} className="p-2 text-gray-400 hover:text-orange-600 transition-colors" title="Annuler">
+                          <XCircle size={16} />
+                        </button>
+                      )}
                       <button onClick={() => handleEdit(inv)} className="p-2 text-gray-400 hover:text-emerald-600 transition-colors">
                         <Edit2 size={16} />
                       </button>
