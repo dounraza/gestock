@@ -164,46 +164,43 @@ export default function POS() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-160px)]">
+    <div className="flex flex-col lg:flex-row gap-4 h-full min-h-screen p-2 pb-24">
       {/* Product Selection (Left) */}
-      <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+      <div className="flex-[2] flex flex-col gap-4 overflow-hidden min-h-[300px]">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input 
             type="text" 
-            placeholder="Rechercher un PPN (Riz, Huile, Savon...)" 
-            className="w-full bg-white border border-emerald-100 rounded-2xl py-4 pl-12 pr-4 shadow-sm focus:ring-2 focus:ring-emerald-500/10 outline-none transition-all"
+            placeholder="Rechercher un PPN..." 
+            className="w-full bg-white border border-emerald-100 rounded-2xl py-3 pl-12 pr-4 shadow-sm focus:ring-2 focus:ring-emerald-500/10 outline-none transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 py-4 auto-rows-min">
+        <div className="flex-1 overflow-y-auto pr-2 grid grid-cols-2 md:grid-cols-3 gap-2 py-2 auto-rows-min">
+          {/* ... (votre code produit reste identique) ... */}
           {loading ? (
-            <p className="col-span-full text-center py-20 text-gray-400">Chargement des produits...</p>
+            <p className="col-span-full text-center py-10 text-gray-400">Chargement...</p>
           ) : filteredProducts.length > 0 ? (
             filteredProducts.map(p => (
               <button 
                 key={p.id}
                 onClick={() => addToCart(p)}
-                className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-2xl p-3 shadow-sm hover:shadow-md transition-all group active:scale-[0.98] text-left flex items-center gap-3 h-[75px] w-full"
+                className="bg-white border border-emerald-100 rounded-2xl p-2 shadow-sm active:scale-[0.98] text-center flex flex-col items-center gap-1 min-h-[100px] w-full"
               >
-                <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors shrink-0">
-                  <Package size={18} />
+                <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 shrink-0">
+                  <Package size={14} />
                 </div>
-                
-                <div className="flex-1 min-w-0 flex flex-col justify-center">
-                  <h4 className="text-[11px] font-bold text-gray-800 truncate leading-tight">{p.name}</h4>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <span className="text-[7px] text-emerald-600 font-bold uppercase bg-emerald-50 px-1.5 rounded">
-                      {p.categories?.name || 'PPN'}
-                    </span>
-                  </div>
+                <div className="flex-1 w-full min-w-0">
+                  <h4 className="text-[10px] font-bold text-gray-800 truncate leading-tight">{p.name}</h4>
+                  <span className="text-[7px] text-emerald-600 font-bold uppercase bg-emerald-50 px-1 rounded inline-block">
+                    {p.categories?.name || 'PPN'}
+                  </span>
                 </div>
-
-                <div className="text-right shrink-0 flex flex-col justify-center">
-                  <p className="text-[11px] font-black text-gray-800">{Number(p.price).toLocaleString('fr-MG')}</p>
-                  <p className={`text-[8px] font-bold ${p.stock_quantity < 5 ? 'text-red-500' : 'text-emerald-500'}`}>
+                <div className="w-full">
+                  <p className="text-[10px] font-black text-gray-800">{Number(p.price).toLocaleString('fr-MG')}</p>
+                  <p className={`text-[7px] font-bold ${p.stock_quantity < 5 ? 'text-red-500' : 'text-emerald-500'}`}>
                     {p.unite_superieure && p.quantite_par_unite > 1 
                       ? `${Math.floor(p.stock_quantity / p.quantite_par_unite)} ${p.unite_superieure} + ${p.stock_quantity % p.quantite_par_unite} ${p.unite_base}`
                       : `${p.stock_quantity} ${p.unite_base}`}
@@ -212,14 +209,15 @@ export default function POS() {
               </button>
             ))
           ) : (
-            <p className="col-span-full text-center py-20 text-gray-400">Aucun produit trouvé.</p>
+            <p className="col-span-full text-center py-10 text-gray-400">Aucun produit.</p>
           )}
           <div className="h-[36%]" aria-hidden="true"></div>
         </div>
       </div>
 
-      {/* Cart / Checkout (Right) */}
-      <div className="w-full lg:w-96 bg-white rounded-[2.5rem] border border-emerald-100 shadow-xl flex flex-col overflow-hidden">
+      {/* Cart / Checkout (Right - Responsive) */}
+      <div className="w-full lg:w-96 bg-white rounded-[2rem] border border-emerald-100 shadow-xl flex flex-col max-h-[50vh] lg:max-h-full">
+        {/* ... (reste du contenu du panier) ... */}
         <div className="p-6 bg-emerald-600 text-white flex justify-between items-center">
           <div className="flex items-center gap-3">
             <ShoppingCart size={24} />
