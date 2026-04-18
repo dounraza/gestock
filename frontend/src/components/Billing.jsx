@@ -187,17 +187,7 @@ export default function Billing() {
       .select('quantity, price_at_sale, produits(name)')
       .eq('facture_id', inv.id);
 
-    const invoiceElement = document.createElement('div');
-    invoiceElement.style.position = 'absolute';
-    invoiceElement.style.left = '-9999px';
-    invoiceElement.style.top = '-9999px';
-    invoiceElement.style.width = '800px';
-    invoiceElement.style.padding = '40px';
-    invoiceElement.style.backgroundColor = '#ffffff';
-    invoiceElement.style.fontFamily = 'sans-serif';
-    
-    const amount = Number(inv.total_amount || 0).toLocaleString('fr-MG');
-    
+    // Ensure we handle products object correctly since join result is an object
     const itemsHtml = items ? items.map(item => `
       <tr style="border-bottom: 1px solid #f9fafb;">
         <td style="padding: 20px 0; font-size: 14px; font-weight: 700; color: #1f2937;">${item.produits?.name || 'Produit inconnu'}</td>
