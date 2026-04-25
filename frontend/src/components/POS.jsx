@@ -278,8 +278,49 @@ export default function POS({ session }) {
 
       {/* 2. INVOICE ITEMS (TOP TABLE) */}
       <div className="flex-[0.8] bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-auto">
-          <table className="w-full text-left min-w-[600px]">
+        <div className="flex-1 overflow-auto p-2 sm:p-0">
+          {/* Mobile View: Cards for Invoice Items */}
+          <div className="grid grid-cols-1 gap-2 sm:hidden">
+            {invoiceItems.map(item => (
+              <div key={item.item_id} className="bg-emerald-50/30 border border-emerald-50 rounded-2xl p-3 flex flex-col gap-2 relative">
+                <button 
+                  onClick={() => removeItem(item.item_id, item.id)} 
+                  className="absolute top-3 right-3 text-red-300 hover:text-red-500"
+                >
+                  <Trash2 size={16} />
+                </button>
+                
+                <div className="pr-8">
+                  <p className="font-black uppercase text-[11px] text-gray-800 leading-tight">{item.name}</p>
+                  <p className="text-[9px] font-bold text-gray-400 italic">
+                    {item.quantite_par_unite > 1 ? `${Math.floor(item.quantity / item.quantite_par_unite)} ${item.unite_superieure || 'Ctn'} + ${item.quantity % item.quantite_par_unite} ${item.unite_base || 'Pce'}` : `${item.quantity} ${item.unite_base || 'Pce'}`}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between mt-1 pt-2 border-t border-emerald-100/50">
+                  <div className="flex items-center gap-3">
+                    <div className="text-center">
+                      <p className="text-[7px] font-black text-gray-400 uppercase leading-none mb-0.5">Qté</p>
+                      <p className="text-[11px] font-black text-emerald-600">{item.quantity}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[7px] font-black text-gray-400 uppercase leading-none mb-0.5">Remise</p>
+                      <button onClick={() => setDiscountModal({ itemId: item.item_id, name: item.name, total: item.quantity * item.price_at_sale, value: item.discount?.value || 0, type: item.discount?.type || '%' })} className={`text-[10px] font-black ${item.discount ? 'text-orange-500' : 'text-gray-300'}`}>
+                        {item.discount ? `${item.discount.value}${item.discount.type}` : '0%'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[7px] font-black text-gray-400 uppercase leading-none mb-0.5">Sous-total</p>
+                    <p className="text-[12px] font-black text-gray-800">{calculateItemTotal(item).toLocaleString()} Ar</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop View: Table */}
+          <table className="w-full text-left min-w-[600px] hidden sm:table">
             <thead className="sticky top-0 bg-gray-50 border-b border-emerald-50 z-10">
               <tr className="text-[9px] font-black text-emerald-700 uppercase">
                 <th className="p-3 pl-6">Produit</th>

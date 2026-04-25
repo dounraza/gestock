@@ -7,6 +7,7 @@ export default function CreditHistory() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedInvoices, setExpandedInvoices] = useState({});
+  const [statusFilter, setStatusFilter] = useState('all'); // all, pending, paid
 
   const fetchHistory = async () => {
     setLoading(true);
@@ -62,10 +63,20 @@ export default function CreditHistory() {
     setExpandedInvoices(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const filtered = history.filter(h => 
-    h.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    h.client.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = history.filter(h => {
+    const matchesSearch = h.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         h.client.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    const paidInst = h.installments.filter(i => i.statut === 'paye').length;
+    const totalInst = h.installments.length;
+    const isFullyPaid = paidInst === totalInst;
+
+    if (statusFilter === 'paid') return isFullyPaid;
+    if (statusFilter === 'pending') return !isFullyPaid;
+    return true;
+  });
 
   return (
     <div className="space-y-4">
@@ -83,6 +94,27 @@ export default function CreditHistory() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+      </div>
+
+      <div className="flex bg-emerald-50/50 p-1 rounded-2xl border border-emerald-50/50 w-full max-w-sm">
+        <button 
+          onClick={() => setStatusFilter('all')}
+          className={`flex-1 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase transition-all ${statusFilter === 'all' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-600 hover:bg-emerald-50'}`}
+        >
+          Tous
+        </button>
+        <button 
+          onClick={() => setStatusFilter('pending')}
+          className={`flex-1 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase transition-all ${statusFilter === 'pending' ? 'bg-orange-500 text-white shadow-lg' : 'text-orange-500 hover:bg-orange-50'}`}
+        >
+          En cours
+        </button>
+        <button 
+          onClick={() => setStatusFilter('paid')}
+          className={`flex-1 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase transition-all ${statusFilter === 'paid' ? 'bg-blue-600 text-white shadow-lg' : 'text-blue-600 hover:bg-blue-50'}`}
+        >
+          Soldés
+        </button>
       </div>
 
       <div className="space-y-3">
