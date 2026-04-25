@@ -63,9 +63,7 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
       const { error } = await supabase
         .from('echeances_details')
         .update({ 
-          statut: 'paye',
-          payment_method: paymentInfo.method,
-          payment_ref: paymentInfo.reference
+          statut: 'paye'
         })
         .eq('id', echeance.id);
       

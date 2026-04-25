@@ -277,7 +277,7 @@ export default function POS({ session }) {
       </div>
 
       {/* 2. INVOICE ITEMS (TOP TABLE) */}
-      <div className="flex-[0.8] bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col overflow-hidden">
+      <div className="flex-[0.7] bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col overflow-hidden">
         <div className="flex-1 overflow-auto p-2 sm:p-0">
           {/* Mobile View: Cards for Invoice Items */}
           <div className="grid grid-cols-1 gap-2 sm:hidden">
@@ -426,7 +426,7 @@ export default function POS({ session }) {
           </div>
         </div>
         
-        <div className="flex-1 overflow-auto p-2 sm:p-0">
+        <div className="flex-1 overflow-auto p-3 sm:p-0">
           {/* Mobile View: Cards */}
           <div className="grid grid-cols-1 gap-2 sm:hidden pb-4">
             {filteredProducts.map(p => (
