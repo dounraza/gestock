@@ -124,7 +124,7 @@ export default function Dashboard({ session }) {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-30 w-72 bg-white/90 lg:bg-white/40 backdrop-blur-xl border-r border-emerald-50 flex flex-col transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <aside className={`fixed lg:static inset-y-0 left-0 z-30 w-72 bg-white/90 lg:bg-white/40 backdrop-blur-xl border-r border-emerald-50 flex flex-col transform transition-transform duration-300 ease-in-out h-full overflow-y-auto ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-8">
           <div className="flex items-center justify-between mb-10">
             <div onClick={() => navigate('/dashboard')} className="cursor-pointer flex items-center gap-3">
@@ -238,11 +238,10 @@ export default function Dashboard({ session }) {
         {/* Header */}
         <header className="h-20 bg-white/20 backdrop-blur-md border-b border-emerald-50 px-4 md:px-8 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-4">
-            <button 
-              className="lg:hidden p-2 text-gray-500 hover:bg-emerald-50 rounded-lg transition-colors"
+            <button
+              className="p-2 text-gray-500 hover:bg-emerald-50 rounded-lg transition-colors"
               onClick={() => setIsSidebarOpen(true)}
-            >
-              <Menu size={24} />
+            >              <Menu size={24} />
             </button>
             <h2 className="text-lg md:text-xl font-bold text-gray-800 capitalize truncate">
               {getTitle()}

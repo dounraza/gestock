@@ -118,34 +118,45 @@ export default function POS({ session }) {
   };
 
   const handleFinalize = async () => {
-    if (!activeInvoice || invoiceItems.length === 0) return;
-    setIsProcessing(true);
-    try {
-      const currentTotal = invoiceItems.reduce((acc, item) => acc + calculateItemTotal(item), 0);
-      const finalPaidAmount = paymentMode === 'cash' ? currentTotal : (parseFloat(advanceAmount) || 0);
-      const amountToSchedule = currentTotal - finalPaidAmount;
-      
-      const guestName = activeInvoice.guest_name || 'Anonyme';
-      
-      const { data: invData, error: invError } = await supabase.from('factures').update({ 
-        status: paymentMode === 'cash' ? 'paid' : 'sent', 
-        due_date: dueDate, 
-        paid_amount: finalPaidAmount, 
-        total_amount: currentTotal,
-        guest_name: guestName
-      }).eq('id', activeInvoice.id).select().single();
-      
-      if (invError) throw invError;
+  if (!activeInvoice || invoiceItems.length === 0) return;
+  setIsProcessing(true);
+  try {
+  const currentTotal = invoiceItems.reduce((acc, item) => acc + calculateItemTotal(item), 0);
+  const finalPaidAmount = paymentMode === 'cash' ? currentTotal : (parseFloat(advanceAmount) || 0);
+  const amountToSchedule = currentTotal - finalPaidAmount;
 
-      // Update stock levels with safety check
-      for (const item of invoiceItems) {
-        const newStock = item.stock_quantity - item.quantity;
-        if (newStock < 0) {
-          throw new Error(`Stock insuffisant pour ${item.name} (${item.stock_quantity} disponibles)`);
-        }
-        await supabase.from('produits').update({ stock_quantity: newStock }).eq('id', item.id);
+  const guestName = activeInvoice.guest_name || 'Anonyme';
+  const { data: { user } } = await supabase.auth.getUser(); // Fetch user once
+
+  const { data: invData, error: invError } = await supabase.from('factures').update({ 
+    status: paymentMode === 'cash' ? 'paid' : 'sent', 
+    due_date: dueDate, 
+    paid_amount: finalPaidAmount, 
+    total_amount: currentTotal,
+    guest_name: guestName
+  }).eq('id', activeInvoice.id).select().single();
+
+  if (invError) throw invError;
+
+  // Update stock levels with safety check
+  for (const item of invoiceItems) {
+    const newStock = item.stock_quantity - item.quantity;
+    if (newStock < 0) {
+      throw new Error(`Stock insuffisant pour ${item.name} (${item.stock_quantity} disponibles)`);
+    }
+    await supabase.from('produits').update({ stock_quantity: newStock }).eq('id', item.id);
+
+    // Record stock movement for sale (sortie)
+    await supabase.from('stock_movements').insert([
+      {
+        product_id: item.id, // ID of the product
+        type: 'out',
+        quantity: item.quantity, // Quantity sold
+        reason: `Vente (Facture ${invData.number})`,
+        user_id: user.id
       }
-
+    ]);
+  }
       if (paymentMode === 'credit') {
         const echeances = [];
         if (isInstallment && installmentMonths > 1) {
