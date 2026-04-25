@@ -20,17 +20,27 @@ export default function Inventory() {
 
   const fetchData = async () => {
     setLoading(true);
-    const { data: prods } = await supabase.from('produits').select('*, categories(name), fournisseurs(name)');
-    const { data: cats } = await supabase.from('categories').select('*').order('name');
-    const { data: sups } = await supabase.from('fournisseurs').select('*').order('name');
-    
-    if (prods) {
-      setProducts(prods);
-      setFilteredProducts(prods);
+    try {
+      // Simplified query to check if it's a join issue
+      const { data: prods, error: prodError } = await supabase.from('produits').select('*');
+      if (prodError) throw prodError;
+      
+      const { data: cats, error: catError } = await supabase.from('categories').select('*').order('name');
+      const { data: sups, error: supError } = await supabase.from('fournisseurs').select('*').order('name');
+      
+      if (prods) {
+        // Enrich products locally or just show them
+        setProducts(prods);
+        setFilteredProducts(prods);
+      }
+      if (cats) setCategories(cats);
+      if (sups) setSuppliers(sups);
+    } catch (err) {
+      console.error("Erreur critique chargement produits:", err);
+      alert("Erreur Supabase: " + err.message);
+    } finally {
+      setLoading(false);
     }
-    if (cats) setCategories(cats);
-    if (sups) setSuppliers(sups);
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -59,10 +69,17 @@ export default function Inventory() {
     setIsSubmitting(true);
     
     // Conversion sécurisée des données numériques
+    const stockQty = parseInt(formData.stock_quantity) || 0;
+    if (stockQty < 0) {
+      alert("La quantité en stock ne peut pas être négative.");
+      setIsSubmitting(false);
+      return;
+    }
+
     const dataToSave = {
       ...formData,
       price: parseFloat(formData.price) || 0,
-      stock_quantity: parseInt(formData.stock_quantity) || 0,
+      stock_quantity: stockQty,
       quantite_par_unite: parseInt(formData.quantite_par_unite) || 1
     };
     

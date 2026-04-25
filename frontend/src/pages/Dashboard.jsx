@@ -264,6 +264,13 @@ export default function Dashboard({ session }) {
               <Bell size={20} />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
+            <button 
+              onClick={handleLogout}
+              className="lg:hidden p-2 text-gray-400 hover:text-red-500 transition-colors"
+              title="Déconnexion"
+            >
+              <LogOut size={20} />
+            </button>
           </div>
         </header>
 
@@ -333,7 +340,7 @@ export default function Dashboard({ session }) {
                 </div>
               </div>
             } />
-            <Route path="pos" element={<POS />} />
+            <Route path="pos" element={<POS session={session} />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="categories" element={<Categories />} />
             <Route path="clients" element={<Clients onViewCredit={handleViewClientCredit} />} />

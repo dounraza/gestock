@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { Calendar as CalendarIcon, Clock, User, AlertCircle, CheckCircle, Search, FileText, List, LayoutGrid, Table } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, AlertCircle, CheckCircle, Search, FileText, List, LayoutGrid, Table, DollarSign, Loader2, X } from 'lucide-react';
 
 export default function Deadlines({ initialSearchTerm, onSearchReset }) {
   const [deadlines, setDeadlines] = useState([]);
@@ -9,10 +9,16 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
   const [viewMode, setViewMode] = useState('cards'); // 'cards', 'table', 'calendar'
   const [currentDate, setCurrentDate] = useState(new Date());
 
+  const [paymentModal, setPaymentModal] = useState(null); // { echeance: ... }
+  const [paymentInfo, setPaymentInfo] = useState({
+    method: 'espece',
+    reference: ''
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
+
   useEffect(() => {
     if (initialSearchTerm) {
       setSearchTerm(initialSearchTerm);
-      // Si on vient d'un client, on peut forcer la vue calendrier ou cartes
     }
   }, [initialSearchTerm]);
 
@@ -48,14 +54,19 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
     fetchDeadlines();
   }, []);
 
-  const handleMarkAsPaid = async (echeance) => {
-    if (!echeance) return;
-    if (!confirm(`Confirmer l'encaissement de ${echeance.montant.toLocaleString()} Ar ?`)) return;
+  const handleMarkAsPaid = async () => {
+    if (!paymentModal || !paymentModal.echeance) return;
+    const { echeance } = paymentModal;
     
+    setIsProcessing(true);
     try {
       const { error } = await supabase
         .from('echeances_details')
-        .update({ statut: 'paye' })
+        .update({ 
+          statut: 'paye',
+          payment_method: paymentInfo.method,
+          payment_ref: paymentInfo.reference
+        })
         .eq('id', echeance.id);
       
       if (error) throw error;
@@ -71,9 +82,13 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
         await supabase.from('factures').update({ status: 'paid' }).eq('id', echeance.facture_id);
       }
       
+      setPaymentModal(null);
+      setPaymentInfo({ method: 'espece', reference: '' });
       fetchDeadlines();
     } catch (err) {
       alert(err.message);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -224,7 +239,7 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
                           <CalendarIcon size={14} />
                         </button>
                         <button 
-                          onClick={() => handleMarkAsPaid(nextInst)}
+                          onClick={() => setPaymentModal({ echeance: nextInst })}
                           className={`flex-1 h-10 ${isOverdue ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'} text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all shadow-lg shadow-emerald-100 flex items-center justify-center gap-2`}
                         >
                           <CheckCircle size={14} /> {nextInst.montant.toLocaleString()} Ar
@@ -270,7 +285,7 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
                             <CalendarIcon size={14} />
                           </button>
                           <button 
-                            onClick={() => handleMarkAsPaid(d)}
+                            onClick={() => setPaymentModal({ echeance: d })}
                             className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
                             title="Encaisser"
                           >
@@ -308,7 +323,7 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
                       <span className={`text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-lg ${isToday ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-400'}`}>{day}</span>
                       <div className="mt-1 space-y-1">
                         {dayDeadlines.map(d => (
-                          <div key={d.id} onClick={() => handleMarkAsPaid(d)} className="bg-emerald-50 border border-emerald-100 p-1.5 rounded-xl cursor-pointer hover:border-emerald-500 transition-all shadow-sm">
+                          <div key={d.id} onClick={() => setPaymentModal({ echeance: d })} className="bg-emerald-50 border border-emerald-100 p-1.5 rounded-xl cursor-pointer hover:border-emerald-500 transition-all shadow-sm">
                             <p className="text-[8px] font-black text-emerald-700 truncate">{d.factures?.clients?.name || d.factures?.guest_name || 'Client'}</p>
                             <p className="text-[9px] font-black text-gray-800">{d.montant.toLocaleString()} Ar</p>
                           </div>
@@ -321,6 +336,74 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
             </div>
           )}
         </>
+      )}
+
+      {/* Payment Modal */}
+      {paymentModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-950/20 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in duration-200">
+            <div className="p-8 border-b border-emerald-50 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">Encaissement</h3>
+                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{paymentModal.echeance.factures?.number}</p>
+              </div>
+              <button onClick={() => setPaymentModal(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <div className="bg-emerald-50 p-6 rounded-3xl text-center border border-emerald-100">
+                <p className="text-[10px] font-black text-emerald-600 uppercase mb-1">Montant à encaisser</p>
+                <p className="text-3xl font-black text-emerald-900">{paymentModal.echeance.montant.toLocaleString()} Ar</p>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Moyen de paiement</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'espece', label: 'Espèces' },
+                    { id: 'mvola', label: 'M-Vola' },
+                    { id: 'airtel', label: 'Airtel Money' },
+                    { id: 'orange', label: 'Orange Money' },
+                    { id: 'bank', label: 'Banque / Virement' }
+                  ].map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => setPaymentInfo({ ...paymentInfo, method: m.id })}
+                      className={`py-3 px-4 rounded-xl text-[10px] font-black uppercase border transition-all ${
+                        paymentInfo.method === m.id 
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-md scale-[1.02]' 
+                          : 'bg-white text-gray-500 border-gray-100 hover:bg-emerald-50 hover:border-emerald-200'
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {paymentInfo.method !== 'espece' && (
+                <div className="space-y-1 animate-in slide-in-from-top-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Référence de transaction</label>
+                  <input 
+                    type="text"
+                    placeholder="Ex: Ref 123456..."
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all"
+                    value={paymentInfo.reference}
+                    onChange={(e) => setPaymentInfo({ ...paymentInfo, reference: e.target.value })}
+                  />
+                </div>
+              )}
+
+              <button 
+                onClick={handleMarkAsPaid}
+                disabled={isProcessing}
+                className="w-full bg-emerald-600 text-white font-black text-[10px] uppercase tracking-[0.2em] py-4 rounded-2xl shadow-lg shadow-emerald-100 mt-2 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              >
+                {isProcessing ? <Loader2 className="animate-spin" size={18} /> : <><CheckCircle size={18} /> Confirmer l'encaissement</>}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -2,14 +2,13 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { Search, ShoppingCart, Trash2, Package, CheckCircle, Loader2, FileText, Plus, Minus, Clock, User, Tag, List, Send, Phone } from 'lucide-react';
 
-export default function POS() {
+export default function POS({ session }) {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [clients, setClients] = useState([]);
   const [activeInvoice, setActiveInvoice] = useState(null);
   const [invoiceItems, setInvoiceItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [discountModal, setDiscountModal] = useState(null);
@@ -27,10 +26,18 @@ export default function POS() {
   }, []);
 
   const fetchProducts = async () => {
-    setLoading(true);
-    const { data } = await supabase.from('produits').select('*, categories(name)').order('name');
-    if (data) { setProducts(data); setFilteredProducts(data); }
-    setLoading(false);
+    try {
+      const { data, error } = await supabase.from('produits').select('*').order('name');
+      if (error) throw error;
+      if (data) { setProducts(data); setFilteredProducts(data); }
+    } catch (err) {
+      if (err.name === 'AbortError' || err.message?.includes('AbortError')) {
+        console.warn("Requête annulée (AbortError):", err.message);
+        return;
+      }
+      console.error("Erreur chargement produits POS:", err);
+      alert("Erreur Caisse (Produits): " + err.message);
+    }
   };
 
   const fetchClients = async () => {
@@ -39,7 +46,8 @@ export default function POS() {
   };
 
   const fetchOrCreateDraftInvoice = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    if (!session?.user) return;
+    const { user } = session;
     const { data: draft } = await supabase.from('factures').select('*').eq('status', 'draft').order('created_at', { ascending: false }).limit(1);
     if (draft && draft.length > 0) {
       setActiveInvoice(draft[0]);
@@ -129,20 +137,40 @@ export default function POS() {
       
       if (invError) throw invError;
 
+      // Update stock levels with safety check
+      for (const item of invoiceItems) {
+        const newStock = item.stock_quantity - item.quantity;
+        if (newStock < 0) {
+          throw new Error(`Stock insuffisant pour ${item.name} (${item.stock_quantity} disponibles)`);
+        }
+        await supabase.from('produits').update({ stock_quantity: newStock }).eq('id', item.id);
+      }
+
       if (paymentMode === 'credit') {
         const echeances = [];
         if (isInstallment && installmentMonths > 1) {
           const monthlyAmount = Math.floor(amountToSchedule / installmentMonths);
           for (let i = 0; i < installmentMonths; i++) {
-            const date = new Date(dueDate); date.setMonth(date.getMonth() + i);
-            echeances.push({ facture_id: invData.id, montant: i === installmentMonths - 1 ? (amountToSchedule - (monthlyAmount * (installmentMonths - 1))) : monthlyAmount, date_echeance: date.toISOString().split('T')[0], statut: 'non_paye' });
+            const date = new Date(dueDate); 
+            date.setMonth(date.getMonth() + i);
+            echeances.push({ 
+              facture_id: invData.id, 
+              montant: i === installmentMonths - 1 ? (amountToSchedule - (monthlyAmount * (installmentMonths - 1))) : monthlyAmount, 
+              date_echeance: date.toISOString().split('T')[0], 
+              statut: 'non_paye' 
+            });
           }
         } else {
-          echeances.push({ facture_id: invData.id, montant: amountToSchedule, date_echeance: dueDate, statut: 'non_paye' });
+          echeances.push({ 
+            facture_id: invData.id, 
+            montant: amountToSchedule, 
+            date_echeance: dueDate, 
+            statut: 'non_paye' 
+          });
         }
         await supabase.from('echeances_details').insert(echeances);
       }
-      for (const item of invoiceItems) { await supabase.from('produits').update({ stock_quantity: item.stock_quantity - item.quantity }).eq('id', item.id); }
+      
       setShowSuccess(true);
       fetchProducts();
       setInvoiceItems([]);
@@ -213,36 +241,38 @@ export default function POS() {
 
         {/* CLIENT SELECTION & QUICK ADD */}
         <div className="flex-1 flex flex-wrap items-center gap-2 w-full">
-          <div className="flex items-center gap-2 bg-white/10 rounded-xl px-2 py-1 border border-white/10 flex-1 min-w-[120px]">
+          <div className="flex items-center gap-2 bg-white/10 rounded-xl px-2 py-1 border border-white/10 flex-none w-36">
             <User size={14} className="text-emerald-200" />
             <select 
-              className="bg-transparent border-none text-[11px] font-black outline-none w-full cursor-pointer"
+              className="bg-transparent border-none text-[10px] font-black outline-none w-full cursor-pointer"
               value={activeInvoice?.client_id || ''}
               onChange={(e) => handleClientSelect(e.target.value)}
             >
-              <option value="" className="text-gray-900">Nouveau / Anonyme</option>
+              <option value="" className="text-gray-900">Anonyme</option>
               {clients.map(c => <option key={c.id} value={c.id} className="text-gray-900">{c.name}</option>)}
             </select>
           </div>
 
-          <div className="flex-1 min-w-[180px] flex items-center gap-2 bg-white/10 rounded-xl px-3 py-1 border border-white/10">
+          <div className="flex-1 min-w-[150px] flex items-center gap-2 bg-white rounded-xl px-3 py-1.5 border border-white shadow-sm">
             <input 
-              type="text" placeholder="Nom Client (si nouveau)..." 
-              className="bg-transparent border-none text-[11px] font-black outline-none placeholder:text-white/30 w-full" 
+              type="text" placeholder="NOM DU NOUVEAU CLIENT..." 
+              className="bg-transparent border-none text-[11px] font-black outline-none placeholder:text-emerald-600/40 w-full text-emerald-900 uppercase" 
               value={activeInvoice?.guest_name === 'Anonyme' ? '' : activeInvoice?.guest_name || ''} 
               onChange={(e) => updateInvoiceGuestInfo('guest_name', e.target.value)} 
             />
           </div>
 
-          <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-1 border border-white/10">
-            <Phone size={12} className="text-emerald-200" />
-            <input type="text" placeholder="Tél" className="bg-transparent border-none text-[10px] font-black outline-none placeholder:text-white/30 w-24" value={activeInvoice?.guest_contact || ''} onChange={(e) => updateInvoiceGuestInfo('guest_contact', e.target.value)} />
+          <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-1.5 border border-white shadow-sm">
+            <Phone size={12} className="text-emerald-600" />
+            <input type="text" placeholder="TÉLÉPHONE" className="bg-transparent border-none text-[11px] font-black outline-none placeholder:text-emerald-600/40 w-28 text-emerald-900" value={activeInvoice?.guest_contact || ''} onChange={(e) => updateInvoiceGuestInfo('guest_contact', e.target.value)} />
           </div>
         </div>
 
-        <div className="flex items-baseline gap-2 px-4 border-t md:border-t-0 md:border-l border-white/20 w-full md:w-auto pt-2 md:pt-0 justify-between md:justify-start">
-          <span className="text-[9px] font-bold opacity-70 uppercase">Total:</span>
-          <span className="text-xl font-black">{total.toLocaleString()} Ar</span>
+        <div className="flex items-baseline gap-3 px-4 border-t md:border-t-0 md:border-l border-white/20 w-full md:w-auto pt-2 md:pt-0 justify-between md:justify-start">
+          <span className="text-[10px] font-black opacity-90 uppercase text-white">Total:</span>
+          <span className="text-2xl font-black text-red-500 bg-white px-4 py-1 rounded-2xl shadow-lg border-2 border-red-100 flex items-center gap-1">
+            {total.toLocaleString()} <span className="text-xs opacity-60">Ar</span>
+          </span>
         </div>
       </div>
 
@@ -311,7 +341,7 @@ export default function POS() {
                   {isInstallment && (
                     <div className="flex items-center gap-2 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
                       <select className="bg-emerald-800 text-[10px] font-black rounded px-1 py-0.5 border border-white/5" value={installmentMonths} onChange={e => setInstallmentMonths(parseInt(e.target.value))}>
-                        {[2,3,4,5,6,12].map(m => <option key={m} value={m}>{m} mois</option>)}
+                        {[1,2,3,4,5,6,12].map(m => <option key={m} value={m}>{m} mois</option>)}
                       </select>
                       <div className="flex flex-col">
                         <span className="text-[11px] font-black text-emerald-400 leading-none">
@@ -348,14 +378,44 @@ export default function POS() {
 
       {/* 4. PRODUCT SEARCH (BOTTOM) */}
       <div className="flex-1 bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col overflow-hidden min-h-0">
-        <div className="p-3 border-b border-emerald-50 bg-emerald-50/20 flex items-center gap-4">
+        <div className="p-3 border-b border-emerald-50 bg-emerald-50/20 flex items-center gap-4 shrink-0">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400" size={16} />
             <input type="text" placeholder="Ajouter un produit..." className="w-full bg-white border border-emerald-100 rounded-xl py-2 pl-10 pr-4 text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
         </div>
-        <div className="flex-1 overflow-auto">
-          <table className="w-full text-left min-w-[500px]">
+        
+        <div className="flex-1 overflow-auto p-2 sm:p-0">
+          {/* Mobile View: Cards */}
+          <div className="grid grid-cols-1 gap-2 sm:hidden pb-4">
+            {filteredProducts.map(p => (
+              <div key={p.id} className="bg-gray-50/50 border border-emerald-50 rounded-2xl p-3 flex flex-col gap-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-black uppercase text-[11px] text-gray-800 leading-tight">{p.name}</p>
+                    <p className="text-[9px] text-gray-400 font-bold uppercase">{p.categories?.name}</p>
+                  </div>
+                  <p className="font-black text-emerald-600 text-[11px]">{p.price.toLocaleString()} Ar</p>
+                </div>
+                
+                <div className="flex items-center justify-between gap-2">
+                  <div className="bg-emerald-100/50 px-2 py-1 rounded-lg">
+                    <p className="text-[8px] font-black text-emerald-700 uppercase leading-none mb-0.5">Stock</p>
+                    <p className="text-[10px] font-bold text-emerald-600 truncate">
+                      {p.quantite_par_unite > 1 ? `${Math.floor(p.stock_quantity / p.quantite_par_unite)} ${p.unite_superieure || 'Ctn'} + ${p.stock_quantity % p.stock_quantity} ${p.unite_base || 'Pce'}` : `${p.stock_quantity} ${p.unite_base || 'Pce'}`}
+                    </p>
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => addToInvoice(p, 'piece')} className="bg-white border border-emerald-100 text-emerald-700 px-3 py-2 rounded-xl text-[9px] font-black uppercase shadow-sm">+{p.unite_base || 'PCE'}</button>
+                    {p.quantite_par_unite > 1 && <button onClick={() => addToInvoice(p, 'carton')} className="bg-emerald-600 text-white px-3 py-2 rounded-xl text-[9px] font-black uppercase shadow-md transition-all">+{p.unite_superieure || 'CTN'}</button>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop View: Table */}
+          <table className="w-full text-left min-w-[500px] hidden sm:table">
             <thead className="sticky top-0 bg-gray-50 border-b border-emerald-50 z-10">
               <tr className="text-[9px] font-black text-gray-400 uppercase">
                 <th className="p-3 pl-6">Produit</th>
