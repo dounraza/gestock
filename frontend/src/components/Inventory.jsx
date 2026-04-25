@@ -17,6 +17,7 @@ export default function Inventory() {
   const [stockHistoryModal, setStockHistoryModal] = useState(false); // New state for stock history modal
   const [selectedProductForHistory, setSelectedProductForHistory] = useState(null); // New state for product in stock history
   const [stockMovements, setStockMovements] = useState([]); // State to store stock movements
+  const [selectedMovementProduct, setSelectedMovementProduct] = useState(''); // New filter state
   const [formData, setFormData] = useState({ 
     name: '', price: '', stock_quantity: '', category_id: '', fournisseur_id: '', description: '',
     unite_base: 'unité', unite_superieure: '', quantite_par_unite: 1
@@ -116,6 +117,7 @@ export default function Inventory() {
               product_id: editingProduct.id,
               type: stockDifference > 0 ? 'in' : 'out',
               quantity: Math.abs(stockDifference),
+              price_at_movement: editingProduct.price,
               reason: stockDifference > 0 ? 'Mise à jour (Entrée)' : 'Mise à jour (Sortie)',
               user_id: user.id
             }
@@ -136,6 +138,7 @@ export default function Inventory() {
               product_id: newProduct.id,
               type: 'in',
               quantity: newProduct.stock_quantity,
+              price_at_movement: newProduct.price,
               reason: 'Nouvel ajout de produit (Entrée initiale)',
               user_id: user.id
             }
@@ -225,6 +228,7 @@ export default function Inventory() {
           product_id: selectedProductForStock.id,
           type: stockFormData.type,
           quantity: quantity,
+          price_at_movement: selectedProductForStock.price,
           reason: stockFormData.reason,
           user_id: user.id
         }
@@ -407,36 +411,56 @@ export default function Inventory() {
       )}
 
       {viewMode === 'movements' && (
-        <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-5 shadow-sm">
-          <h3 className="text-xl font-bold text-gray-800 mb-6">Historique des Mouvements de Stock</h3>
-          {/* Implement table or list for stock movements here */}
-          {loading ? (
-            <p className="text-center py-10 text-gray-400">Chargement des mouvements...</p>
-          ) : stockMovements.length > 0 ? (
-            <ul className="space-y-4">
-              {stockMovements.map(movement => (
-                <li key={movement.id} className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-gray-800">
-                      <span className={`text-[10px] font-black uppercase mr-2 px-2 py-0.5 rounded-full ${movement.type === 'in' ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'}`}>
-                        {movement.type === 'in' ? 'Entrée' : 'Sortie'}
-                      </span>
-                      {movement.quantity} {movement.products?.unite_base || 'unité(s)'}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Produit: {movement.products?.name || 'Inconnu'}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Le: {new Date(movement.created_at).toLocaleString()}
-                    </p>
-                    {movement.reason && <p className="text-xs text-gray-600 mt-1 italic">Raison: "{movement.reason}"</p>}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-center text-gray-500">Aucun mouvement de stock enregistré.</p>
-          )}
+        <div className="space-y-4">
+          <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-3xl shadow-sm flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Total Entrées</p>
+              <p className="text-xl font-black text-gray-800">{stockMovements.filter(m => m.type === 'in').reduce((acc, m) => acc + m.quantity, 0)} unités</p>
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">Total Sorties</p>
+              <p className="text-xl font-black text-gray-800">{stockMovements.filter(m => m.type === 'out').reduce((acc, m) => acc + m.quantity, 0)} unités</p>
+            </div>
+            <select 
+              className="bg-white border border-emerald-100 rounded-xl px-4 py-2 text-xs outline-none focus:ring-2 focus:ring-emerald-500/10"
+              value={selectedMovementProduct}
+              onChange={(e) => setSelectedMovementProduct(e.target.value)}
+            >
+              <option value="">Tous les produits</option>
+              {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-5 shadow-sm overflow-x-auto">
+            <h3 className="text-xl font-bold text-gray-800 mb-6">Historique des Mouvements de Stock</h3>
+            {loading ? (
+              <p className="text-center py-10 text-gray-400">Chargement des mouvements...</p>
+            ) : stockMovements.filter(m => !selectedMovementProduct || m.product_id === selectedMovementProduct).length > 0 ? (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="text-[10px] uppercase text-emerald-700 border-b border-emerald-100">
+                    <th className="p-3">Produit</th>
+                    <th className="p-3 text-center">In (Entrée)</th>
+                    <th className="p-3 text-center">Out (Sortie)</th>
+                    <th className="p-3">Date</th>
+                    <th className="p-3">Raison</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-emerald-50">
+                  {stockMovements.filter(m => !selectedMovementProduct || m.product_id === selectedMovementProduct).map(m => (
+                    <tr key={m.id} className="text-xs hover:bg-emerald-50/30">
+                      <td className="p-3 font-bold text-gray-800">{m.products?.name}</td>
+                      <td className="p-3 text-center text-emerald-600 font-black">{m.type === 'in' ? m.quantity : '-'}</td>
+                      <td className="p-3 text-center text-orange-600 font-black">{m.type === 'out' ? m.quantity : '-'}</td>
+                      <td className="p-3 text-gray-500">{new Date(m.created_at).toLocaleDateString()}</td>
+                      <td className="p-3 text-gray-500 italic">{m.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-center text-gray-500">Aucun mouvement enregistré.</p>
+            )}
+          </div>
         </div>
       )}
 

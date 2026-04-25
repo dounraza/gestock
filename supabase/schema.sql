@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS public.produits (
   description TEXT,
   price DECIMAL(10,2) NOT NULL DEFAULT 0,
   stock_quantity INTEGER NOT NULL DEFAULT 0,
+  unite_base TEXT DEFAULT 'unité',
+  unite_superieure TEXT,
+  quantite_par_unite INTEGER DEFAULT 1,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -91,4 +94,29 @@ FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can manage own fournisseurs" ON public.fournisseurs 
 FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- 4. Stock Movements
+CREATE TABLE IF NOT EXISTS public.stock_movements (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  product_id UUID REFERENCES public.produits(id) ON DELETE CASCADE NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('in', 'out')),
+  quantity INTEGER NOT NULL,
+  price_at_movement DECIMAL(10,2) DEFAULT 0,
+  reason TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.stock_movements ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own stock movements" ON public.stock_movements
+FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- 5. Users View (to allow joining with auth.users for email)
+CREATE OR REPLACE VIEW public.users AS
+SELECT id, email FROM auth.users;
+
+-- Grant access to the view
+GRANT SELECT ON public.users TO authenticated;
+GRANT SELECT ON public.users TO anon;
 

@@ -32,7 +32,7 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
           factures (
             number,
             guest_name,
-            clients (name)
+            clients (name, phone)
           )
         `)
         .eq('statut', 'non_paye')
@@ -205,6 +205,9 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
                     <div className="mb-4">
                       <h4 className="font-black text-gray-800 text-sm">{inv.number}</h4>
                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest truncate">{inv.client_name}</p>
+                      {inv.installments[0].factures?.clients?.phone && (
+                        <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mt-1">📞 {inv.installments[0].factures.clients.phone}</p>
+                      )}
                     </div>
                     
                     <div className="bg-emerald-50/30 p-3 rounded-xl mb-4 flex justify-between items-center border border-emerald-50/50">
