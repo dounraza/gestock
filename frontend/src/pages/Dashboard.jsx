@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useLocation, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { 
   LogOut, 
@@ -16,7 +17,9 @@ import {
   Tag,
   Menu,
   X,
-  ShoppingCart
+  ShoppingCart,
+  Calendar,
+  Clock
 } from 'lucide-react';
 import Inventory from '../components/Inventory';
 import Clients from '../components/Clients';
@@ -24,33 +27,49 @@ import Suppliers from '../components/Suppliers';
 import Categories from '../components/Categories';
 import Billing from '../components/Billing';
 import POS from '../components/POS';
+import Deadlines from '../components/Deadlines';
+import CreditHistory from '../components/CreditHistory';
 
 export default function Dashboard({ session }) {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  const activeTab = useMemo(() => {
+    const path = location.pathname.split('/').pop();
+    if (path === 'dashboard' || !path) return 'dashboard';
+    return path;
+  }, [location.pathname]);
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [dashboardSearchTerm, setDashboardSearchTerm] = useState('');
   const [stats, setStats] = useState({
     totalSales: 0,
     stockAlerts: 0,
-    paidInvoices: 0
+    paidInvoices: 0,
+    pendingInvoices: 0
   });
   const [loading, setLoading] = useState(true);
+  const [billingSearchTerm, setBillingSearchTerm] = useState('');
+  const [deadlineSearchTerm, setDeadlineSearchTerm] = useState('');
 
   const handleLogout = () => supabase.auth.signOut();
 
+  const handleViewClientCredit = (clientName) => {
+    setDeadlineSearchTerm(clientName);
+    navigate('/dashboard/deadlines');
+  };
+
   const fetchStats = async () => {
     setLoading(true);
-    // 1. Get total sales (paid invoices today)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
+    // 1. Get total sales (paid invoices)
     const { data: invoices } = await supabase
       .from('factures')
-      .select('total_amount, status')
-      .eq('status', 'paid');
+      .select('total_amount, status');
     
-    const totalSales = invoices?.reduce((acc, inv) => acc + (inv.total_amount || 0), 0) || 0;
-    const paidCount = invoices?.length || 0;
+    const paidInvoices = invoices?.filter(inv => inv.status === 'paid') || [];
+    const pendingInvoices = invoices?.filter(inv => ['sent', 'unpaid', 'pending'].includes(inv.status)) || [];
+    
+    const totalSales = paidInvoices.reduce((acc, inv) => acc + (inv.total_amount || 0), 0) || 0;
 
     // 2. Get stock alerts (quantity < 10)
     const { count: stockAlerts } = await supabase
@@ -61,7 +80,8 @@ export default function Dashboard({ session }) {
     setStats({
       totalSales,
       stockAlerts: stockAlerts || 0,
-      paidInvoices: paidCount
+      paidInvoices: paidInvoices.length,
+      pendingInvoices: pendingInvoices.length
     });
     setLoading(false);
   };
@@ -79,6 +99,8 @@ export default function Dashboard({ session }) {
       case 'suppliers': return "Fournisseurs";
       case 'categories': return "Catégories";
       case 'billing': return "Facturation";
+      case 'deadlines': return "Échéancier";
+      case 'credit_history': return "Historique Crédits";
       default: return "Dashboard";
     }
   };
@@ -105,7 +127,7 @@ export default function Dashboard({ session }) {
       <aside className={`fixed lg:static inset-y-0 left-0 z-30 w-72 bg-white/90 lg:bg-white/40 backdrop-blur-xl border-r border-emerald-50 flex flex-col transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-8">
           <div className="flex items-center justify-between mb-10">
-            <div className="flex items-center gap-3">
+            <div onClick={() => navigate('/dashboard')} className="cursor-pointer flex items-center gap-3">
               <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
                 <span className="text-white text-xl font-bold">+</span>
               </div>
@@ -116,49 +138,78 @@ export default function Dashboard({ session }) {
             </button>
           </div>
 
-          <nav className="space-y-2">
-            <NavItem 
-              icon={<LayoutDashboard size={20} />} 
-              label="Vue d'ensemble" 
-              active={activeTab === 'dashboard'} 
-              onClick={() => { setActiveTab('dashboard'); closeSidebar(); }} 
-            />
-            <NavItem 
-              icon={<ShoppingCart size={20} />} 
-              label="Caisse / Commande" 
-              active={activeTab === 'pos'} 
-              onClick={() => { setActiveTab('pos'); closeSidebar(); }} 
-            />
-            <NavItem 
-              icon={<Package size={20} />} 
-              label="Stock & Produits" 
-              active={activeTab === 'inventory'} 
-              onClick={() => { setActiveTab('inventory'); closeSidebar(); }} 
-            />
-            <NavItem 
-              icon={<Tag size={20} />} 
-              label="Catégories" 
-              active={activeTab === 'categories'} 
-              onClick={() => { setActiveTab('categories'); closeSidebar(); }} 
-            />
-            <NavItem 
-              icon={<Users size={20} />} 
-              label="Clients" 
-              active={activeTab === 'clients'} 
-              onClick={() => { setActiveTab('clients'); closeSidebar(); }} 
-            />
-            <NavItem 
-              icon={<Truck size={20} />} 
-              label="Fournisseurs" 
-              active={activeTab === 'suppliers'} 
-              onClick={() => { setActiveTab('suppliers'); closeSidebar(); }} 
-            />
-            <NavItem 
-              icon={<FileText size={20} />} 
-              label="Facturation" 
-              active={activeTab === 'billing'} 
-              onClick={() => { setActiveTab('billing'); closeSidebar(); }} 
-            />
+          <nav className="space-y-6">
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Général</p>
+              <div className="space-y-1">
+                <NavItem 
+                  icon={<LayoutDashboard size={20} />} 
+                  label="Vue d'ensemble" 
+                  active={activeTab === 'dashboard'} 
+                  onClick={() => { navigate('/dashboard'); closeSidebar(); }} 
+                />
+                <NavItem 
+                  icon={<ShoppingCart size={20} />} 
+                  label="Caisse / Commande" 
+                  active={activeTab === 'pos'} 
+                  onClick={() => { navigate('/dashboard/pos'); closeSidebar(); }} 
+                />
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Ventes & Finance</p>
+              <div className="space-y-1">
+                <NavItem 
+                  icon={<FileText size={20} />} 
+                  label="Facturation" 
+                  active={activeTab === 'billing'} 
+                  onClick={() => { navigate('/dashboard/billing'); closeSidebar(); }} 
+                />
+                <NavItem 
+                  icon={<Calendar size={20} />} 
+                  label="Échéancier" 
+                  active={activeTab === 'deadlines'} 
+                  onClick={() => { navigate('/dashboard/deadlines'); closeSidebar(); }} 
+                />
+                <NavItem 
+                  icon={<Clock size={20} />} 
+                  label="Historique Crédits" 
+                  active={activeTab === 'credit_history'} 
+                  onClick={() => { navigate('/dashboard/credit_history'); closeSidebar(); }} 
+                />
+                <NavItem 
+                  icon={<Users size={20} />} 
+                  label="Clients" 
+                  active={activeTab === 'clients'} 
+                  onClick={() => { navigate('/dashboard/clients'); closeSidebar(); }} 
+                />
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Stock & Logistique</p>
+              <div className="space-y-1">
+                <NavItem 
+                  icon={<Package size={20} />} 
+                  label="Stock & Produits" 
+                  active={activeTab === 'inventory'} 
+                  onClick={() => { navigate('/dashboard/inventory'); closeSidebar(); }} 
+                />
+                <NavItem 
+                  icon={<Tag size={20} />} 
+                  label="Catégories" 
+                  active={activeTab === 'categories'} 
+                  onClick={() => { navigate('/dashboard/categories'); closeSidebar(); }} 
+                />
+                <NavItem 
+                  icon={<Truck size={20} />} 
+                  label="Fournisseurs" 
+                  active={activeTab === 'suppliers'} 
+                  onClick={() => { navigate('/dashboard/suppliers'); closeSidebar(); }} 
+                />
+              </div>
+            </div>
           </nav>
         </div>
 
@@ -218,73 +269,86 @@ export default function Dashboard({ session }) {
 
         {/* Dashboard Body */}
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
-          {activeTab === 'dashboard' && (
-            <div className="space-y-6 md:space-y-8">
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                <StatCard 
-                  title="Ventes de Produits PPN" 
-                  value={`${stats.totalSales.toLocaleString('fr-MG')} MGA`} 
-                  trend="+ Actuel" 
-                  icon={<TrendingUp className="text-emerald-600" size={24} />} 
-                />
-                <StatCard 
-                  title="Alertes Stock PPN" 
-                  value={`${stats.stockAlerts} articles`} 
-                  trend={stats.stockAlerts > 0 ? "Réapprovisionner" : "Correct"} 
-                  negative={stats.stockAlerts > 0} 
-                  icon={<AlertCircle className={stats.stockAlerts > 0 ? "text-orange-500" : "text-emerald-500"} size={24} />} 
-                />
-                <StatCard 
-                  title="Factures payées" 
-                  value={stats.paidInvoices.toString()} 
-                  trend="Historique" 
-                  icon={<CheckCircle2 className="text-emerald-600" size={24} />} 
-                />
-              </div>
-
-              {/* Recent Activity Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-                <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-6 shadow-sm">
-                  <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                    <Package size={20} className="text-emerald-500" /> État du Stock
-                  </h3>
-                  <p className="text-gray-400 text-sm text-center py-10">
-                    {stats.stockAlerts > 0 
-                      ? `Attention : ${stats.stockAlerts} produits sont en dessous du seuil critique.` 
-                      : "Tout votre stock est actuellement suffisant."}
-                  </p>
-                  <button 
-                    onClick={() => setActiveTab('inventory')}
-                    className="w-full py-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm hover:bg-emerald-100 transition-colors"
-                  >
-                    Gérer l'inventaire
-                  </button>
+          <Routes>
+            <Route path="/" element={
+              <div className="space-y-6 md:space-y-8">
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                  <StatCard 
+                    title="Ventes de Produits PPN" 
+                    value={`${stats.totalSales.toLocaleString('fr-MG')} MGA`} 
+                    trend="+ Actuel" 
+                    icon={<TrendingUp className="text-emerald-600" size={24} />} 
+                  />
+                  <StatCard 
+                    title="Alertes Stock PPN" 
+                    value={`${stats.stockAlerts} articles`} 
+                    trend={stats.stockAlerts > 0 ? "Réapprovisionner" : "Correct"} 
+                    negative={stats.stockAlerts > 0} 
+                    icon={<AlertCircle className={stats.stockAlerts > 0 ? "text-orange-500" : "text-emerald-500"} size={24} />} 
+                  />
+                  <StatCard 
+                    title={stats.pendingInvoices > 0 ? "Échéances en attente" : "Factures payées"} 
+                    value={stats.pendingInvoices > 0 ? stats.pendingInvoices.toString() : stats.paidInvoices.toString()} 
+                    trend={stats.pendingInvoices > 0 ? "À encaisser" : "Historique"} 
+                    negative={stats.pendingInvoices > 0}
+                    icon={stats.pendingInvoices > 0 ? <AlertCircle className="text-orange-500" size={24} /> : <CheckCircle2 className="text-emerald-600" size={24} />} 
+                  />
                 </div>
-                <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-6 shadow-sm">
-                  <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                    <FileText size={20} className="text-emerald-500" /> Facturation
-                  </h3>
-                  <p className="text-gray-400 text-sm text-center py-10">
-                    {stats.paidInvoices} factures ont été marquées comme payées au total.
-                  </p>
-                  <button 
-                    onClick={() => setActiveTab('billing')}
-                    className="w-full py-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm hover:bg-emerald-100 transition-colors"
-                  >
-                    Voir les factures
-                  </button>
+
+                {/* Recent Activity Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                  <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-6 shadow-sm">
+                    <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+                      <Package size={20} className="text-emerald-500" /> État du Stock
+                    </h3>
+                    <p className="text-gray-400 text-sm text-center py-10">
+                      {stats.stockAlerts > 0 
+                        ? `Attention : ${stats.stockAlerts} produits sont en dessous du seuil critique.` 
+                        : "Tout votre stock est actuellement suffisant."}
+                    </p>
+                    <button 
+                      onClick={() => navigate('/dashboard/inventory')}
+                      className="w-full py-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm hover:bg-emerald-100 transition-colors"
+                    >
+                      Gérer l'inventaire
+                    </button>
+                  </div>
+                  <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-6 shadow-sm">
+                    <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+                      <Calendar size={20} className="text-emerald-500" /> Échéancier & Crédits
+                    </h3>
+                    <p className="text-gray-400 text-sm text-center py-10">
+                      {stats.pendingInvoices > 0 
+                        ? `Vous avez ${stats.pendingInvoices} ventes à crédit en attente de paiement.` 
+                        : "Toutes vos factures récentes sont réglées."}
+                    </p>
+                    <button 
+                      onClick={() => navigate('/dashboard/deadlines')}
+                      className="w-full py-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm hover:bg-emerald-100 transition-colors"
+                    >
+                      Voir l'échéancier
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          {activeTab === 'pos' && <POS />}
-          {activeTab === 'inventory' && <Inventory />}
-          {activeTab === 'categories' && <Categories />}
-          {activeTab === 'clients' && <Clients />}
-          {activeTab === 'suppliers' && <Suppliers />}
-          {activeTab === 'billing' && <Billing />}
+            } />
+            <Route path="pos" element={<POS />} />
+            <Route path="inventory" element={<Inventory />} />
+            <Route path="categories" element={<Categories />} />
+            <Route path="clients" element={<Clients onViewCredit={handleViewClientCredit} />} />
+            <Route path="suppliers" element={<Suppliers />} />
+            <Route path="billing" element={<Billing 
+              initialSearchTerm={billingSearchTerm} 
+              onSearchReset={() => setBillingSearchTerm('')} 
+            />} />
+            <Route path="deadlines" element={<Deadlines 
+              initialSearchTerm={deadlineSearchTerm}
+              onSearchReset={() => setDeadlineSearchTerm('')}
+            />} />
+            <Route path="credit_history" element={<CreditHistory />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
         </div>
       </main>
     </div>

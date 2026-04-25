@@ -26,13 +26,13 @@ function App() {
       <Routes>
         <Route 
           path="/login" 
-          element={!session ? <Login /> : <Navigate to="/dashboard" />} 
+          element={!session ? <Login /> : <Navigate to="/dashboard/pos" />} 
         />
         <Route 
           path="/dashboard/*" 
           element={session ? <Dashboard session={session} /> : <Navigate to="/login" />} 
         />
-        <Route path="/" element={<Navigate to={session ? "/dashboard" : "/login"} />} />
+        <Route path="/" element={<Navigate to={session ? "/dashboard/pos" : "/login"} />} />
       </Routes>
     </Router>
   );

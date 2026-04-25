@@ -4,16 +4,22 @@ import { Plus, Search, FileText, Trash2, Edit2, Calendar, User, DollarSign, Load
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
-export default function Billing() {
+export default function Billing({ initialSearchTerm, onSearchReset }) {
   const [invoices, setInvoices] = useState([]);
   const [filteredInvoices, setFilteredInvoices] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm || '');
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
+  useEffect(() => {
+    if (initialSearchTerm) {
+      setSearchTerm(initialSearchTerm);
+    }
+  }, [initialSearchTerm]);
   
   const [formData, setFormData] = useState({
     client_id: '',
@@ -163,7 +169,9 @@ export default function Billing() {
   const getStatusStyle = (status) => {
     switch (status) {
       case 'paid': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
-      case 'sent': return 'bg-blue-50 text-blue-600 border-blue-100';
+      case 'sent':
+      case 'pending':
+      case 'en cours': return 'bg-orange-50 text-orange-600 border-orange-100';
       case 'cancelled': return 'bg-red-50 text-red-600 border-red-100';
       default: return 'bg-gray-50 text-gray-600 border-gray-100';
     }
@@ -172,7 +180,9 @@ export default function Billing() {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'paid': return <CheckCircle size={14} />;
-      case 'sent': return <Clock size={14} />;
+      case 'sent':
+      case 'pending':
+      case 'en cours': return <Clock size={14} />;
       case 'cancelled': return <XCircle size={14} />;
       default: return <FileText size={14} />;
     }
@@ -197,6 +207,31 @@ export default function Billing() {
       </tr>
     `).join('') : '';
 
+    const clientInfo = inv.clients ? `
+      <div style="margin-bottom: 30px; font-size: 14px; color: #374151;">
+        <p style="margin: 0; font-weight: 900; text-transform: uppercase; color: #6b7280; font-size: 10px;">Facturé à :</p>
+        <p style="margin: 5px 0; font-size: 18px; font-weight: 900; color: #111827;">${inv.clients.name}</p>
+        ${inv.clients.address ? `<p style="margin: 2px 0;">${inv.clients.address}</p>` : ''}
+        ${inv.clients.phone ? `<p style="margin: 2px 0;">Tél : ${inv.clients.phone}</p>` : ''}
+        <div style="display: flex; gap: 20px; margin-top: 10px;">
+          ${inv.clients.nif ? `<p style="margin: 0; font-size: 11px;"><strong>NIF:</strong> ${inv.clients.nif}</p>` : ''}
+          ${inv.clients.stat ? `<p style="margin: 0; font-size: 11px;"><strong>STAT:</strong> ${inv.clients.stat}</p>` : ''}
+        </div>
+      </div>
+    ` : inv.guest_name ? `
+      <div style="margin-bottom: 30px; font-size: 14px; color: #374151;">
+        <p style="margin: 0; font-weight: 900; text-transform: uppercase; color: #6b7280; font-size: 10px;">Facturé à :</p>
+        <p style="margin: 5px 0; font-size: 18px; font-weight: 900; color: #111827;">${inv.guest_name}</p>
+        ${inv.guest_contact ? `<p style="margin: 2px 0;">Contact : ${inv.guest_contact}</p>` : ''}
+        <div style="display: flex; gap: 20px; margin-top: 10px;">
+          ${inv.guest_nif ? `<p style="margin: 0; font-size: 11px;"><strong>NIF:</strong> ${inv.guest_nif}</p>` : ''}
+          ${inv.guest_stat ? `<p style="margin: 0; font-size: 11px;"><strong>STAT:</strong> ${inv.guest_stat}</p>` : ''}
+        </div>
+      </div>
+    ` : '';
+
+    const isCredit = inv.status !== 'paid';
+
     invoiceElement.innerHTML = `
       <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #10b981; padding-bottom: 30px; margin-bottom: 40px;">
         <div style="flex: 1;">
@@ -204,10 +239,15 @@ export default function Billing() {
           <p style="font-size: 14px; color: #6b7280; margin: 5px 0;">Solution de Gestion de Stock PPN</p>
         </div>
         <div style="flex: 1; text-align: right;">
+          <div style="display: inline-block; padding: 5px 15px; border-radius: 8px; background: ${isCredit ? '#fff7ed' : '#ecfdf5'}; color: ${isCredit ? '#c2410c' : '#047857'}; font-size: 12px; font-weight: 900; text-transform: uppercase; border: 1px solid ${isCredit ? '#fdba74' : '#6ee7b7'}; margin-bottom: 10px;">
+            ${isCredit ? 'Paiement à Crédit' : 'Paiement Comptant'}
+          </div>
           <h2 style="font-size: 32px; font-weight: 900; color: #e5e7eb; margin: 0; text-transform: uppercase;">FACTURE</h2>
           <p style="font-size: 18px; font-weight: 900; color: #1f2937; margin: 5px 0;">${inv.number}</p>
         </div>
       </div>
+
+      ${clientInfo}
 
       <div style="margin-bottom: 40px;">
         <table style="width: 100%; border-collapse: collapse;">
@@ -277,7 +317,10 @@ export default function Billing() {
               placeholder="Rechercher une facture (N° ou client)..." 
               className="w-full bg-white border border-emerald-100 rounded-xl py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-emerald-500/10 transition-all outline-none" 
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                onSearchReset?.();
+              }}
             />
           </div>
         </div>
@@ -293,6 +336,7 @@ export default function Billing() {
             <tr className="bg-emerald-50/50">
               <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">N° Facture</th>
               <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Client</th>
+              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Mode</th>
               <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Montant</th>
               <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Échéance</th>
               <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Statut</th>
@@ -301,7 +345,7 @@ export default function Billing() {
           </thead>
           <tbody className="divide-y divide-emerald-50">
             {loading ? (
-              <tr><td colSpan="6" className="p-10 text-center text-gray-400">Chargement des factures...</td></tr>
+              <tr><td colSpan="7" className="p-10 text-center text-gray-400">Chargement des factures...</td></tr>
             ) : filteredInvoices.length > 0 ? (
               filteredInvoices.map((inv) => (
                 <tr key={inv.id} className="hover:bg-emerald-50/20 transition-colors group">
@@ -309,7 +353,12 @@ export default function Billing() {
                     <FileText size={16} className="text-emerald-500" /> {inv.number}
                   </td>
                   <td className="p-5 text-gray-600 font-medium">
-                    {inv.clients?.name || 'Client inconnu'}
+                    {inv.clients?.name || inv.guest_name || 'Client Direct'}
+                  </td>
+                  <td className="p-5">
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${inv.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                      {inv.status === 'paid' ? 'Comptant' : 'Crédit'}
+                    </span>
                   </td>
                   <td className="p-5 font-black text-gray-800">
                     {inv.total_amount.toLocaleString('fr-MG')} MGA
