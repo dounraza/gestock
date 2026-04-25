@@ -21,8 +21,8 @@ export default function Inventory() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Simplified query to check if it's a join issue
-      const { data: prods, error: prodError } = await supabase.from('produits').select('*');
+      // Fetch products with their categories and suppliers
+      const { data: prods, error: prodError } = await supabase.from('produits').select('*, categories(name), fournisseurs(name)');
       if (prodError) throw prodError;
       
       const { data: cats, error: catError } = await supabase.from('categories').select('*').order('name');
@@ -170,7 +170,7 @@ export default function Inventory() {
           <p className="col-span-full text-center py-20 text-gray-400">Chargement de l'inventaire...</p>
         ) : filteredProducts.length > 0 ? (
           filteredProducts.map((p) => (
-            <div key={p.id} className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all group">
+            <div key={p.id} className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all group min-w-0">
               <div className="flex justify-between items-start mb-3">
                 <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
                   <Package size={20} />

@@ -231,7 +231,7 @@ export default function POS({ session }) {
   const total = invoiceItems.reduce((acc, item) => acc + calculateItemTotal(item), 0);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] gap-3">
+    <div className="flex flex-col gap-3">
       {/* 1. TOP BAR: INVOICE # AND CLIENT INFO */}
       <div className="bg-emerald-600 text-white rounded-[2rem] p-3 shadow-lg flex flex-col md:flex-row items-center gap-4 shrink-0 overflow-hidden">
         <div className="flex items-center gap-3 px-4 border-b md:border-b-0 md:border-r border-white/20 w-full md:w-auto pb-2 md:pb-0">
@@ -278,11 +278,11 @@ export default function POS({ session }) {
 
       {/* 2. INVOICE ITEMS (TOP TABLE) */}
       <div className="flex-[0.7] bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-auto p-2 sm:p-0">
+        <div className="flex-1 p-2 sm:p-0">
           {/* Mobile View: Cards for Invoice Items */}
           <div className="grid grid-cols-1 gap-2 sm:hidden">
             {invoiceItems.map(item => (
-              <div key={item.item_id} className="bg-emerald-50/30 border border-emerald-50 rounded-2xl p-3 flex flex-col gap-2 relative">
+              <div key={item.item_id} className="bg-emerald-50/30 border border-emerald-50 rounded-2xl p-3 flex flex-col gap-2 relative min-w-0">
                 <button 
                   onClick={() => removeItem(item.item_id, item.id)} 
                   className="absolute top-3 right-3 text-red-300 hover:text-red-500"
@@ -291,7 +291,7 @@ export default function POS({ session }) {
                 </button>
                 
                 <div className="pr-8">
-                  <p className="font-black uppercase text-[11px] text-gray-800 leading-tight">{item.name}</p>
+                  <p className="font-black uppercase text-[11px] text-gray-800 leading-tight truncate">{item.name}</p>
                   <p className="text-[9px] font-bold text-gray-400 italic">
                     {item.quantite_par_unite > 1 ? `${Math.floor(item.quantity / item.quantite_par_unite)} ${item.unite_superieure || 'Ctn'} + ${item.quantity % item.quantite_par_unite} ${item.unite_base || 'Pce'}` : `${item.quantity} ${item.unite_base || 'Pce'}`}
                   </p>
@@ -426,11 +426,11 @@ export default function POS({ session }) {
           </div>
         </div>
         
-        <div className="flex-1 overflow-auto p-3 sm:p-0">
+        <div className="flex-1 p-3 sm:p-0">
           {/* Mobile View: Cards */}
           <div className="grid grid-cols-1 gap-2 sm:hidden pb-4">
             {filteredProducts.map(p => (
-              <div key={p.id} className="bg-gray-50/50 border border-emerald-50 rounded-2xl p-3 flex flex-col gap-3">
+              <div key={p.id} className="bg-gray-50/50 border border-emerald-50 rounded-2xl p-3 flex flex-col gap-3 min-w-0">
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="font-black uppercase text-[11px] text-gray-800 leading-tight">{p.name}</p>
