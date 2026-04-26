@@ -191,25 +191,41 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
   const downloadPDF = async (inv) => {
     setIsGeneratingPDF(true);
     
-    // Fetch items with product names for the invoice
+    // Fetch company info
+    const { data: companyInfo } = await supabase.from('profiles').select('*').eq('id', inv.user_id).single();
+    const logoBase64 = ''; // PASTE YOUR BASE64 LOGO HERE
+
+    const invoiceElement = document.createElement('div');
+    invoiceElement.style.width = '800px';
+    invoiceElement.style.padding = '40px';
+    invoiceElement.style.backgroundColor = '#ffffff';
+    invoiceElement.style.color = '#333';
+    invoiceElement.style.fontFamily = 'sans-serif';
+    
+    // Fetch items with product names and discounts for the invoice
     const { data: items } = await supabase
       .from('facture_items')
-      .select('quantity, price_at_sale, produits(name)')
+      .select('quantity, price_at_sale, discount, produits(name)')
       .eq('facture_id', inv.id);
 
     // Ensure we handle products object correctly since join result is an object
-    const itemsHtml = items ? items.map(item => `
+    const itemsHtml = items ? items.map(item => {
+      const baseTotal = item.quantity * item.price_at_sale;
+      const discountVal = item.discount ? (item.discount.type === '%' ? (baseTotal * parseFloat(item.discount.value) / 100) : parseFloat(item.discount.value)) : 0;
+      const finalTotal = baseTotal - discountVal;
+      return `
       <tr style="border-bottom: 1px solid #f9fafb;">
         <td style="padding: 20px 0; font-size: 14px; font-weight: 700; color: #1f2937;">${item.produits?.name || 'Produit inconnu'}</td>
         <td style="padding: 20px 0; text-align: center; font-size: 14px;">${item.quantity}</td>
         <td style="padding: 20px 0; text-align: right; font-size: 14px;">${Number(item.price_at_sale).toLocaleString('fr-MG')}</td>
-        <td style="padding: 20px 0; text-align: right; font-size: 14px; font-weight: 900; color: #1f2937;">${(item.quantity * item.price_at_sale).toLocaleString('fr-MG')} MGA</td>
+        <td style="padding: 20px 0; text-align: right; font-size: 14px;">${item.discount ? `${item.discount.value}${item.discount.type}` : '-'}</td>
+        <td style="padding: 20px 0; text-align: right; font-size: 14px; font-weight: 900; color: #1f2937;">${finalTotal.toLocaleString('fr-MG')} MGA</td>
       </tr>
-    `).join('') : '';
+    `}).join('') : '';
 
     const clientInfo = inv.clients ? `
-      <div style="margin-bottom: 30px; font-size: 14px; color: #374151;">
-        <p style="margin: 0; font-weight: 900; text-transform: uppercase; color: #6b7280; font-size: 10px;">Facturé à :</p>
+      <div style="flex: 1; border: 1px solid #eee; padding: 20px; border-radius: 15px;">
+        <p style="margin: 0; font-weight: 900; text-transform: uppercase; color: #6b7280; font-size: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 10px;">Facturé à :</p>
         <p style="margin: 5px 0; font-size: 18px; font-weight: 900; color: #111827;">${inv.clients.name}</p>
         ${inv.clients.address ? `<p style="margin: 2px 0;">${inv.clients.address}</p>` : ''}
         ${inv.clients.phone ? `<p style="margin: 2px 0;">Tél : ${inv.clients.phone}</p>` : ''}
@@ -219,8 +235,8 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
         </div>
       </div>
     ` : inv.guest_name ? `
-      <div style="margin-bottom: 30px; font-size: 14px; color: #374151;">
-        <p style="margin: 0; font-weight: 900; text-transform: uppercase; color: #6b7280; font-size: 10px;">Facturé à :</p>
+      <div style="flex: 1; border: 1px solid #eee; padding: 20px; border-radius: 15px;">
+        <p style="margin: 0; font-weight: 900; text-transform: uppercase; color: #6b7280; font-size: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 10px;">Facturé à :</p>
         <p style="margin: 5px 0; font-size: 18px; font-weight: 900; color: #111827;">${inv.guest_name}</p>
         ${inv.guest_contact ? `<p style="margin: 2px 0;">Contact : ${inv.guest_contact}</p>` : ''}
         <div style="display: flex; gap: 20px; margin-top: 10px;">
@@ -235,8 +251,11 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
     invoiceElement.innerHTML = `
       <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #10b981; padding-bottom: 30px; margin-bottom: 40px;">
         <div style="flex: 1;">
-          <h1 style="font-size: 28px; font-weight: 900; color: #059669; margin: 0; text-transform: uppercase;">Gestock PPN</h1>
-          <p style="font-size: 14px; color: #6b7280; margin: 5px 0;">Solution de Gestion de Stock PPN</p>
+          ${logoBase64 ? `<img src="${logoBase64}" style="max-width: 150px; height: auto; margin-bottom: 10px;">` : `<h1 style="font-size: 28px; font-weight: 900; color: #059669; margin: 0; text-transform: uppercase;">${companyInfo?.company_name || 'Gestock PPN'}</h1>`}
+          <p style="font-size: 14px; font-weight: 900; color: #374151; margin: 5px 0;">${companyInfo?.company_name || 'TRANSFORMER'}</p>
+          <p style="font-size: 12px; color: #6b7280; margin: 2px 0;">NIF: ${companyInfo?.nif || 'En cours'} | STAT: ${companyInfo?.stat || 'En cours'}</p>
+          <p style="font-size: 12px; color: #6b7280; margin: 2px 0;">${companyInfo?.address || 'Madagascar'}</p>
+          <p style="font-size: 12px; color: #6b7280; margin: 2px 0;">Contact: ${companyInfo?.phone || 'N/A'}</p>
         </div>
         <div style="flex: 1; text-align: right;">
           <div style="display: inline-block; padding: 5px 15px; border-radius: 8px; background: ${isCredit ? '#fff7ed' : '#ecfdf5'}; color: ${isCredit ? '#c2410c' : '#047857'}; font-size: 12px; font-weight: 900; text-transform: uppercase; border: 1px solid ${isCredit ? '#fdba74' : '#6ee7b7'}; margin-bottom: 10px;">
@@ -244,10 +263,13 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
           </div>
           <h2 style="font-size: 32px; font-weight: 900; color: #e5e7eb; margin: 0; text-transform: uppercase;">FACTURE</h2>
           <p style="font-size: 18px; font-weight: 900; color: #1f2937; margin: 5px 0;">${inv.number}</p>
+          <p style="font-size: 14px; font-weight: 700; color: #6b7280; margin: 5px 0;">Date: ${new Date(inv.created_at).toLocaleDateString('fr-FR')}</p>
         </div>
       </div>
 
-      ${clientInfo}
+      <div style="display: flex; gap: 40px; margin-bottom: 40px;">
+        ${clientInfo}
+      </div>
 
       <div style="margin-bottom: 40px;">
         <table style="width: 100%; border-collapse: collapse;">
@@ -256,20 +278,20 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
               <th style="padding: 15px 0; text-align: left; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Produit</th>
               <th style="padding: 15px 0; text-align: center; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Qté</th>
               <th style="padding: 15px 0; text-align: right; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Prix</th>
+              <th style="padding: 15px 0; text-align: right; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Remise</th>
               <th style="padding: 15px 0; text-align: right; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Total</th>
             </tr>
           </thead>
           <tbody>
             ${itemsHtml}
           </tbody>
+          <tfoot>
+            <tr style="border-top: 2px solid #f3f4f6;">
+              <td colspan="4" style="padding: 20px 0; text-align: right; font-size: 14px; font-weight: 900; color: #6b7280; text-transform: uppercase;">TOTAL</td>
+              <td style="padding: 20px 0; text-align: right; font-size: 16px; font-weight: 900; color: #1f2937;">${inv.total_amount.toLocaleString('fr-MG')} MGA</td>
+            </tr>
+          </tfoot>
         </table>
-      </div>
-
-      <div style="display: flex; justify-content: flex-end;">
-        <div style="width: 250px; background-color: #059669; color: #ffffff; padding: 25px; border-radius: 20px; text-align: right;">
-          <p style="font-size: 11px; font-weight: 700; text-transform: uppercase; margin: 0 0 5px 0; opacity: 0.8;">Total à payer</p>
-          <p style="font-size: 24px; font-weight: 900; margin: 0;">${amount} MGA</p>
-        </div>
       </div>
     `;
 

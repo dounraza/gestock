@@ -10,7 +10,6 @@ export default function POS({ session }) {
   const [invoiceItems, setInvoiceItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const [discountModal, setDiscountModal] = useState(null);
 
   const [paymentMode, setPaymentMode] = useState('cash'); 
@@ -18,12 +17,23 @@ export default function POS({ session }) {
   const [advanceAmount, setAdvanceAmount] = useState(0);
   const [isInstallment, setIsInstallment] = useState(false);
   const [installmentMonths, setInstallmentMonths] = useState(1);
+  const [printInvoice, setPrintInvoice] = useState(false);
+  const [flashMessage, setFlashMessage] = useState(null);
+
+  const [companyInfo, setCompanyInfo] = useState(null);
 
   useEffect(() => {
     fetchProducts();
     fetchClients();
     fetchOrCreateDraftInvoice();
+    fetchCompanyInfo();
   }, []);
+
+  const fetchCompanyInfo = async () => {
+    if (!session?.user) return;
+    const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+    if (data) setCompanyInfo(data);
+  };
 
   const fetchProducts = async () => {
     try {
@@ -96,20 +106,48 @@ export default function POS({ session }) {
     
     const qtyToAdd = type === 'carton' ? (product.quantite_par_unite || 1) : 1;
     if (product.stock_quantity < qtyToAdd) return alert("Stock insuffisant !");
+    
     const existingItem = invoiceItems.find(item => item.id === product.id);
+    
     if (existingItem) {
       const newQty = existingItem.quantity + qtyToAdd;
+      if (product.stock_quantity < newQty) return alert("Stock insuffisant !");
+      
+      // Update DB
       await supabase.from('facture_items').update({ quantity: newQty }).eq('id', existingItem.item_id);
-      setInvoiceItems(invoiceItems.map(item => item.id === product.id ? { ...item, quantity: newQty } : item));
     } else {
-      const { data } = await supabase.from('facture_items').insert([{ facture_id: activeInvoice.id, produit_id: product.id, quantity: qtyToAdd, price_at_sale: product.price }]).select().single();
-      if (data) setInvoiceItems([...invoiceItems, { ...product, quantity: qtyToAdd, price_at_sale: product.price, item_id: data.id }]);
+      const { data } = await supabase.from('facture_items')
+        .insert([{ facture_id: activeInvoice.id, produit_id: product.id, quantity: qtyToAdd, price_at_sale: product.price }])
+        .select()
+        .single();
+      if (!data) return;
     }
+    
+    // Refresh items to sync state perfectly with DB
+    await fetchInvoiceItems(activeInvoice.id);
   };
 
   const removeItem = async (itemId, productId) => {
     await supabase.from('facture_items').delete().eq('id', itemId);
     setInvoiceItems(invoiceItems.filter(i => i.id !== productId));
+  };
+
+  const updateItemQuantity = async (itemId, newQuantity) => {
+    if (isNaN(newQuantity) || newQuantity <= 0) return;
+    
+    // 1. Mise à jour locale immédiate de l'interface
+    setInvoiceItems(prevItems => prevItems.map(item => 
+      item.item_id === itemId ? { ...item, quantity: newQuantity } : item
+    ));
+
+    // 2. Persistance en base de données
+    const { error } = await supabase.from('facture_items').update({ quantity: newQuantity }).eq('id', itemId);
+    
+    if (error) {
+      alert("Erreur: " + error.message);
+      // Recharger en cas d'erreur
+      fetchInvoiceItems(activeInvoice.id);
+    }
   };
 
   const updateInvoiceGuestInfo = async (field, value) => {
@@ -182,13 +220,17 @@ export default function POS({ session }) {
         await supabase.from('echeances_details').insert(echeances);
       }
       
-      setShowSuccess(true);
+      setFlashMessage("Vente Terminée !");
       fetchProducts();
       setInvoiceItems([]);
       setPaymentMode('cash');
       setAdvanceAmount(0);
       setIsInstallment(false);
-      setTimeout(() => { setShowSuccess(false); fetchOrCreateDraftInvoice(); }, 2000);
+      if (printInvoice) {
+        handlePrintInvoice(invData.number, activeInvoice.guest_name, activeInvoice.guest_contact, invoiceItems, total, activeInvoice.created_at);
+      }
+      fetchOrCreateDraftInvoice();
+      setTimeout(() => setFlashMessage(null), 2000);
     } catch (e) { alert(e.message); }
     finally { setIsProcessing(false); }
   };
@@ -197,6 +239,114 @@ export default function POS({ session }) {
     const baseTotal = item.quantity * item.price_at_sale;
     if (!item.discount) return baseTotal;
     return item.discount.type === '%' ? baseTotal - (baseTotal * (parseFloat(item.discount.value) / 100)) : baseTotal - parseFloat(item.discount.value);
+  };
+
+  const handlePrintInvoice = (invoiceNumber, clientName, clientContact, invoiceItems, totalAmount, invoiceDate) => {
+    const logoBase64 = ''; // PASTE YOUR BASE64 LOGO HERE
+    let printContent = `
+      <style>
+        body { font-family: sans-serif; margin: 20px; color: #333; }
+        .invoice-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; border-bottom: 2px solid #10b981; padding-bottom: 20px; }
+        .company-info { flex: 1; }
+        .company-info h1 { margin: 0; color: #059669; font-size: 24px; text-transform: uppercase; }
+        .company-info p { margin: 2px 0; font-size: 12px; }
+        .invoice-title { text-align: right; flex: 1; }
+        .invoice-title h2 { margin: 0; font-size: 28px; color: #e5e7eb; text-transform: uppercase; }
+        .invoice-logo { max-width: 120px; height: auto; margin-bottom: 10px; }
+        .details-grid { display: flex; justify-content: space-between; margin-bottom: 30px; }
+        .details-box { flex: 1; border: 1px solid #eee; padding: 15px; border-radius: 8px; }
+        .details-box h3 { margin: 0 0 10px 0; font-size: 10px; text-transform: uppercase; color: #6b7280; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .details-box p { margin: 5px 0; font-size: 13px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        th { background: #f9fafb; padding: 12px 8px; text-align: left; font-size: 11px; text-transform: uppercase; color: #9ca3af; border-bottom: 2px solid #f3f4f6; }
+        td { padding: 12px 8px; border-bottom: 1px solid #f9fafb; font-size: 13px; }
+        .total-row td { border-top: 2px solid #10b981; font-weight: bold; font-size: 16px; background: #f0fdf4; }
+        .signature-section { display: flex; justify-content: space-between; margin-top: 50px; padding: 0 20px; }
+        .signature-box { text-align: center; width: 200px; }
+        .signature-line { margin-top: 60px; border-top: 1px dashed #333; padding-top: 5px; font-size: 12px; font-weight: bold; }
+        @media print {
+          @page { margin: 0; }
+          body { margin: 2cm; }
+          .no-print { display: none; }
+        }
+      </style>
+      <div class="invoice-header">
+        <div class="company-info">
+          ${logoBase64 ? `<img src="${logoBase64}" class="invoice-logo">` : `<h1>${companyInfo?.company_name || 'Gestock PPN'}</h1>`}
+          <p><strong>${companyInfo?.company_name || 'TRANSFORMER'}</strong></p>
+          <p>NIF: ${companyInfo?.nif || 'En cours'}</p>
+          <p>STAT: ${companyInfo?.stat || 'En cours'}</p>
+          <p>Adresse: ${companyInfo?.address || 'Antananarivo, Madagascar'}</p>
+          <p>Contact: ${companyInfo?.phone || session?.user?.email}</p>
+        </div>
+        <div class="invoice-title">
+          <h2>Facture</h2>
+          <p><strong>N°:</strong> ${invoiceNumber}</p>
+          <p><strong>Date:</strong> ${new Date(invoiceDate).toLocaleDateString('fr-FR')}</p>
+        </div>
+      </div>
+      
+      <div class="details-grid">
+        <div class="details-box">
+          <h3>Facturé à</h3>
+          <p><strong>${clientName || 'Anonyme'}</strong></p>
+          ${clientContact ? `<p>Contact: ${clientContact}</p>` : ''}
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Produit</th>
+            <th style="text-align: center;">Qté</th>
+            <th style="text-align: right;">Prix Unitaire</th>
+            <th style="text-align: right;">Remise</th>
+            <th style="text-align: right;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+
+    `;
+
+    invoiceItems.forEach(item => {
+      const discountDisplay = item.discount ? `${item.discount.value}${item.discount.type}` : '-';
+      const itemTotal = calculateItemTotal(item);
+      printContent += `
+        <tr>
+          <td>${item.name}</td>
+          <td style="text-align: center;">${item.quantity}</td>
+          <td style="text-align: right;">${item.price_at_sale.toLocaleString()} Ar</td>
+          <td style="text-align: right;">${discountDisplay}</td>
+          <td style="text-align: right;">${itemTotal.toLocaleString()} Ar</td>
+        </tr>
+      `;
+    });
+
+    printContent += `
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td colspan="4">TOTAL</td>
+            <td>${totalAmount.toLocaleString()} Ar</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="signature-section">
+        <div class="signature-box">
+          <div class="signature-line">Le Vendeur</div>
+        </div>
+        <div class="signature-box">
+          <div class="signature-line">Le Client</div>
+        </div>
+      </div>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.print();
+    printWindow.close();
   };
 
   const applyDiscount = (itemId, type, value) => {
@@ -304,7 +454,13 @@ export default function POS({ session }) {
                 <div className="pr-8">
                   <p className="font-black uppercase text-[11px] text-gray-800 leading-tight truncate">{item.name}</p>
                   <p className="text-[9px] font-bold text-gray-400 italic">
-                    {item.quantite_par_unite > 1 ? `${Math.floor(item.quantity / item.quantite_par_unite)} ${item.unite_superieure || 'Ctn'} + ${item.quantity % item.quantite_par_unite} ${item.unite_base || 'Pce'}` : `${item.quantity} ${item.unite_base || 'Pce'}`}
+                    {item.quantite_par_unite && item.quantite_par_unite > 1 
+                      ? `${Math.floor(item.quantity / item.quantite_par_unite)} ${item.unite_superieure || 'Ctn'} + ${item.quantity % item.quantite_par_unite} ${item.unite_base || 'Pce'}` 
+                      : `${item.quantity} ${item.unite_base || 'Pce'}`
+                    }
+                  </p>
+                  <p className="text-[10px] font-black text-emerald-600 mt-0.5">
+                    {calculateItemTotal(item).toLocaleString()} Ar
                   </p>
                 </div>
 
@@ -312,7 +468,28 @@ export default function POS({ session }) {
                   <div className="flex items-center gap-3">
                     <div className="text-center">
                       <p className="text-[7px] font-black text-gray-400 uppercase leading-none mb-0.5">Qté</p>
-                      <p className="text-[11px] font-black text-emerald-600">{item.quantity}</p>
+                      <input 
+                        type="number" 
+                        className="w-12 border rounded text-center text-[11px] font-black"
+                        value={item.quantity}
+                        max={item.stock_quantity}
+                        onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            if(!isNaN(val)) {
+                                if (val > item.stock_quantity) {
+                                    alert("Quantité supérieure au stock disponible !");
+                                    setInvoiceItems(prev => prev.map(i => i.item_id === item.item_id ? {...i, quantity: item.stock_quantity} : i));
+                                } else {
+                                    setInvoiceItems(prev => prev.map(i => i.item_id === item.item_id ? {...i, quantity: val} : i));
+                                }
+                            }
+                        }}
+                        onBlur={(e) => {
+                            const val = parseInt(e.target.value);
+                            const finalVal = Math.min(val, item.stock_quantity);
+                            updateItemQuantity(item.item_id, finalVal);
+                        }}
+                      />
                     </div>
                     <div className="text-center">
                       <p className="text-[7px] font-black text-gray-400 uppercase leading-none mb-0.5">Remise</p>
@@ -344,9 +521,22 @@ export default function POS({ session }) {
             </thead>
             <tbody className="divide-y divide-emerald-50">
               {invoiceItems.map(item => (
-                <tr key={item.item_id} className="text-xs hover:bg-emerald-50/10 transition-colors">
-                  <td className="p-3 pl-6 font-black uppercase text-gray-800">{item.name}</td>
-                  <td className="p-3 text-center font-black text-emerald-600">{item.quantity}</td>
+                <tr key={item.item_id} className="border-b border-emerald-50">
+                  <td className="p-3 text-[11px] font-black uppercase text-gray-800">{item.name}</td>
+                  <td className="p-3 text-center">
+                    <input 
+                      type="number" 
+                      className="w-12 border rounded text-center text-[11px] font-black"
+                      value={item.quantity}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        if(!isNaN(val)) {
+                          setInvoiceItems(prev => prev.map(i => i.item_id === item.item_id ? {...i, quantity: val} : i));
+                        }
+                      }}
+                      onBlur={(e) => updateItemQuantity(item.item_id, parseInt(e.target.value))}
+                    />
+                  </td>
                   <td className="p-3 text-center text-[9px] font-bold text-gray-400 italic">
                     {item.quantite_par_unite > 1 ? `${Math.floor(item.quantity / item.quantite_par_unite)} ${item.unite_superieure || 'Ctn'} + ${item.quantity % item.quantite_par_unite} ${item.unite_base || 'Pce'}` : `${item.quantity} ${item.unite_base || 'Pce'}`}
                   </td>
@@ -409,23 +599,32 @@ export default function POS({ session }) {
           </div>
 
           <div className="flex items-center gap-3 w-full lg:w-auto">
-            <button 
+            <div className="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                id="printInvoice"
+                checked={printInvoice}
+                onChange={(e) => setPrintInvoice(e.target.checked)}
+                className="mr-1 accent-emerald-500"
+              />
+              <label htmlFor="printInvoice" className="text-[10px] font-black uppercase text-white">Imprimer</label>
+            </div>
+            <button
               onClick={handleReset}
               disabled={invoiceItems.length === 0 || isProcessing}
               className="flex-1 lg:flex-none px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest text-emerald-400 hover:text-red-400 hover:bg-white/5 transition-all disabled:opacity-30 border border-emerald-400/20 lg:border-none"
             >
               Réinitialiser
             </button>
-            <button 
-              onClick={handleFinalize} 
+            <button
+              onClick={handleFinalize}
               disabled={!activeInvoice || invoiceItems.length === 0 || isProcessing}
               className={`flex-1 lg:flex-none px-12 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg ${paymentMode === 'cash' ? 'bg-emerald-500 hover:bg-emerald-400 text-emerald-950' : 'bg-orange-500 hover:bg-orange-400 text-white'}`}
             >
               {isProcessing ? <Loader2 className="animate-spin" size={16} /> : (paymentMode === 'cash' ? <CheckCircle size={16} /> : <Send size={16} />)}
               {paymentMode === 'cash' ? "Valider" : "Crédit"}
             </button>
-          </div>
-        </div>
+          </div>        </div>
       </div>
 
       {/* 4. PRODUCT SEARCH (BOTTOM) */}
@@ -498,7 +697,11 @@ export default function POS({ session }) {
       </div>
 
       {/* Success & Discount Modals remain same but updated Z-Index */}
-      {showSuccess && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-500/90 backdrop-blur-md animate-in fade-in duration-300"><div className="text-center text-white scale-in-center"><CheckCircle size={80} className="mx-auto mb-4" /><h2 className="text-4xl font-black uppercase">Vente Terminée !</h2></div></div>}
+      {flashMessage && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-6 py-3 rounded-full shadow-lg z-50 animate-in fade-in slide-in-from-top duration-300">
+          {flashMessage}
+        </div>
+      )}
       {discountModal && <div className="fixed inset-0 z-[200] flex items-center justify-center bg-emerald-950/40 backdrop-blur-sm p-4"><div className="bg-white rounded-[2rem] shadow-2xl p-8 w-full max-w-sm"><h3 className="text-lg font-black text-gray-800 mb-2 uppercase">Remise</h3><div className="space-y-4"><div className="flex bg-gray-100 p-1 rounded-xl"><button onClick={() => setDiscountModal({...discountModal, type: '%'})} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${discountModal.type === '%' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}>%</button><button onClick={() => setDiscountModal({...discountModal, type: 'Ar'})} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${discountModal.type === 'Ar' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}>Ar</button></div><input autoFocus type="number" className="w-full bg-emerald-50 border-2 border-emerald-100 rounded-xl py-4 px-6 text-xl font-black outline-none" value={discountModal.value || ''} onChange={(e) => setDiscountModal({...discountModal, value: e.target.value})} /><div className="grid grid-cols-2 gap-3"><button onClick={() => setDiscountModal(null)} className="py-3 text-xs font-bold text-gray-400 uppercase">Annuler</button><button onClick={() => applyDiscount(discountModal.itemId, discountModal.type, discountModal.value)} className="bg-emerald-600 text-white py-3 rounded-xl text-xs font-black shadow-lg">Appliquer</button></div></div></div></div>}
     </div>
   );

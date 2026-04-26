@@ -181,6 +181,23 @@ export default function Inventory() {
   };
 
   // Stock Management Functions
+  const updateMovementQuantity = async (movementId, newQuantity) => {
+    if (isNaN(newQuantity) || newQuantity < 0) {
+      alert("Quantité invalide");
+      return;
+    }
+    const { error } = await supabase
+      .from('stock_movements')
+      .update({ quantity: newQuantity })
+      .eq('id', movementId);
+
+    if (error) {
+      alert("Erreur mise à jour: " + error.message);
+    } else {
+      fetchData(); // Refresh to ensure data consistency
+    }
+  };
+
   const handleStockSave = async (e) => {
     e.preventDefault();
     if (!selectedProductForStock || !stockFormData.quantity) return;
@@ -449,8 +466,26 @@ export default function Inventory() {
                   {stockMovements.filter(m => !selectedMovementProduct || m.product_id === selectedMovementProduct).map(m => (
                     <tr key={m.id} className="text-xs hover:bg-emerald-50/30">
                       <td className="p-3 font-bold text-gray-800">{m.products?.name}</td>
-                      <td className="p-3 text-center text-emerald-600 font-black">{m.type === 'in' ? m.quantity : '-'}</td>
-                      <td className="p-3 text-center text-orange-600 font-black">{m.type === 'out' ? m.quantity : '-'}</td>
+                      <td className="p-3 text-center text-emerald-600 font-black">
+                        {m.type === 'in' ? (
+                          <input 
+                            type="number" 
+                            className="w-16 border rounded px-1 text-center" 
+                            defaultValue={m.quantity} 
+                            onBlur={(e) => updateMovementQuantity(m.id, parseInt(e.target.value))}
+                          />
+                        ) : '-'}
+                      </td>
+                      <td className="p-3 text-center text-orange-600 font-black">
+                        {m.type === 'out' ? (
+                          <input 
+                            type="number" 
+                            className="w-16 border rounded px-1 text-center" 
+                            defaultValue={m.quantity} 
+                            onBlur={(e) => updateMovementQuantity(m.id, parseInt(e.target.value))}
+                          />
+                        ) : '-'}
+                      </td>
                       <td className="p-3 text-gray-500">{new Date(m.created_at).toLocaleDateString()}</td>
                       <td className="p-3 text-gray-500 italic">{m.reason}</td>
                     </tr>

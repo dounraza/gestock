@@ -46,11 +46,14 @@ export default function Dashboard({ session }) {
     totalSales: 0,
     stockAlerts: 0,
     paidInvoices: 0,
-    pendingInvoices: 0
+    pendingInvoices: 0,
+    overdueCredits: 0
   });
   const [loading, setLoading] = useState(true);
   const [billingSearchTerm, setBillingSearchTerm] = useState('');
   const [deadlineSearchTerm, setDeadlineSearchTerm] = useState('');
+  const [overdueList, setOverdueList] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const handleLogout = () => supabase.auth.signOut();
 
@@ -77,11 +80,22 @@ export default function Dashboard({ session }) {
       .select('*', { count: 'exact', head: true })
       .lt('stock_quantity', 10);
 
+    // 3. Get overdue credits
+    const today = new Date().toISOString().split('T')[0];
+    const { data: overdues } = await supabase
+      .from('echeances_details')
+      .select('*, factures(number, guest_name, clients(name))')
+      .eq('statut', 'non_paye')
+      .lt('date_echeance', today);
+
+    setOverdueList(overdues || []);
+
     setStats({
       totalSales,
       stockAlerts: stockAlerts || 0,
       paidInvoices: paidInvoices.length,
-      pendingInvoices: pendingInvoices.length
+      pendingInvoices: pendingInvoices.length,
+      overdueCredits: overdues?.length || 0
     });
     setLoading(false);
   };
@@ -236,7 +250,7 @@ export default function Dashboard({ session }) {
       {/* Main Content Area */}
       <main className="relative z-10 flex-1 flex flex-col h-screen overflow-hidden">
         {/* Header */}
-        <header className="h-20 bg-white/20 backdrop-blur-md border-b border-emerald-50 px-4 md:px-8 flex justify-between items-center shrink-0">
+        <header className="h-20 bg-white/20 backdrop-blur-md border-b border-emerald-50 px-4 md:px-8 flex justify-between items-center shrink-0 z-50">
           <div className="flex items-center gap-4">
             <button
               className="p-2 text-gray-500 hover:bg-emerald-50 rounded-lg transition-colors"
@@ -259,10 +273,62 @@ export default function Dashboard({ session }) {
                 onChange={(e) => setDashboardSearchTerm(e.target.value)}
               />
             </div>
-            <button className="relative text-gray-400 hover:text-emerald-500 p-2" onClick={fetchStats}>
-              <Bell size={20} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
+            <div className="relative">
+              <button 
+                className="relative text-gray-400 hover:text-emerald-500 p-2 transition-colors" 
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                <Bell size={20} />
+                {stats.overdueCredits > 0 && (
+                  <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">
+                    {stats.overdueCredits}
+                  </span>
+                )}
+              </button>
+
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-emerald-50 overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2">
+                  <div className="p-4 border-b border-emerald-50 flex justify-between items-center bg-emerald-50/30">
+                    <h4 className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">Alertes de Retard</h4>
+                    <button onClick={() => setShowNotifications(false)}><X size={14} className="text-gray-400" /></button>
+                  </div>
+                  <div className="max-h-96 overflow-y-auto">
+                    {overdueList.length > 0 ? overdueList.map((item) => (
+                      <div 
+                        key={item.id} 
+                        onClick={() => {
+                          handleViewClientCredit(item.factures?.clients?.name || item.factures?.guest_name);
+                          setShowNotifications(false);
+                        }}
+                        className="p-4 border-b border-emerald-50 hover:bg-emerald-50/50 cursor-pointer transition-colors"
+                      >
+                        <div className="flex justify-between items-start mb-1">
+                          <p className="text-xs font-black text-gray-800">{item.factures?.number}</p>
+                          <p className="text-[9px] font-black text-red-500 uppercase">{new Date(item.date_echeance).toLocaleDateString()}</p>
+                        </div>
+                        <p className="text-[10px] font-bold text-gray-500 uppercase truncate">
+                          {item.factures?.clients?.name || item.factures?.guest_name || 'Client Direct'}
+                        </p>
+                        <p className="text-sm font-black text-emerald-600 mt-1">{item.montant.toLocaleString()} Ar</p>
+                      </div>
+                    )) : (
+                      <div className="p-10 text-center">
+                        <CheckCircle2 size={32} className="text-emerald-200 mx-auto mb-2" />
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Aucun retard détecté</p>
+                      </div>
+                    )}
+                  </div>
+                  {overdueList.length > 0 && (
+                    <button 
+                      onClick={() => { navigate('/dashboard/deadlines'); setShowNotifications(false); }}
+                      className="w-full py-3 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-colors"
+                    >
+                      Voir tout l'échéancier
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             <button 
               onClick={handleLogout}
               className="lg:hidden p-2 text-gray-400 hover:text-red-500 transition-colors"
@@ -294,11 +360,11 @@ export default function Dashboard({ session }) {
                     icon={<AlertCircle className={stats.stockAlerts > 0 ? "text-orange-500" : "text-emerald-500"} size={24} />} 
                   />
                   <StatCard 
-                    title={stats.pendingInvoices > 0 ? "Échéances en attente" : "Factures payées"} 
-                    value={stats.pendingInvoices > 0 ? stats.pendingInvoices.toString() : stats.paidInvoices.toString()} 
-                    trend={stats.pendingInvoices > 0 ? "À encaisser" : "Historique"} 
-                    negative={stats.pendingInvoices > 0}
-                    icon={stats.pendingInvoices > 0 ? <AlertCircle className="text-orange-500" size={24} /> : <CheckCircle2 className="text-emerald-600" size={24} />} 
+                    title={stats.overdueCredits > 0 ? "Crédits en retard" : (stats.pendingInvoices > 0 ? "Échéances en attente" : "Factures payées")} 
+                    value={stats.overdueCredits > 0 ? stats.overdueCredits.toString() : (stats.pendingInvoices > 0 ? stats.pendingInvoices.toString() : stats.paidInvoices.toString())} 
+                    trend={stats.overdueCredits > 0 ? "Urgent" : (stats.pendingInvoices > 0 ? "À encaisser" : "Historique")} 
+                    negative={stats.overdueCredits > 0 || stats.pendingInvoices > 0}
+                    icon={stats.overdueCredits > 0 ? <Clock className="text-red-500" size={24} /> : (stats.pendingInvoices > 0 ? <AlertCircle className="text-orange-500" size={24} /> : <CheckCircle2 className="text-emerald-600" size={24} />)} 
                   />
                 </div>
 
