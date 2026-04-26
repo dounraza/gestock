@@ -16,6 +16,7 @@ export default function POS({ session }) {
   const [dueDate, setDueDate] = useState(new Date().toISOString().split('T')[0]);
   const [advanceAmount, setAdvanceAmount] = useState(0);
   const [isInstallment, setIsInstallment] = useState(false);
+  const [installmentFrequency, setInstallmentFrequency] = useState('month'); // 'day' or 'month'
   const [installmentMonths, setInstallmentMonths] = useState(1);
   const [printInvoice, setPrintInvoice] = useState(false);
   const [flashMessage, setFlashMessage] = useState(null);
@@ -109,22 +110,43 @@ export default function POS({ session }) {
     
     const existingItem = invoiceItems.find(item => item.id === product.id);
     
+    // Optimistic UI Update: update the list immediately
     if (existingItem) {
       const newQty = existingItem.quantity + qtyToAdd;
       if (product.stock_quantity < newQty) return alert("Stock insuffisant !");
       
-      // Update DB
-      await supabase.from('facture_items').update({ quantity: newQty }).eq('id', existingItem.item_id);
+      setInvoiceItems(prev => prev.map(item => 
+        item.id === product.id ? { ...item, quantity: newQty } : item
+      ));
+
+      // Async DB Update
+      const { error } = await supabase.from('facture_items').update({ quantity: newQty }).eq('id', existingItem.item_id);
+      if (error) {
+        alert("Erreur lors de la mise à jour : " + error.message);
+        fetchInvoiceItems(activeInvoice.id);
+      }
     } else {
-      const { data } = await supabase.from('facture_items')
+      // For a new item, we need the item_id from DB, so we can't be 100% optimistic 
+      // but we can still show it with a temporary ID if we wanted. 
+      // For now, let's just make sure we don't block more than necessary.
+      const { data, error } = await supabase.from('facture_items')
         .insert([{ facture_id: activeInvoice.id, produit_id: product.id, quantity: qtyToAdd, price_at_sale: product.price }])
         .select()
         .single();
-      if (!data) return;
+      
+      if (error) return alert(error.message);
+      
+      if (data) {
+        // Construct the new item locally to avoid a full fetch if possible
+        const newItem = {
+          ...product,
+          item_id: data.id,
+          quantity: qtyToAdd,
+          price_at_sale: product.price
+        };
+        setInvoiceItems(prev => [...prev, newItem]);
+      }
     }
-    
-    // Refresh items to sync state perfectly with DB
-    await fetchInvoiceItems(activeInvoice.id);
   };
 
   const removeItem = async (itemId, productId) => {
@@ -201,7 +223,11 @@ export default function POS({ session }) {
           const monthlyAmount = Math.floor(amountToSchedule / installmentMonths);
           for (let i = 0; i < installmentMonths; i++) {
             const date = new Date(dueDate); 
-            date.setMonth(date.getMonth() + i);
+            if (installmentFrequency === 'day') {
+              date.setDate(date.getDate() + i);
+            } else {
+              date.setMonth(date.getMonth() + i);
+            }
             echeances.push({ 
               facture_id: invData.id, 
               montant: i === installmentMonths - 1 ? (amountToSchedule - (monthlyAmount * (installmentMonths - 1))) : monthlyAmount, 
@@ -582,14 +608,18 @@ export default function POS({ session }) {
                   </div>
                   {isInstallment && (
                     <div className="flex items-center gap-2 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
+                      <select className="bg-emerald-800 text-[10px] font-black rounded px-1 py-0.5 border border-white/5" value={installmentFrequency} onChange={e => setInstallmentFrequency(e.target.value)}>
+                        <option value="month">MENSUEL</option>
+                        <option value="day">JOURNALIER</option>
+                      </select>
                       <select className="bg-emerald-800 text-[10px] font-black rounded px-1 py-0.5 border border-white/5" value={installmentMonths} onChange={e => setInstallmentMonths(parseInt(e.target.value))}>
-                        {[1,2,3,4,5,6,12].map(m => <option key={m} value={m}>{m} mois</option>)}
+                        {[1,2,3,4,5,6,12,30].map(m => <option key={m} value={m}>{m} {installmentFrequency === 'day' ? 'jours' : 'mois'}</option>)}
                       </select>
                       <div className="flex flex-col">
                         <span className="text-[11px] font-black text-emerald-400 leading-none">
                           {Math.floor((total - (parseFloat(advanceAmount) || 0)) / installmentMonths).toLocaleString()} Ar
                         </span>
-                        <span className="text-[7px] font-bold text-emerald-500 uppercase opacity-60">/ mois</span>
+                        <span className="text-[7px] font-bold text-emerald-500 uppercase opacity-60">/ {installmentFrequency === 'day' ? 'jour' : 'mois'}</span>
                       </div>
                     </div>
                   )}

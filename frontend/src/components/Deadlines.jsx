@@ -7,6 +7,7 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm || '');
   const [viewMode, setViewMode] = useState('cards'); // 'cards', 'table', 'calendar'
+  const [frequencyFilter, setFrequencyFilter] = useState('all'); // 'all', 'day', 'month'
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const [paymentModal, setPaymentModal] = useState(null); // { echeance: ... }
@@ -90,10 +91,25 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
     }
   };
 
-  const filtered = deadlines.filter(d => 
-    d.factures?.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (d.factures?.clients?.name || d.factures?.guest_name || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = deadlines.filter(d => {
+    const matchesSearch = d.factures?.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (d.factures?.clients?.name || d.factures?.guest_name || '').toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (frequencyFilter === 'all') return matchesSearch;
+
+    // Inférence de fréquence : On regarde les autres échéances de la même facture
+    const siblingInstallments = deadlines.filter(sib => sib.facture_id === d.facture_id);
+    if (siblingInstallments.length <= 1) return matchesSearch; // Si une seule échéance, on l'affiche partout ou on peut pas deviner
+
+    // Calcul de l'écart moyen en jours entre les échéances
+    const dates = siblingInstallments.map(sib => new Date(sib.date_echeance).getTime()).sort();
+    const gaps = [];
+    for(let i=1; i<dates.length; i++) gaps.push((dates[i] - dates[i-1]) / (1000 * 3600 * 24));
+    const avgGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+
+    const isDaily = avgGap < 15; // Moins de 15 jours d'écart = Journalier (souvent 1 jour)
+    return matchesSearch && (frequencyFilter === 'day' ? isDaily : !isDaily);
+  });
 
   // Groupement par facture pour la vue "Cards"
   const groupedInvoices = filtered.reduce((acc, current) => {
@@ -105,15 +121,28 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
         client_name: current.factures?.clients?.name || current.factures?.guest_name || 'Client Direct',
         total_remaining: 0,
         installments: [],
-        next_due_date: current.date_echeance
+        next_due_date: current.date_echeance,
+        is_daily: false
       };
     }
     acc[factId].total_remaining += current.montant;
     acc[factId].installments.push(current);
+    
+    if (new Date(current.date_echeance) < new Date(acc[factId].next_due_date)) {
+      acc[factId].next_due_date = current.date_echeance;
+    }
     return acc;
   }, {});
 
-  const groupedList = Object.values(groupedInvoices);
+  const groupedList = Object.values(groupedInvoices).map(inv => {
+    // Détection de fréquence par groupe
+    if (inv.installments.length > 1) {
+      const dates = inv.installments.map(sib => new Date(sib.date_echeance).getTime()).sort();
+      const gap = (dates[1] - dates[0]) / (1000 * 3600 * 24);
+      inv.is_daily = gap < 15;
+    }
+    return inv;
+  }).sort((a, b) => new Date(a.next_due_date) - new Date(b.next_due_date));
 
   // Calendrier Logic
   const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
@@ -128,48 +157,46 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
 
   return (
     <div className="space-y-6">
-      {/* Header avec les 3 Boutons de Vue */}
-      <div className="flex flex-col lg:flex-row justify-between items-center bg-white/60 backdrop-blur-md p-4 rounded-3xl border border-emerald-50 gap-4 shadow-sm">
-        <div className="flex flex-wrap items-center gap-4">
-          <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <CalendarIcon className="text-emerald-600" size={24} /> Échéancier
-          </h3>
-          <div className="flex bg-emerald-100/50 p-1 rounded-xl border border-emerald-100/50">
-            <button 
-              onClick={() => setViewMode('cards')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black transition-all ${viewMode === 'cards' ? 'bg-white text-emerald-700 shadow-sm' : 'text-emerald-600 hover:bg-white/50'}`}
-            >
-              <LayoutGrid size={14} /> CARTES
-            </button>
-            <button 
-              onClick={() => setViewMode('table')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black transition-all ${viewMode === 'table' ? 'bg-white text-emerald-700 shadow-sm' : 'text-emerald-600 hover:bg-white/50'}`}
-            >
-              <Table size={14} /> TABLEAU
-            </button>
-            <button 
-              onClick={() => setViewMode('calendar')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black transition-all ${viewMode === 'calendar' ? 'bg-white text-emerald-700 shadow-sm' : 'text-emerald-600 hover:bg-white/50'}`}
-            >
-              <CalendarIcon size={14} /> CALENDRIER
-            </button>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
-          {viewMode === 'calendar' && (
-            <div className="flex items-center bg-white border border-emerald-100 rounded-xl px-2 py-1 gap-4 shadow-sm">
-              <button onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() - 1)))} className="p-2 hover:bg-emerald-50 rounded-lg text-emerald-600">←</button>
-              <span className="text-xs font-black uppercase text-emerald-800 min-w-[120px] text-center">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</span>
-              <button onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)))} className="p-2 hover:bg-emerald-50 rounded-lg text-emerald-600">→</button>
+      {/* Header avec Filtres de Vue et Fréquence */}
+      <div className="flex flex-col lg:space-y-4 bg-white/60 backdrop-blur-md p-6 rounded-[2.5rem] border border-emerald-50 shadow-sm transition-all">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <h3 className="text-xl font-black text-gray-800 flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
+                <CalendarIcon className="text-white" size={20} />
+              </div>
+              ÉCHÉANCIER
+            </h3>
+            
+            {/* Tabs de Fréquence */}
+            <div className="flex bg-gray-100/80 p-1.5 rounded-2xl border border-gray-200 shadow-inner">
+              <button 
+                onClick={() => setFrequencyFilter('all')}
+                className={`px-5 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all ${frequencyFilter === 'all' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-400 hover:text-emerald-600'}`}
+              >
+                TOUS
+              </button>
+              <button 
+                onClick={() => setFrequencyFilter('day')}
+                className={`px-5 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all ${frequencyFilter === 'day' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-400 hover:text-emerald-600'}`}
+              >
+                JOURNALIER
+              </button>
+              <button 
+                onClick={() => setFrequencyFilter('month')}
+                className={`px-5 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all ${frequencyFilter === 'month' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-400 hover:text-emerald-600'}`}
+              >
+                MENSUEL
+              </button>
             </div>
-          )}
-          <div className="relative flex-1 lg:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400" size={18} />
+          </div>
+
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400" size={18} />
             <input 
               type="text" 
-              placeholder="Rechercher un client ou FAC..." 
-              className="w-full bg-white border border-emerald-100 rounded-2xl py-2.5 pl-10 pr-4 text-sm focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all"
+              placeholder="Rechercher un client ou facture..." 
+              className="w-full bg-white border-2 border-emerald-50 rounded-2xl py-3 pl-12 pr-4 text-xs font-bold focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all shadow-sm"
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -177,6 +204,42 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
               }}
             />
           </div>
+        </div>
+
+        <div className="h-px bg-emerald-50/50 w-full hidden lg:block"></div>
+
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-2">
+          {/* Tabs de Mode de Vue */}
+          <div className="flex bg-emerald-50/50 p-1.5 rounded-2xl border border-emerald-100/50 shadow-sm w-full md:w-auto">
+            <button 
+              onClick={() => setViewMode('cards')}
+              className={`flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${viewMode === 'cards' ? 'bg-white text-emerald-700 shadow-md' : 'text-emerald-600/60 hover:text-emerald-700'}`}
+            >
+              <LayoutGrid size={16} /> CARTES
+            </button>
+            <button 
+              onClick={() => setViewMode('table')}
+              className={`flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${viewMode === 'table' ? 'bg-white text-emerald-700 shadow-md' : 'text-emerald-600/60 hover:text-emerald-700'}`}
+            >
+              <Table size={16} /> TABLEAU
+            </button>
+            <button 
+              onClick={() => setViewMode('calendar')}
+              className={`flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${viewMode === 'calendar' ? 'bg-white text-emerald-700 shadow-md' : 'text-emerald-600/60 hover:text-emerald-700'}`}
+            >
+              <CalendarIcon size={16} /> CALENDRIER
+            </button>
+          </div>
+
+          {viewMode === 'calendar' && (
+            <div className="flex items-center bg-white border-2 border-emerald-50 rounded-2xl p-1.5 gap-2 shadow-sm animate-in fade-in zoom-in duration-300">
+              <button onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() - 1)))} className="p-2 hover:bg-emerald-50 rounded-xl text-emerald-600 transition-colors">←</button>
+              <div className="px-6 py-1 bg-emerald-50 rounded-lg">
+                <span className="text-[11px] font-black uppercase text-emerald-800 min-w-[140px] block text-center tracking-tighter">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</span>
+              </div>
+              <button onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)))} className="p-2 hover:bg-emerald-50 rounded-xl text-emerald-600 transition-colors">→</button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -212,11 +275,11 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
                     
                     <div className="bg-emerald-50/30 p-3 rounded-xl mb-4 flex justify-between items-center border border-emerald-50/50">
                       <div>
-                        <p className="text-[7px] font-black text-emerald-600 uppercase leading-none">Reste</p>
+                        <p className="text-[7px] font-black text-emerald-600 uppercase leading-none">Reste Total</p>
                         <p className="text-sm font-black text-emerald-900">{inv.total_remaining.toLocaleString()} Ar</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[7px] font-black text-emerald-600 uppercase leading-none">Mens.</p>
+                        <p className="text-[7px] font-black text-emerald-600 uppercase leading-none">{inv.is_daily ? 'Jours' : 'Mens.'}</p>
                         <p className="text-[10px] font-black text-emerald-700">{inv.installments.length}</p>
                       </div>
                     </div>
@@ -259,43 +322,57 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-emerald-50/50 border-b border-emerald-100">
-                    <th className="p-4 text-[10px] font-black text-emerald-700 uppercase">Date</th>
+                    <th className="p-4 text-[10px] font-black text-emerald-700 uppercase">Date d'échéance</th>
                     <th className="p-4 text-[10px] font-black text-emerald-700 uppercase">Facture</th>
                     <th className="p-4 text-[10px] font-black text-emerald-700 uppercase">Client</th>
                     <th className="p-4 text-[10px] font-black text-emerald-700 uppercase">Montant</th>
+                    <th className="p-4 text-[10px] font-black text-emerald-700 uppercase text-center">Statut</th>
                     <th className="p-4 text-[10px] font-black text-emerald-700 uppercase text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-emerald-50">
-                  {filtered.length > 0 ? filtered.map((d) => (
-                    <tr key={d.id} className="hover:bg-emerald-50/30 transition-colors">
-                      <td className="p-4 text-xs font-bold text-gray-600">{new Date(d.date_echeance).toLocaleDateString()}</td>
-                      <td className="p-4 text-xs font-black text-gray-800">{d.factures?.number}</td>
-                      <td className="p-4 text-xs font-bold text-gray-500">{d.factures?.clients?.name || d.factures?.guest_name || 'Direct'}</td>
-                      <td className="p-4 text-xs font-black text-emerald-700">{d.montant.toLocaleString()} Ar</td>
-                      <td className="p-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button 
-                            onClick={() => {
-                              setSearchTerm(d.factures?.clients?.name || d.factures?.guest_name || '');
-                              setViewMode('calendar');
-                            }}
-                            className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-                            title="Voir le calendrier de ce client"
-                          >
-                            <CalendarIcon size={14} />
-                          </button>
-                          <button 
-                            onClick={() => setPaymentModal({ echeance: d })}
-                            className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
-                            title="Encaisser"
-                          >
-                            <CheckCircle size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )) : <tr><td colSpan="5" className="p-10 text-center text-gray-400">Aucune donnée</td></tr>}
+                  {filtered.length > 0 ? filtered.map((d) => {
+                    const isOverdue = new Date(d.date_echeance) < new Date(new Date().setHours(0,0,0,0));
+                    return (
+                      <tr key={d.id} className="hover:bg-emerald-50/30 transition-colors">
+                        <td className="p-4 text-xs font-bold text-gray-600">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${isOverdue ? 'bg-red-500 animate-pulse' : 'bg-orange-400'}`}></div>
+                            <span className="font-black text-gray-800">{new Date(d.date_echeance).toLocaleDateString('fr-FR')}</span>
+                          </div>
+                        </td>
+                        <td className="p-4 text-xs font-black text-gray-800">{d.factures?.number}</td>
+                        <td className="p-4 text-xs font-bold text-gray-500">{d.factures?.clients?.name || d.factures?.guest_name || 'Direct'}</td>
+                        <td className="p-4 text-xs font-black text-emerald-700">{d.montant.toLocaleString()} Ar</td>
+                        <td className="p-4 text-center">
+                          <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${isOverdue ? 'bg-red-100 text-red-600 border border-red-200' : 'bg-orange-100 text-orange-600 border border-orange-200'}`}>
+                            {isOverdue ? 'Retard' : 'En attente'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button 
+                              onClick={() => {
+                                setSearchTerm(d.factures?.clients?.name || d.factures?.guest_name || '');
+                                setViewMode('calendar');
+                              }}
+                              className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                              title="Voir le calendrier de ce client"
+                            >
+                              <CalendarIcon size={14} />
+                            </button>
+                            <button 
+                              onClick={() => setPaymentModal({ echeance: d })}
+                              className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                              title="Encaisser"
+                            >
+                              <CheckCircle size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }) : <tr><td colSpan="6" className="p-10 text-center text-gray-400 font-bold italic">Aucune échéance ne correspond à votre recherche</td></tr>}
                 </tbody>
               </table>
             </div>
