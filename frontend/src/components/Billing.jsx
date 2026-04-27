@@ -35,7 +35,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
     setLoading(true);
     const { data: invs } = await supabase
       .from('factures')
-      .select('*, clients(name, email, phone, address), profiles(full_name)')
+      .select('*, clients(name, email, phone, address)')
       .order('created_at', { ascending: false });
     
     const { data: cls } = await supabase.from('clients').select('*').order('name');

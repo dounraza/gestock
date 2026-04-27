@@ -235,13 +235,13 @@ export default function Dashboard({ session }) {
               <div className="space-y-1">
                 <NavItem 
                   icon={<SettingsIcon size={20} />} 
-                  label="Paramètres" 
+                  label={<span className="hidden sm:inline">Paramètres</span>}
                   active={activeTab === 'settings'} 
                   onClick={() => { navigate('/dashboard/settings'); closeSidebar(); }} 
                 />
                 <NavItem 
                   icon={<Box size={20} />} 
-                  label="Conversions" 
+                  label={<span className="hidden sm:inline">Conversions</span>}
                   active={activeTab === 'conversions'} 
                   onClick={() => { navigate('/dashboard/conversions'); closeSidebar(); }} 
                 />

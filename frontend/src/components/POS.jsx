@@ -20,6 +20,7 @@ export default function POS({ session }) {
   const [installmentMonths, setInstallmentMonths] = useState(1);
   const [printInvoice, setPrintInvoice] = useState(false);
   const [flashMessage, setFlashMessage] = useState(null);
+  const [globalDiscount, setGlobalDiscount] = useState({ value: 0, type: '%' });
 
   const [companyInfo, setCompanyInfo] = useState(null);
 
@@ -253,7 +254,8 @@ export default function POS({ session }) {
       setAdvanceAmount(0);
       setIsInstallment(false);
       if (printInvoice) {
-        handlePrintInvoice(invData.number, activeInvoice.guest_name, activeInvoice.guest_contact, invoiceItems, total, activeInvoice.created_at);
+        const subtotalBeforeDiscount = invoiceItems.reduce((acc, item) => acc + calculateItemTotal(item), 0);
+        handlePrintInvoice(invData.number, activeInvoice.guest_name, activeInvoice.guest_contact, invoiceItems, subtotalBeforeDiscount, activeInvoice.created_at);
       }
       fetchOrCreateDraftInvoice();
       setTimeout(() => setFlashMessage(null), 2000);
@@ -348,12 +350,22 @@ export default function POS({ session }) {
       `;
     });
 
+    const discountAmount = globalDiscount.value > 0 
+      ? (globalDiscount.type === '%' ? (totalAmount * (parseFloat(globalDiscount.value) / 100)) : parseFloat(globalDiscount.value))
+      : 0;
+
     printContent += `
         </tbody>
         <tfoot>
-          <tr class="total-row">
-            <td colspan="4">TOTAL</td>
-            <td>${totalAmount.toLocaleString()} Ar</td>
+          ${discountAmount > 0 ? `
+            <tr style="border-top: 2px solid #f3f4f6;">
+              <td colspan="4" style="padding: 10px 0; text-align: right; font-size: 12px; color: #6b7280;">REMISE GLOBALE (${globalDiscount.value}${globalDiscount.type})</td>
+              <td style="padding: 10px 0; text-align: right; font-size: 14px; font-weight: 700; color: #ef4444;">-${discountAmount.toLocaleString('fr-MG')} Ar</td>
+            </tr>
+          ` : ''}
+          <tr style="border-top: 2px solid #f3f4f6;">
+            <td colspan="4" style="padding: 20px 0; text-align: right; font-size: 14px; font-weight: 900; color: #6b7280; text-transform: uppercase;">TOTAL À PAYER</td>
+            <td style="padding: 20px 0; text-align: right; font-size: 16px; font-weight: 900; color: #1f2937;">${(totalAmount - discountAmount).toLocaleString('fr-MG')} Ar</td>
           </tr>
         </tfoot>
       </table>
@@ -377,7 +389,12 @@ export default function POS({ session }) {
   };
 
   const applyDiscount = (itemId, type, value) => {
-    setInvoiceItems(invoiceItems.map(item => item.item_id === itemId ? { ...item, discount: { type, value } } : item));
+    const numericValue = parseFloat(value) || 0;
+    if (discountModal.isGlobal) {
+        setGlobalDiscount(prev => ({ ...prev, type, value: numericValue }));
+    } else {
+        setInvoiceItems(invoiceItems.map(item => item.item_id === itemId ? { ...item, discount: { type, value: numericValue } } : item));
+    }
     setDiscountModal(null);
   };
 
@@ -416,7 +433,25 @@ export default function POS({ session }) {
     }
   };
 
-  const total = invoiceItems.reduce((acc, item) => acc + calculateItemTotal(item), 0);
+  const calculateTotal = () => {
+    let subtotal = invoiceItems.reduce((acc, item) => acc + calculateItemTotal(item), 0);
+    if (globalDiscount.value > 0) {
+      if (globalDiscount.type === '%') {
+        subtotal -= (subtotal * (parseFloat(globalDiscount.value) / 100));
+      } else {
+        subtotal -= parseFloat(globalDiscount.value);
+      }
+    }
+    return Math.max(0, subtotal);
+  };
+
+  const total = calculateTotal();
+
+  const applyGlobalDiscount = (type, value) => {
+    // S'assurer que la valeur est convertie en nombre avant de l'enregistrer
+    setGlobalDiscount({ type, value: parseFloat(value) || 0 });
+    setDiscountModal(null);
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -457,10 +492,18 @@ export default function POS({ session }) {
         </div>
 
         <div className="flex items-baseline gap-3 px-4 border-t md:border-t-0 md:border-l border-white/20 w-full md:w-auto pt-2 md:pt-0 justify-between md:justify-start">
-          <span className="text-[10px] font-black opacity-90 uppercase text-white">Total:</span>
-          <span className="text-2xl font-black text-red-500 bg-white px-4 py-1 rounded-2xl shadow-lg border-2 border-red-100 flex items-center gap-1">
-            {total.toLocaleString()} <span className="text-xs opacity-60">Ar</span>
-          </span>
+          <div className="flex flex-col items-end">
+            <span className="text-[9px] font-black opacity-75 uppercase text-white">Remise</span>
+            <span className="text-xs font-black text-orange-200">
+              {globalDiscount.value > 0 ? (globalDiscount.type === '%' ? `${globalDiscount.value}%` : `${globalDiscount.value} Ar`) : '0'}
+            </span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] font-black opacity-90 uppercase text-white">Total:</span>
+            <span className="text-2xl font-black text-red-500 bg-white px-4 py-1 rounded-2xl shadow-lg border-2 border-red-100 flex items-center gap-1">
+              {total.toLocaleString()} <span className="text-xs opacity-60">Ar</span>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -535,45 +578,55 @@ export default function POS({ session }) {
           </div>
 
           {/* Desktop View: Table */}
-          <table className="w-full text-left min-w-[600px] hidden sm:table">
+          <table className="w-full text-left min-w-[500px] hidden sm:table">
             <thead className="sticky top-0 bg-gray-50 border-b border-emerald-50 z-10">
-              <tr className="text-[9px] font-black text-emerald-700 uppercase">
-                <th className="p-3 pl-6">Produit</th>
-                <th className="p-3 text-center">Qté</th>
-                <th className="p-3 text-center">Détails Unités</th>
-                <th className="p-3 text-right">Remise</th>
-                <th className="p-3 text-right pr-6">Total</th>
-                <th className="p-3 text-right"></th>
+              <tr className="text-[8px] font-black text-gray-400 uppercase">
+                <th className="p-2 pl-4">Produit</th>
+                <th className="p-2 text-center">Qté</th>
+                <th className="p-2 text-center">Détails Unités</th>
+                <th className="p-2 text-right">Remise</th>
+                <th className="p-2 text-right pr-4">Total</th>
+                <th className="p-2 text-right"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-emerald-50">
               {invoiceItems.map(item => (
-                <tr key={item.item_id} className="border-b border-emerald-50">
-                  <td className="p-3 text-[11px] font-black uppercase text-gray-800">{item.name}</td>
-                  <td className="p-3 text-center">
+                <tr key={item.item_id} className="border-b border-emerald-50 text-[10px]">
+                  <td className="p-2 pl-4 font-black uppercase text-gray-800">{item.name}</td>
+                  <td className="p-2 text-center">
                     <input 
                       type="number" 
-                      className="w-12 border rounded text-center text-[11px] font-black"
+                      className="w-10 border rounded text-center text-[10px] font-black"
                       value={item.quantity}
+                      max={item.stock_quantity}
                       onChange={(e) => {
                         const val = parseInt(e.target.value);
-                        if(!isNaN(val)) {
-                          setInvoiceItems(prev => prev.map(i => i.item_id === item.item_id ? {...i, quantity: val} : i));
+                        if (!isNaN(val)) {
+                            if (val > item.stock_quantity) {
+                                alert("Quantité supérieure au stock disponible !");
+                                setInvoiceItems(prev => prev.map(i => i.item_id === item.item_id ? {...i, quantity: item.stock_quantity} : i));
+                            } else {
+                                setInvoiceItems(prev => prev.map(i => i.item_id === item.item_id ? {...i, quantity: val} : i));
+                            }
                         }
                       }}
-                      onBlur={(e) => updateItemQuantity(item.item_id, parseInt(e.target.value))}
+                      onBlur={(e) => {
+                          const val = parseInt(e.target.value);
+                          const finalVal = Math.min(val, item.stock_quantity);
+                          updateItemQuantity(item.item_id, finalVal);
+                      }}
                     />
                   </td>
-                  <td className="p-3 text-center text-[9px] font-bold text-gray-400 italic">
+                  <td className="p-2 text-center text-[8px] font-bold text-gray-400 italic">
                     {item.quantite_par_unite > 1 ? `${Math.floor(item.quantity / item.quantite_par_unite)} ${item.unite_superieure || 'Ctn'} + ${item.quantity % item.quantite_par_unite} ${item.unite_base || 'Pce'}` : `${item.quantity} ${item.unite_base || 'Pce'}`}
                   </td>
-                  <td className="p-3 text-right">
+                  <td className="p-2 text-right">
                     <button onClick={() => setDiscountModal({ itemId: item.item_id, name: item.name, total: item.quantity * item.price_at_sale, value: item.discount?.value || 0, type: item.discount?.type || '%' })} className={`font-black ${item.discount ? 'text-orange-500' : 'text-gray-300 hover:text-emerald-500'}`}>
-                      {item.discount ? `${item.discount.value}${item.discount.type}` : <Tag size={12} className="ml-auto" />}
+                      {item.discount ? `${item.discount.value}${item.discount.type}` : <Tag size={10} className="ml-auto" />}
                     </button>
                   </td>
-                  <td className="p-3 text-right font-black pr-6">{calculateItemTotal(item).toLocaleString()} Ar</td>
-                  <td className="p-3 text-right"><button onClick={() => removeItem(item.item_id, item.id)} className="text-red-200 hover:text-red-500 mr-4"><Trash2 size={14} /></button></td>
+                  <td className="p-2 text-right font-black pr-4">{calculateItemTotal(item).toLocaleString()} Ar</td>
+                  <td className="p-2 text-right"><button onClick={() => removeItem(item.item_id, item.id)} className="text-red-200 hover:text-red-500"><Trash2 size={12} /></button></td>
                 </tr>
               ))}
             </tbody>
@@ -629,33 +682,47 @@ export default function POS({ session }) {
             )}
           </div>
 
-          <div className="flex items-center gap-3 w-full lg:w-auto">
-            <div className="flex items-center gap-1.5">
-              <input
-                type="checkbox"
-                id="printInvoice"
-                checked={printInvoice}
-                onChange={(e) => setPrintInvoice(e.target.checked)}
-                className="mr-1 accent-emerald-500"
-              />
-              <label htmlFor="printInvoice" className="text-[10px] font-black uppercase text-white">Imprimer</label>
+          {/* ACTION BUTTONS */}
+          <div className="flex flex-wrap items-center gap-2 justify-center lg:justify-end">
+            <button 
+                onClick={() => setDiscountModal({ type: globalDiscount.type, value: globalDiscount.value, isGlobal: true })}
+                className="w-full lg:w-auto px-4 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest text-emerald-300 hover:bg-white/10 transition-all border border-emerald-400/20"
+            >
+                Remise globale
+            </button>
+            <div className="flex items-center gap-3 w-full lg:w-auto justify-center lg:justify-end mt-2 lg:mt-0">
+                <div className="flex items-center gap-1.5">
+                <input
+                    type="checkbox"
+                    id="printInvoice"
+                    checked={printInvoice}
+                    onChange={(e) => setPrintInvoice(e.target.checked)}
+                    className="mr-1 accent-emerald-500"
+                />
+                <label htmlFor="printInvoice" className="text-[10px] font-black uppercase text-white">Imprimer</label>
+                </div>
+                <button
+                onClick={handleReset}
+                disabled={invoiceItems.length === 0 || isProcessing}
+                className="px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest text-emerald-400 hover:text-red-400 hover:bg-white/5 transition-all disabled:opacity-30 border border-emerald-400/20 lg:border-none"
+                >
+                Réinitialiser
+                </button>
+                <button
+                onClick={handleFinalize}
+                disabled={!activeInvoice || invoiceItems.length === 0 || isProcessing}
+                className={`flex-1 lg:flex-none px-12 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg ${paymentMode === 'cash' ? 'bg-emerald-500 hover:bg-emerald-400 text-emerald-950' : 'bg-orange-500 hover:bg-orange-400 text-white'}`}
+                >
+                {isProcessing ? <Loader2 className="animate-spin" size={16} /> : (paymentMode === 'cash' ? <CheckCircle size={16} /> : <Send size={16} />)}
+                <span className="hidden sm:inline">
+                  {paymentMode === 'cash' ? "Valider" : "Crédit"}
+                </span>
+
+
+                </button>
             </div>
-            <button
-              onClick={handleReset}
-              disabled={invoiceItems.length === 0 || isProcessing}
-              className="flex-1 lg:flex-none px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest text-emerald-400 hover:text-red-400 hover:bg-white/5 transition-all disabled:opacity-30 border border-emerald-400/20 lg:border-none"
-            >
-              Réinitialiser
-            </button>
-            <button
-              onClick={handleFinalize}
-              disabled={!activeInvoice || invoiceItems.length === 0 || isProcessing}
-              className={`flex-1 lg:flex-none px-12 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg ${paymentMode === 'cash' ? 'bg-emerald-500 hover:bg-emerald-400 text-emerald-950' : 'bg-orange-500 hover:bg-orange-400 text-white'}`}
-            >
-              {isProcessing ? <Loader2 className="animate-spin" size={16} /> : (paymentMode === 'cash' ? <CheckCircle size={16} /> : <Send size={16} />)}
-              {paymentMode === 'cash' ? "Valider" : "Crédit"}
-            </button>
-          </div>        </div>
+          </div>
+        </div>
       </div>
 
       {/* 4. PRODUCT SEARCH (BOTTOM) */}
@@ -716,8 +783,8 @@ export default function POS({ session }) {
                   <td className="p-3 text-right font-black">{p.price.toLocaleString()} Ar</td>
                   <td className="p-3 text-right pr-6">
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => addToInvoice(p, 'piece')} className="bg-white border border-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:border-emerald-500 transition-all shadow-sm">{p.unite_base || 'PCE'}</button>
-                      {p.quantite_par_unite > 1 && <button onClick={() => addToInvoice(p, 'carton')} className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:bg-emerald-700 shadow-md transition-all">{p.unite_superieure || 'CTN'}</button>}
+                      <button onClick={() => addToInvoice(p, 'piece')} className="bg-white border border-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:border-emerald-500 hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm">{p.unite_base || 'PCE'}</button>
+                      {p.quantite_par_unite > 1 && <button onClick={() => addToInvoice(p, 'carton')} className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all duration-200 shadow-md">{p.unite_superieure || 'CTN'}</button>}
                     </div>
                   </td>
                 </tr>

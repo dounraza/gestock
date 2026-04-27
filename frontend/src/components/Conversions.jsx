@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { Box, Loader2, Save, Trash2 } from 'lucide-react';
+import { Box, Loader2, Save, Trash2, Edit2 } from 'lucide-react';
 
 export default function Conversions({ session }) {
   const [unites, setUnites] = useState([]);
   const [newUnite, setNewUnite] = useState({ nom: '', unite_mesure: '', facteur: '' });
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     fetchUnites();
@@ -20,13 +21,22 @@ export default function Conversions({ session }) {
   const addUnite = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.from('unites_standards').insert([{ ...newUnite, user_id: session.user.id }]);
-    if (error) alert(error.message);
-    else {
-      setNewUnite({ nom: '', unite_mesure: '', facteur: '' });
-      fetchUnites();
+    if (editingId) {
+        const { error } = await supabase.from('unites_standards').update(newUnite).eq('id', editingId);
+        if (error) alert(error.message);
+        setEditingId(null);
+    } else {
+        const { error } = await supabase.from('unites_standards').insert([{ ...newUnite, user_id: session.user.id }]);
+        if (error) alert(error.message);
     }
+    setNewUnite({ nom: '', unite_mesure: '', facteur: '' });
+    fetchUnites();
     setLoading(false);
+  };
+
+  const startEdit = (u) => {
+    setEditingId(u.id);
+    setNewUnite({ nom: u.nom, unite_mesure: u.unite_mesure, facteur: u.facteur });
   };
 
   const deleteUnite = async (id) => {
@@ -56,7 +66,7 @@ export default function Conversions({ session }) {
           <input required type="number" className="w-full bg-white border border-emerald-100 rounded-2xl py-3 px-4 text-sm font-bold" value={newUnite.facteur} onChange={(e) => setNewUnite({...newUnite, facteur: e.target.value})} />
         </div>
         <button type="submit" disabled={loading} className="bg-emerald-600 text-white rounded-2xl py-3 px-6 font-bold hover:bg-emerald-700 transition-all flex items-center justify-center gap-2">
-          {loading ? <Loader2 className="animate-spin" size={18} /> : <><Save size={18} /> Ajouter</>}
+          {loading ? <Loader2 className="animate-spin" size={18} /> : <><Save size={18} /> {editingId ? 'Mettre à jour' : 'Ajouter'}</>}
         </button>
       </form>
 
@@ -76,7 +86,8 @@ export default function Conversions({ session }) {
                 <td className="py-4 text-sm font-bold text-gray-700">{u.nom}</td>
                 <td className="py-4 text-sm text-gray-600">{u.unite_mesure}</td>
                 <td className="py-4 text-sm text-gray-600">{u.facteur}</td>
-                <td className="py-4 text-sm">
+                <td className="py-4 text-sm flex gap-3">
+                  <button onClick={() => startEdit(u)} className="text-emerald-600 hover:text-emerald-800"><Edit2 size={18} /></button>
                   <button onClick={() => deleteUnite(u.id)} className="text-red-500 hover:text-red-700"><Trash2 size={18} /></button>
                 </td>
               </tr>
