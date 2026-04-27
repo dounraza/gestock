@@ -361,6 +361,7 @@ export default function POS({ session }) {
       <div class="signature-section">
         <div class="signature-box">
           <div class="signature-line">Le Vendeur</div>
+          <p style="font-size: 10px; margin-top: 5px; font-weight: bold;">${companyInfo?.full_name || ''}</p>
         </div>
         <div class="signature-box">
           <div class="signature-line">Le Client</div>

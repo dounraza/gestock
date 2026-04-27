@@ -64,8 +64,10 @@ export default function CreditHistory() {
   };
 
   const filtered = history.filter(h => {
-    const matchesSearch = h.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         h.client.toLowerCase().includes(searchTerm.toLowerCase());
+    const number = h.number || '';
+    const client = h.client || '';
+    const matchesSearch = number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         client.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (!matchesSearch) return false;
 

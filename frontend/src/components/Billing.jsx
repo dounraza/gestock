@@ -8,6 +8,8 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
   const [invoices, setInvoices] = useState([]);
   const [filteredInvoices, setFilteredInvoices] = useState([]);
   const [clients, setClients] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState('all');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm || '');
   const [showModal, setShowModal] = useState(false);
@@ -33,16 +35,17 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
     setLoading(true);
     const { data: invs } = await supabase
       .from('factures')
-      .select('*, clients(name, email, phone, address)')
+      .select('*, clients(name, email, phone, address), profiles(full_name)')
       .order('created_at', { ascending: false });
     
     const { data: cls } = await supabase.from('clients').select('*').order('name');
+    const { data: profs } = await supabase.from('profiles').select('id, full_name');
     
     if (invs) {
       setInvoices(invs);
-      setFilteredInvoices(invs);
     }
     if (cls) setClients(cls);
+    if (profs) setUsers(profs);
     setLoading(false);
   };
 
@@ -51,12 +54,14 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
   }, []);
 
   useEffect(() => {
-    const filtered = invoices.filter(inv => 
-      inv.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (inv.clients?.name && inv.clients.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filtered = invoices.filter(inv => {
+      const matchesSearch = inv.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (inv.clients?.name || inv.guest_name || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesUser = selectedUser === 'all' || inv.user_id === selectedUser;
+      return matchesSearch && matchesUser;
+    });
     setFilteredInvoices(filtered);
-  }, [searchTerm, invoices]);
+  }, [searchTerm, invoices, selectedUser]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -264,6 +269,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
           <h2 style="font-size: 32px; font-weight: 900; color: #e5e7eb; margin: 0; text-transform: uppercase;">FACTURE</h2>
           <p style="font-size: 18px; font-weight: 900; color: #1f2937; margin: 5px 0;">${inv.number}</p>
           <p style="font-size: 14px; font-weight: 700; color: #6b7280; margin: 5px 0;">Date: ${new Date(inv.created_at).toLocaleDateString('fr-FR')}</p>
+          <p style="font-size: 11px; font-weight: 700; color: #9ca3af; margin: 5px 0; text-transform: uppercase;">Vendeur: ${inv.profiles?.full_name || 'Inconnu'}</p>
         </div>
       </div>
 
@@ -330,8 +336,8 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
   return (
     <div className="space-y-6">
       {/* Action Bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-emerald-50 gap-4">
-        <div className="flex gap-4 flex-1 max-w-lg">
+      <div className="flex flex-col xl:flex-row justify-between items-stretch xl:items-center bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-emerald-50 gap-4">
+        <div className="flex flex-col md:flex-row gap-4 flex-1">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
@@ -345,7 +351,20 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
               }}
             />
           </div>
+          
+          <div className="flex items-center gap-2 bg-white border border-emerald-100 rounded-xl px-3 py-1.5 min-w-[200px]">
+            <User size={16} className="text-emerald-500" />
+            <select 
+              className="bg-transparent border-none text-[11px] font-black outline-none w-full cursor-pointer uppercase"
+              value={selectedUser}
+              onChange={(e) => setSelectedUser(e.target.value)}
+            >
+              <option value="all">Tous les comptes</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.full_name || 'Utilisateur'}</option>)}
+            </select>
+          </div>
         </div>
+        
         <button onClick={() => { resetForm(); setShowModal(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-emerald-100">
           <Plus size={18} /> <span>Nouvelle Facture</span>
         </button>
@@ -357,41 +376,40 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
           <thead>
             <tr className="bg-emerald-50/50">
               <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">N° Facture</th>
+              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Vendeur</th>
               <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Client</th>
-              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Mode</th>
               <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Montant</th>
-              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Échéance</th>
               <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Statut</th>
               <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-emerald-50">
             {loading ? (
-              <tr><td colSpan="7" className="p-10 text-center text-gray-400">Chargement des factures...</td></tr>
+              <tr><td colSpan="6" className="p-10 text-center text-gray-400">Chargement des factures...</td></tr>
             ) : filteredInvoices.length > 0 ? (
               filteredInvoices.map((inv) => (
                 <tr key={inv.id} className="hover:bg-emerald-50/20 transition-colors group">
                   <td className="p-5 font-bold text-gray-800 flex items-center gap-2">
                     <FileText size={16} className="text-emerald-500" /> {inv.number}
                   </td>
+                  <td className="p-5">
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center text-[10px] font-black text-emerald-700">
+                            {(inv.profiles?.full_name || 'U')[0]}
+                        </div>
+                        <span className="text-[11px] font-black text-gray-500 uppercase tracking-tighter">
+                            {inv.profiles?.full_name || 'Inconnu'}
+                        </span>
+                    </div>
+                  </td>
                   <td className="p-5 text-gray-600 font-medium">
                     {inv.clients?.name || inv.guest_name || 'Client Direct'}
                   </td>
-                  <td className="p-5">
-                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${inv.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
-                      {inv.status === 'paid' ? 'Comptant' : 'Crédit'}
-                    </span>
-                  </td>
-                  <td className="p-5 font-black text-gray-800">
-                    {inv.total_amount.toLocaleString('fr-MG')} MGA
-                  </td>
-                  <td className="p-5 text-sm text-gray-500">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={14} className="text-gray-400" /> {inv.due_date ? new Date(inv.due_date).toLocaleDateString('fr-FR') : '-'}
-                    </div>
+                  <td className="p-5 font-black text-gray-800 text-sm">
+                    {inv.total_amount.toLocaleString('fr-MG')} Ar
                   </td>
                   <td className="p-5">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border flex items-center gap-1.5 w-fit ${getStatusStyle(inv.status)}`}>
+                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase border flex items-center gap-1.5 w-fit tracking-widest ${getStatusStyle(inv.status)}`}>
                       {getStatusIcon(inv.status)} {inv.status}
                     </span>
                   </td>

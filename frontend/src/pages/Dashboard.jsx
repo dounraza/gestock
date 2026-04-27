@@ -19,7 +19,9 @@ import {
   X,
   ShoppingCart,
   Calendar,
-  Clock
+  Clock,
+  Settings as SettingsIcon,
+  Box
 } from 'lucide-react';
 import Inventory from '../components/Inventory';
 import Clients from '../components/Clients';
@@ -29,6 +31,8 @@ import Billing from '../components/Billing';
 import POS from '../components/POS';
 import Deadlines from '../components/Deadlines';
 import CreditHistory from '../components/CreditHistory';
+import Settings from '../components/Settings';
+import Conversions from '../components/Conversions';
 
 export default function Dashboard({ session }) {
   const navigate = useNavigate();
@@ -115,6 +119,7 @@ export default function Dashboard({ session }) {
       case 'billing': return "Facturation";
       case 'deadlines': return "Échéancier";
       case 'credit_history': return "Historique Crédits";
+      case 'settings': return "Paramètres & Utilisateurs";
       default: return "Dashboard";
     }
   };
@@ -221,6 +226,24 @@ export default function Dashboard({ session }) {
                   label="Fournisseurs" 
                   active={activeTab === 'suppliers'} 
                   onClick={() => { navigate('/dashboard/suppliers'); closeSidebar(); }} 
+                />
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Configuration</p>
+              <div className="space-y-1">
+                <NavItem 
+                  icon={<SettingsIcon size={20} />} 
+                  label="Paramètres" 
+                  active={activeTab === 'settings'} 
+                  onClick={() => { navigate('/dashboard/settings'); closeSidebar(); }} 
+                />
+                <NavItem 
+                  icon={<Box size={20} />} 
+                  label="Conversions" 
+                  active={activeTab === 'conversions'} 
+                  onClick={() => { navigate('/dashboard/conversions'); closeSidebar(); }} 
                 />
               </div>
             </div>
@@ -419,6 +442,8 @@ export default function Dashboard({ session }) {
               onSearchReset={() => setDeadlineSearchTerm('')}
             />} />
             <Route path="credit_history" element={<CreditHistory />} />
+            <Route path="conversions" element={<Conversions session={session} />} />
+            <Route path="settings" element={<Settings session={session} />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </div>

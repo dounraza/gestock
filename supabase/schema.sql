@@ -112,7 +112,27 @@ ALTER TABLE public.stock_movements ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can manage own stock movements" ON public.stock_movements
 FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
--- 5. Users View (to allow joining with auth.users for email)
+-- 5. Unites Standards
+CREATE TABLE IF NOT EXISTS public.unites_standards (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  nom TEXT NOT NULL,
+  unite_mesure TEXT,
+  facteur DECIMAL(10,2) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.unites_standards ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own units" ON public.unites_standards FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own units" ON public.unites_standards FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own units" ON public.unites_standards FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own units" ON public.unites_standards FOR DELETE USING (auth.uid() = user_id);
+
+-- Mise à jour de la table produits
+ALTER TABLE public.produits ADD COLUMN IF NOT EXISTS unite_standard_id UUID REFERENCES public.unites_standards(id);
+
+-- 6. Users View (to allow joining with auth.users for email)
 CREATE OR REPLACE VIEW public.users AS
 SELECT id, email FROM auth.users;
 

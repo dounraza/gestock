@@ -7,45 +7,45 @@ export default function Inventory() {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [unites, setUnites] = useState([]); // New state
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [showStockModal, setShowStockModal] = useState(false); // New state for stock modal
-  const [selectedProductForStock, setSelectedProductForStock] = useState(null); // New state for product in stock modal
-  const [stockFormData, setStockFormData] = useState({ type: 'in', quantity: '', reason: '' }); // New state for stock form
-  const [stockHistoryModal, setStockHistoryModal] = useState(false); // New state for stock history modal
-  const [selectedProductForHistory, setSelectedProductForHistory] = useState(null); // New state for product in stock history
-  const [stockMovements, setStockMovements] = useState([]); // State to store stock movements
-  const [selectedMovementProduct, setSelectedMovementProduct] = useState(''); // New filter state
+  const [showStockModal, setShowStockModal] = useState(false); 
+  const [selectedProductForStock, setSelectedProductForStock] = useState(null); 
+  const [stockFormData, setStockFormData] = useState({ type: 'in', quantity: '', reason: '', unit: 'base' }); // Updated
+  const [stockHistoryModal, setStockHistoryModal] = useState(false); 
+  const [selectedProductForHistory, setSelectedProductForHistory] = useState(null); 
+  const [stockMovements, setStockMovements] = useState([]); 
+  const [selectedMovementProduct, setSelectedMovementProduct] = useState(''); 
   const [formData, setFormData] = useState({ 
     name: '', price: '', stock_quantity: '', category_id: '', fournisseur_id: '', description: '',
     unite_base: 'unité', unite_superieure: '', quantite_par_unite: 1
   });
   const [editingProduct, setEditingProduct] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [viewMode, setViewMode] = useState('products'); // 'products' or 'movements'
+  const [viewMode, setViewMode] = useState('products'); 
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch products with their categories and suppliers
-      const { data: prods, error: prodError } = await supabase.from('produits').select('*, categories(name), fournisseurs(name)');
-      if (prodError) throw prodError;
-      
+      const { data: prods, error: prodError } = await supabase.from('produits').select('*, categories(name), fournisseurs(name), unites_standards(*)');
       const { data: cats, error: catError } = await supabase.from('categories').select('*').order('name');
       const { data: sups, error: supError } = await supabase.from('fournisseurs').select('*').order('name');
+      const { data: units, error: unitError } = await supabase.from('unites_standards').select('*').order('nom');
+      
+      if (prodError) throw prodError;
       
       if (prods) {
-        // Enrich products locally or just show them
         setProducts(prods);
         setFilteredProducts(prods);
       }
       if (cats) setCategories(cats);
       if (sups) setSuppliers(sups);
+      if (units) setUnites(units);
     } catch (err) {
-      console.error("Erreur critique chargement produits:", err);
-      alert("Erreur Supabase: " + err.message);
+      console.error("Erreur critique chargement données:", err);
     } finally {
       setLoading(false);
     }
@@ -77,19 +77,31 @@ export default function Inventory() {
     setIsSubmitting(true);
     
     // Conversion sécurisée des données numériques
-    const stockQty = parseInt(formData.stock_quantity) || 0;
+    const inputQuantity = parseInt(formData.stock_quantity) || 0;
+    const factor = parseInt(formData.quantite_par_unite) || 1;
+    const stockQty = inputQuantity * factor; // Calcul du stock total en unité de base
+
     if (stockQty < 0) {
       alert("La quantité en stock ne peut pas être négative.");
       setIsSubmitting(false);
       return;
     }
 
-    const dataToSave = {
-      ...formData,
+    const payload = {
+      name: formData.name,
       price: parseFloat(formData.price) || 0,
       stock_quantity: stockQty,
-      quantite_par_unite: parseInt(formData.quantite_par_unite) || 1
+      category_id: formData.category_id || null,
+      fournisseur_id: formData.fournisseur_id || null,
+      description: formData.description || '',
+      quantite_par_unite: parseInt(formData.quantite_par_unite) || 1,
+      unite_base: formData.unite_base || 'unité',
+      unite_superieure: formData.unite_superieure || '',
+      unite_standard_id: (formData.unite_standard_id && formData.unite_standard_id !== "") ? formData.unite_standard_id : null
     };
+
+    // Suppression des clés avec valeur null
+    Object.keys(payload).forEach(key => payload[key] === null && delete payload[key]);
     
     const { data: { user } } = await supabase.auth.getUser(); // Get current user
     if (!user) {
@@ -105,7 +117,7 @@ export default function Inventory() {
 
       const { error } = await supabase
         .from('produits')
-        .update(dataToSave)
+        .update(payload)
         .eq('id', editingProduct.id);
       
       if (error) alert(error.message);
@@ -128,7 +140,10 @@ export default function Inventory() {
       }
     } else {
       // Logic for adding a new product
-      const { data: newProduct, error } = await supabase.from('produits').insert([{ ...dataToSave, user_id: user.id }]).select().single();
+      const { data: newProduct, error } = await supabase.from('produits').insert([{ 
+        ...payload, 
+        user_id: user.id
+      }]).select().single();
       if (error) alert(error.message);
       else {
         // Record initial stock as an 'in' movement
@@ -162,9 +177,25 @@ export default function Inventory() {
       description: product.description || '',
       unite_base: product.unite_base || 'unité',
       unite_superieure: product.unite_superieure || '',
-      quantite_par_unite: product.quantite_par_unite || 1
+      quantite_par_unite: product.quantite_par_unite || 1,
+      unite_standard_id: product.unite_standard_id || ''
     });
     setShowModal(true);
+  };
+
+  const handleUniteStandardChange = (unitId) => {
+    const selectedUnit = unites.find(u => u.id === unitId);
+    if (selectedUnit) {
+      setFormData(prev => ({
+        ...prev,
+        unite_standard_id: unitId,
+        unite_base: selectedUnit.unite_mesure,
+        unite_superieure: selectedUnit.nom,
+        quantite_par_unite: selectedUnit.facteur
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, unite_standard_id: '' }));
+    }
   };
 
   const resetForm = () => {
@@ -202,10 +233,21 @@ export default function Inventory() {
     e.preventDefault();
     if (!selectedProductForStock || !stockFormData.quantity) return;
 
-    const quantity = parseInt(stockFormData.quantity);
+    let quantity = parseInt(stockFormData.quantity);
     if (isNaN(quantity) || quantity <= 0) {
       alert("Veuillez entrer une quantité valide.");
       return;
+    }
+
+    // Calcul de la quantité en unité de base si nécessaire
+    if (stockFormData.unit === 'superieure') {
+      const conv = conversions.find(c => c.product_id === selectedProductForStock.id);
+      if (conv) {
+        quantity = quantity * conv.facteur;
+      } else {
+        // Fallback sur le multiplicateur de base du produit si aucune ligne de conversion spécifique
+        quantity = quantity * (selectedProductForStock.quantite_par_unite || 1);
+      }
     }
 
     const { user } = await supabase.auth.getUser();
@@ -246,7 +288,7 @@ export default function Inventory() {
           type: stockFormData.type,
           quantity: quantity,
           price_at_movement: selectedProductForStock.price,
-          reason: stockFormData.reason,
+          reason: stockFormData.reason + (stockFormData.unit === 'superieure' ? ` (${stockFormData.quantity} ${selectedProductForStock.unite_superieure})` : ''),
           user_id: user.id
         }
       ]);
@@ -256,7 +298,7 @@ export default function Inventory() {
       return;
     }
 
-    setStockFormData({ type: 'in', quantity: '', reason: '' });
+    setStockFormData({ type: 'in', quantity: '', reason: '', unit: 'base' });
     setSelectedProductForStock(null);
     setShowStockModal(false);
     fetchData(); // Refresh product list
@@ -509,48 +551,63 @@ export default function Inventory() {
               </h3>
               <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
             </div>
-            <form onSubmit={handleSave} className="p-8 space-y-4">
-              <input required placeholder="Nom du produit PPN (ex: Riz, Huile...)" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-              <div className="grid grid-cols-2 gap-4">
-                <input required type="number" placeholder="Prix par unité de base (MGA)" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
-                <input required type="number" placeholder="Stock" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none" value={formData.stock_quantity} onChange={e => setFormData({...formData, stock_quantity: e.target.value})} />
-              </div>
-              <p className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Paramètre de conditionnement (ex: 6 bouteille par Cartons)</p>
-              <div className="grid grid-cols-3 gap-4">
-                <input type="number" placeholder="Qté" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none" value={formData.quantite_par_unite} onChange={e => setFormData({...formData, quantite_par_unite: e.target.value})} />
-                <select required className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none" value={formData.unite_base} onChange={e => setFormData({...formData, unite_base: e.target.value})}>
-                  <option value="unité">Unité</option>
-                  <option value="Bouteille">Bouteille</option>
-                  <option value="Paquet">Paquet</option>
-                  <option value="Kg">Kg</option>
-                </select>
-                <select className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none" value={formData.unite_superieure} onChange={e => setFormData({...formData, unite_superieure: e.target.value})}>
-                  <option value="">Sélectionner...</option>
-                  <option value="Carton(s)">Carton(s)</option>
-                  <option value="Sac">Sac</option>
-                  <option value="Sachet">Sachet</option>
-                  <option value="Pack">Pack</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Catégorie</label>
-                  <select className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-sm appearance-none" value={formData.category_id} onChange={e => setFormData({...formData, category_id: e.target.value})}>
-                    <option value="">Sélectionner...</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+            <form onSubmit={handleSave} className="p-8 space-y-6">
+              <input required placeholder="Nom du produit" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-emerald-500/20" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Configuration & Stock</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Stock actuel</label>
+                    <input required type="number" placeholder="Quantité" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none" value={formData.stock_quantity} onChange={e => setFormData({...formData, stock_quantity: e.target.value})} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Unité Standard</label>
+                    <select className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none text-sm text-gray-600" value={formData.unite_standard_id || ''} onChange={e => handleUniteStandardChange(e.target.value)}>
+                      <option value="">Aucune</option>
+                      {unites.map(u => <option key={u.id} value={u.id}>{u.nom}</option>)}
+                    </select>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Fournisseur</label>
-                  <select className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-sm appearance-none" value={formData.fournisseur_id} onChange={e => setFormData({...formData, fournisseur_id: e.target.value})}>
-                    <option value="">Sélectionner...</option>
-                    {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">
+                      Prix (MGA) {formData.unite_base ? `/ ${formData.unite_base}` : ''}
+                    </label>
+                    <input required type="number" placeholder={`Prix ${formData.unite_base ? '(' + formData.unite_base + ')' : ''}`} className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Catégorie</label>
+                    <select className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none text-sm text-gray-600" value={formData.category_id} onChange={e => setFormData({...formData, category_id: e.target.value})}>
+                      <option value="">Sélectionner...</option>
+                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
-              <textarea placeholder="Description..." className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all min-h-[100px]" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
-              <button type="submit" disabled={isSubmitting} className="w-full bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-100 mt-4 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : (editingProduct ? "Mettre à jour" : "Enregistrer le produit")}
+
+              <div className="space-y-4 pt-4 border-t border-gray-100">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Paramètres de conditionnement</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <input type="number" readOnly={!!formData.unite_standard_id} placeholder="Qté/unité" className={`w-full ${formData.unite_standard_id ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-gray-50'} border-0 rounded-2xl px-4 py-3 outline-none`} value={formData.quantite_par_unite} onChange={e => setFormData({...formData, quantite_par_unite: e.target.value})} />
+                  <input type="text" readOnly={!!formData.unite_standard_id} placeholder="Unité base" className={`w-full ${formData.unite_standard_id ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-gray-50'} border-0 rounded-2xl px-4 py-3 outline-none`} value={formData.unite_base} onChange={e => setFormData({...formData, unite_base: e.target.value})} />
+                  <input type="text" readOnly={!!formData.unite_standard_id} placeholder="Unité sup" className={`w-full ${formData.unite_standard_id ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-gray-50'} border-0 rounded-2xl px-4 py-3 outline-none`} value={formData.unite_superieure} onChange={e => setFormData({...formData, unite_superieure: e.target.value})} />
+                </div>
+              </div>
+              
+              {/* Calcul dynamique aligné */}
+              {formData.unite_standard_id && formData.stock_quantity && (
+                <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 text-center">
+                  <p className="text-[10px] uppercase font-black text-emerald-600 tracking-widest">Stock total converti</p>
+                  <p className="text-xl font-black text-emerald-900 mt-1">
+                    {parseInt(formData.stock_quantity) * (unites.find(u => u.id === formData.unite_standard_id)?.facteur || 1)} 
+                    <span className="text-sm font-bold ml-1">{unites.find(u => u.id === formData.unite_standard_id)?.unite_mesure}</span>
+                  </p>
+                </div>
+              )}
+
+              <button type="submit" disabled={isSubmitting} className="w-full bg-gray-900 text-white font-bold py-4 rounded-2xl shadow-lg mt-4 active:scale-[0.98] transition-all">
+                {isSubmitting ? <Loader2 className="animate-spin mx-auto" size={20} /> : (editingProduct ? "Mettre à jour" : "Enregistrer")}
               </button>
             </form>
           </div>
@@ -584,14 +641,26 @@ export default function Inventory() {
                   Sortie
                 </button>
               </div>
-              <input 
-                type="number" 
-                placeholder="Quantité" 
-                required 
-                className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" 
-                value={stockFormData.quantity} 
-                onChange={e => setStockFormData(prev => ({ ...prev, quantity: e.target.value }))} 
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <input 
+                  type="number" 
+                  placeholder="Quantité" 
+                  required 
+                  className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" 
+                  value={stockFormData.quantity} 
+                  onChange={e => setStockFormData(prev => ({ ...prev, quantity: e.target.value }))} 
+                />
+                <select 
+                  className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all"
+                  value={stockFormData.unit}
+                  onChange={e => setStockFormData(prev => ({ ...prev, unit: e.target.value }))}
+                >
+                  <option value="base">{selectedProductForStock.unite_base || 'Unité de base'}</option>
+                  {selectedProductForStock.unite_superieure && (
+                    <option value="superieure">{selectedProductForStock.unite_superieure}</option>
+                  )}
+                </select>
+              </div>
               <textarea 
                 placeholder="Raison du mouvement (facultatif)" 
                 className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all min-h-[80px]" 
