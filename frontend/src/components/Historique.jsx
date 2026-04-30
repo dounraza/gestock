@@ -15,10 +15,15 @@ export default function Historique() {
     setLoading(true);
     const { data, error } = await supabase
       .from('historique')
-      .select('*, profiles(full_name)')
+      .select('*')
       .order('created_at', { ascending: false });
     
-    if (data) setLogs(data);
+    if (error) {
+        console.error("Error fetching logs:", error);
+    } else {
+        console.log("Fetched logs:", data);
+        setLogs(data);
+    }
     setLoading(false);
   };
 

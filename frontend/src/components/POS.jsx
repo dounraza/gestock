@@ -473,7 +473,7 @@ export default function POS({ session }) {
   };
 
   return (
-    <div className="flex flex-col gap-3 p-2 min-h-screen">
+    <div className="flex flex-col gap-3 p-2">
       {/* 1. TOP BAR */}
       <div className="bg-emerald-600 text-white rounded-[1rem] p-2 shadow-md flex flex-col gap-1 shrink-0 text-[9px]">
         {/* Row 1: Invoice & Total */}
@@ -515,8 +515,8 @@ export default function POS({ session }) {
       <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4 flex-1">
         {/* COLUMN 1: INVOICE & CALCULATOR */}
         <div className="flex flex-col gap-4">
-            <div className="bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col h-[30vh] lg:h-[40vh] overflow-hidden">
-                <div className="overflow-y-auto flex-1">
+            <div className="bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col flex-1 overflow-hidden">
+                <div className="overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                     <table className="w-full text-left">
                         <thead className="sticky top-0 bg-gray-50 border-b border-emerald-50 z-10">
                         <tr className="text-[8px] font-black text-gray-400 uppercase">
@@ -582,7 +582,7 @@ export default function POS({ session }) {
 
         {/* COLUMN 2: SEARCH & CONTROLS */}
         <div className="flex flex-col gap-4">
-            <div className="bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col h-[50vh] lg:h-[80vh]">
+            <div className="bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col flex-1 overflow-hidden">
                 <div className="p-3 border-b border-emerald-50 bg-emerald-50/20 flex items-center gap-4 shrink-0">
                     <div className="relative flex-1 max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400" size={16} />
@@ -590,7 +590,7 @@ export default function POS({ session }) {
                     </div>
                 </div>
                 
-                <div class="flex-1 overflow-y-auto p-4 md:p-8">
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                     <table className="w-full text-left">
                         <tbody className="divide-y divide-emerald-50">
                         {filteredProducts.map(p => (

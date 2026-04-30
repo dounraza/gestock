@@ -458,6 +458,7 @@ export default function Dashboard({ session }) {
             />} />
             <Route path="credit_history" element={<CreditHistory />} />
             <Route path="sales-analytics" element={<SalesDashboard />} />
+            <Route path="historique" element={<Historique />} />
             <Route path="conversions" element={<Conversions session={session} />} />
             <Route path="settings" element={<Settings session={session} />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

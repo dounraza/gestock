@@ -62,26 +62,31 @@ export default function SalesDashboard() {
         return acc;
     }, { cash: 0, credit: 0, daily: 0 });
   }, [sales]);
+const handleCancelInvoice = async (invoice) => {
+  if (!window.confirm("Êtes-vous sûr de vouloir annuler cette facture ? Le stock sera restauré.")) return;
 
-  const handleCancelInvoice = async (invoice) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir annuler cette facture ? Le stock sera restauré.")) return;
-    
-    try {
-        // 1. Restore stock
-        for (const item of invoice.facture_items) {
-            const { data: product } = await supabase.from('produits').select('stock_quantity').eq('id', item.produit_id).single();
-            await supabase.from('produits').update({ stock_quantity: product.stock_quantity + item.quantity }).eq('id', item.produit_id);
-        }
-        // 2. Mark invoice as cancelled
-        await supabase.from('factures').update({ status: 'cancelled' }).eq('id', invoice.id);
+  try {
+      console.log("Attempting cancellation for invoice:", invoice.id);
+      // 1. Restore stock
+      for (const item of invoice.facture_items) {
+          const { data: product } = await supabase.from('produits').select('stock_quantity').eq('id', item.produit_id).single();
+          await supabase.from('produits').update({ stock_quantity: product.stock_quantity + item.quantity }).eq('id', item.produit_id);
+      }
+      // 2. Mark invoice as cancelled
+      await supabase.from('factures').update({ status: 'cancelled' }).eq('id', invoice.id);
 
-        await logAction('Annulation Facture', 'SalesDashboard', invoice.id, { number: invoice.number });
+      console.log("Logging action...");
+      await logAction('Annulation Facture', 'SalesDashboard', invoice.id, { number: invoice.number });
+      console.log("Action logged.");
 
-        setSelectedInvoice(null);
+      setSelectedInvoice(null);
 
-        fetchSales();
-    } catch (e) { alert(e.message); }
-  };
+      fetchSales();
+  } catch (e) { 
+      console.error("Cancellation error:", e);
+      alert(e.message); 
+  }
+};
 
   return (
     <div className="p-4 md:p-8 bg-slate-50 min-h-screen">
