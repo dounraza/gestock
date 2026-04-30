@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { Search, ShoppingCart, Trash2, Package, CheckCircle, Loader2, FileText, Plus, Minus, Clock, User, Tag, List, Send, Phone } from 'lucide-react';
+import Calculator from './Calculator';
 
 export default function POS({ session }) {
   const [products, setProducts] = useState([]);
@@ -11,6 +12,14 @@ export default function POS({ session }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [discountModal, setDiscountModal] = useState(null);
+  const [activeItemId, setActiveItemId] = useState(null);
+
+  const handleCalculatorResult = (value) => {
+    if (activeItemId) {
+        updateItemQuantity(activeItemId, value);
+        // Ne pas remettre activeItemId à null ici pour garder le produit sélectionné
+    }
+  };
 
   const [paymentMode, setPaymentMode] = useState('cash'); 
   const [dueDate, setDueDate] = useState(new Date().toISOString().split('T')[0]);
@@ -74,7 +83,16 @@ export default function POS({ session }) {
   const fetchInvoiceItems = async (invoiceId) => {
     const { data } = await supabase.from('facture_items').select('*, produits(*)').eq('facture_id', invoiceId);
     if (data) {
-      setInvoiceItems(data.map(item => ({ ...item.produits, quantity: item.quantity, price_at_sale: item.price_at_sale, item_id: item.id, discount: item.discount })));
+      setInvoiceItems(data.map(item => ({ 
+        ...item.produits, 
+        unite_base: item.produits?.unite_base,
+        unite_superieure: item.produits?.unite_superieure,
+        quantite_par_unite: item.produits?.quantite_par_unite,
+        quantity: item.quantity, 
+        price_at_sale: item.price_at_sale, 
+        item_id: item.id, 
+        discount: item.discount 
+      })));
     }
   };
 
@@ -100,53 +118,31 @@ export default function POS({ session }) {
     setFilteredProducts(products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())));
   }, [searchTerm, products]);
 
-  const addToInvoice = async (product, type) => {
-    if (!activeInvoice) {
-      alert("La commande n'est pas encore prête. Veuillez patienter...");
-      return;
-    }
+  const addToInvoice = async (product) => {
+    if (!activeInvoice) return;
     
-    const qtyToAdd = type === 'carton' ? (product.quantite_par_unite || 1) : 1;
-    if (product.stock_quantity < qtyToAdd) return alert("Stock insuffisant !");
-    
+    // Check if item already exists to avoid duplicates
     const existingItem = invoiceItems.find(item => item.id === product.id);
     
-    // Optimistic UI Update: update the list immediately
     if (existingItem) {
-      const newQty = existingItem.quantity + qtyToAdd;
-      if (product.stock_quantity < newQty) return alert("Stock insuffisant !");
-      
-      setInvoiceItems(prev => prev.map(item => 
-        item.id === product.id ? { ...item, quantity: newQty } : item
-      ));
-
-      // Async DB Update
-      const { error } = await supabase.from('facture_items').update({ quantity: newQty }).eq('id', existingItem.item_id);
-      if (error) {
-        alert("Erreur lors de la mise à jour : " + error.message);
-        fetchInvoiceItems(activeInvoice.id);
-      }
+        setActiveItemId(existingItem.item_id);
     } else {
-      // For a new item, we need the item_id from DB, so we can't be 100% optimistic 
-      // but we can still show it with a temporary ID if we wanted. 
-      // For now, let's just make sure we don't block more than necessary.
-      const { data, error } = await supabase.from('facture_items')
-        .insert([{ facture_id: activeInvoice.id, produit_id: product.id, quantity: qtyToAdd, price_at_sale: product.price }])
-        .select()
-        .single();
-      
-      if (error) return alert(error.message);
-      
-      if (data) {
-        // Construct the new item locally to avoid a full fetch if possible
-        const newItem = {
-          ...product,
-          item_id: data.id,
-          quantity: qtyToAdd,
-          price_at_sale: product.price
-        };
-        setInvoiceItems(prev => [...prev, newItem]);
-      }
+        // Add new item with 0 quantity
+        const { data, error } = await supabase.from('facture_items')
+            .insert([{ facture_id: activeInvoice.id, produit_id: product.id, quantity: 0, price_at_sale: product.price }])
+            .select()
+            .single();
+        
+        if (data) {
+            const newItem = {
+                ...product,
+                item_id: data.id,
+                quantity: 0,
+                price_at_sale: product.price
+            };
+            setInvoiceItems(prev => [...prev, newItem]);
+            setActiveItemId(data.id);
+        }
     }
   };
 
@@ -156,6 +152,15 @@ export default function POS({ session }) {
   };
 
   const updateItemQuantity = async (itemId, newQuantity) => {
+    // Find the item to check its stock
+    const item = invoiceItems.find(i => i.item_id === itemId);
+    if (!item) return;
+
+    if (newQuantity > item.stock_quantity) {
+        alert(`Stock insuffisant ! Disponible : ${item.stock_quantity}`);
+        return;
+    }
+    
     if (isNaN(newQuantity) || newQuantity <= 0) return;
     
     // 1. Mise à jour locale immédiate de l'interface
@@ -454,7 +459,7 @@ export default function POS({ session }) {
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 h-screen p-3">
       {/* 1. TOP BAR: INVOICE # AND CLIENT INFO */}
       <div className="bg-emerald-600 text-white rounded-[2rem] p-3 shadow-lg flex flex-col md:flex-row items-center gap-4 shrink-0 overflow-hidden">
         <div className="flex items-center gap-3 px-4 border-b md:border-b-0 md:border-r border-white/20 w-full md:w-auto pb-2 md:pb-0">
@@ -507,300 +512,206 @@ export default function POS({ session }) {
         </div>
       </div>
 
-      {/* 2. INVOICE ITEMS (TOP TABLE) */}
-      <div className="flex-[0.7] bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col overflow-hidden">
-        <div className="flex-1 p-2 sm:p-0">
-          {/* Mobile View: Cards for Invoice Items */}
-          <div className="grid grid-cols-1 gap-2 sm:hidden">
-            {invoiceItems.map(item => (
-              <div key={item.item_id} className="bg-emerald-50/30 border border-emerald-50 rounded-2xl p-3 flex flex-col gap-2 relative min-w-0">
-                <button 
-                  onClick={() => removeItem(item.item_id, item.id)} 
-                  className="absolute top-3 right-3 text-red-300 hover:text-red-500"
-                >
-                  <Trash2 size={16} />
-                </button>
+      {/* MAIN CONTENT AREA: TWO COLUMNS */}
+      <div className="grid grid-cols-2 gap-4 flex-1 items-start">
+        {/* COLUMN 1: INVOICE & CALCULATOR */}
+        <div className="flex flex-col gap-4">
+            <div className="bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col overflow-hidden max-h-[60vh]">
+                <div className="p-2 sm:p-0 overflow-y-auto">
+                {/* Invoice Table Implementation Here (Same as before) */}
+                <table className="w-full text-left min-w-[500px] hidden sm:table">
+                    <thead className="sticky top-0 bg-gray-50 border-b border-emerald-50 z-10">
+                    <tr className="text-[8px] font-black text-gray-400 uppercase">
+                        <th className="p-2 pl-4">Produit</th>
+                        <th className="p-2 text-center">Qté</th>
+                        <th className="p-2 text-center">Détails Unités</th>
+                        <th className="p-2 text-right">Remise</th>
+                        <th className="p-2 text-right pr-4">Total</th>
+                        <th className="p-2 text-right"></th>
+                    </tr>
+                    </thead>
+                    <tbody className="divide-y divide-emerald-50">
+                    {invoiceItems.map(item => (
+                        <tr key={item.item_id} className="border-b border-emerald-50 text-[10px]">
+                        <td className="p-2 pl-4 font-black uppercase text-gray-800">{item.name}</td>
+                        <td className="p-2 text-center">
+                            <button 
+                                onClick={() => setActiveItemId(item.item_id)}
+                                className={`w-10 border rounded text-center text-[10px] font-black ${activeItemId === item.item_id ? 'bg-emerald-500 text-white' : ''}`}
+                            >
+                                {item.quantity}
+                            </button>
+                        </td>
+                        <td className="p-2 text-center text-[8px] font-bold text-gray-400 italic">
+                            {item.quantite_par_unite > 1 ? `${Math.floor(item.quantity / item.quantite_par_unite)} ${item.unite_superieure || 'Ctn'} + ${item.quantity % item.quantite_par_unite} ${item.unite_base || 'Pce'}` : `${item.quantity} ${item.unite_base || 'Pce'}`}
+                        </td>
+                        <td className="p-2 text-right">
+                            <button onClick={() => setDiscountModal({ itemId: item.item_id, name: item.name, total: item.quantity * item.price_at_sale, value: item.discount?.value || 0, type: item.discount?.type || '%' })} className={`font-black ${item.discount ? 'text-orange-500' : 'text-gray-300 hover:text-emerald-500'}`}>
+                            {item.discount ? `${item.discount.value}${item.discount.type}` : <Tag size={10} className="ml-auto" />}
+                            </button>
+                        </td>
+                        <td className="p-2 text-right font-black pr-4">{calculateItemTotal(item).toLocaleString()} Ar</td>
+                        <td className="p-2 text-right"><button onClick={() => removeItem(item.item_id, item.id)} className="text-red-200 hover:text-red-500"><Trash2 size={12} /></button></td>
+                        </tr>
+                    ))}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+            {/* CALCULATOR IN COLUMN 1 */}
+            {/* The 'key={activeItemId}' prop forces Calculator to remount and reset its state on every new selection */}
+            <Calculator 
+                key={activeItemId}
+                activeItem={invoiceItems.find(i => i.item_id === activeItemId)} 
+                onResult={handleCalculatorResult} 
+            />
+        </div>
+
+        {/* COLUMN 2: SEARCH & CONTROLS */}
+        <div className="flex flex-col gap-4">
+            <div className="flex-1 bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col overflow-hidden min-h-0">
+                {/* Search Bar & Products Table (Same as before) */}
+                <div className="p-3 border-b border-emerald-50 bg-emerald-50/20 flex items-center gap-4 shrink-0">
+                <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400" size={16} />
+                    <input type="text" placeholder="Ajouter un produit..." className="w-full bg-white border border-emerald-100 rounded-xl py-2 pl-10 pr-4 text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                </div>
+                </div>
                 
-                <div className="pr-8">
-                  <p className="font-black uppercase text-[11px] text-gray-800 leading-tight truncate">{item.name}</p>
-                  <p className="text-[9px] font-bold text-gray-400 italic">
-                    {item.quantite_par_unite && item.quantite_par_unite > 1 
-                      ? `${Math.floor(item.quantity / item.quantite_par_unite)} ${item.unite_superieure || 'Ctn'} + ${item.quantity % item.quantite_par_unite} ${item.unite_base || 'Pce'}` 
-                      : `${item.quantity} ${item.unite_base || 'Pce'}`
-                    }
-                  </p>
-                  <p className="text-[10px] font-black text-emerald-600 mt-0.5">
-                    {calculateItemTotal(item).toLocaleString()} Ar
-                  </p>
+                <div className="flex-1 p-3 overflow-y-auto">
+                <table className="w-full text-left">
+                    <thead className="sticky top-0 bg-gray-50 border-b border-emerald-50 z-10">
+                    <tr className="text-[9px] font-black text-gray-400 uppercase">
+                        <th className="p-3 pl-6">Produit</th>
+                        <th className="p-3">Stock</th>
+                        <th className="p-3 text-right">Prix</th>
+                        <th className="p-3 text-right pr-6">Action</th>
+                    </tr>
+                    </thead>
+                    <tbody className="divide-y divide-emerald-50">
+                    {filteredProducts.map(p => (
+                        <tr key={p.id} className="hover:bg-emerald-50/20 transition-colors group text-[11px]">
+                        <td className="p-3 pl-6 font-black uppercase text-gray-800">{p.name} <span className="text-[8px] text-gray-300 font-bold ml-2">({p.categories?.name})</span></td>
+                        <td className="p-3 font-bold text-emerald-600">
+                            {p.quantite_par_unite > 1 ? `${Math.floor(p.stock_quantity / p.quantite_par_unite)} ${p.unite_superieure || 'Ctn'} + ${p.stock_quantity % p.quantite_par_unite} ${p.unite_base || 'Pce'}` : `${p.stock_quantity} ${p.unite_base || 'Pce'}`}
+                        </td>
+                        <td className="p-3 text-right font-black">{p.price.toLocaleString()} Ar</td>
+                        <td className="p-3 text-right pr-6">
+                            {console.log("Product:", p.name, "Stock:", p.stock_quantity, "Condition:", Number(p.stock_quantity) <= 0)}
+                            <button 
+                                onClick={() => {
+                                    addToInvoice(p);
+                                    setTimeout(() => {
+                                        const item = invoiceItems.find(i => i.id === p.id);
+                                        if (item) setActiveItemId(item.item_id);
+                                    }, 100);
+                                }} 
+                                disabled={Number(p.stock_quantity) <= 0}
+                                className={`${Number(p.stock_quantity) <= 0 ? 'bg-red-500 opacity-50 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 hover:scale-105 shadow-md'} text-white px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all`}
+                            >
+                                {Number(p.stock_quantity) <= 0 ? 'STOCK INSUFFISANT' : 'SELECTIONNER'}
+                            </button>
+                        </td>
+                        </tr>
+                    ))}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+
+            {/* Payment Controls at the bottom of Column 2 */}
+            <div className="bg-emerald-950 text-white rounded-[2rem] p-3 flex flex-col gap-3 shadow-xl border border-white/5 shrink-0">
+                <div className="flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                    {/* MODE DE PAIEMENT */}
+                    <div className="flex bg-emerald-900/50 p-1 rounded-2xl border border-white/10 w-full">
+                    <button onClick={() => setPaymentMode('cash')} className={`flex-1 sm:px-6 py-2.5 rounded-xl text-[10px] font-black transition-all ${paymentMode === 'cash' ? 'bg-emerald-500 text-white' : 'text-emerald-400'}`}>COMPTANT</button>
+                    <button onClick={() => setPaymentMode('credit')} className={`flex-1 sm:px-6 py-2.5 rounded-xl text-[10px] font-black transition-all ${paymentMode === 'credit' ? 'bg-orange-500 text-white' : 'text-emerald-400'}`}>CRÉDIT</button>
+                    </div>
+
+                    {/* PARAMÈTRES CRÉDIT (EN LIGNE) */}
+                    {paymentMode === 'credit' && (
+                    <div className="flex flex-wrap items-center gap-4 animate-in slide-in-from-left-4 w-full">
+                        <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
+                        <Clock size={12} className="text-orange-400" />
+                        <input type="date" className="bg-transparent text-[10px] font-black outline-none" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+                        </div>
+                        <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
+                        <Tag size={12} className="text-emerald-400" />
+                        <input type="number" placeholder="Avance" className="bg-transparent text-[10px] font-black outline-none w-20 text-emerald-400" value={advanceAmount || ''} onChange={e => setAdvanceAmount(e.target.value)} />
+                        </div>
+                    </div>
+                    )}
                 </div>
 
-                <div className="flex items-center justify-between mt-1 pt-2 border-t border-emerald-100/50">
-                  <div className="flex items-center gap-3">
-                    <div className="text-center">
-                      <p className="text-[7px] font-black text-gray-400 uppercase leading-none mb-0.5">Qté</p>
-                      <input 
-                        type="number" 
-                        className="w-12 border rounded text-center text-[11px] font-black"
-                        value={item.quantity}
-                        max={item.stock_quantity}
-                        onChange={(e) => {
-                            const val = parseInt(e.target.value);
-                            if(!isNaN(val)) {
-                                if (val > item.stock_quantity) {
-                                    alert("Quantité supérieure au stock disponible !");
-                                    setInvoiceItems(prev => prev.map(i => i.item_id === item.item_id ? {...i, quantity: item.stock_quantity} : i));
-                                } else {
-                                    setInvoiceItems(prev => prev.map(i => i.item_id === item.item_id ? {...i, quantity: val} : i));
-                                }
-                            }
-                        }}
-                        onBlur={(e) => {
-                            const val = parseInt(e.target.value);
-                            const finalVal = Math.min(val, item.stock_quantity);
-                            updateItemQuantity(item.item_id, finalVal);
-                        }}
-                      />
+                {/* ACTION BUTTONS */}
+                <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2 justify-between">
+                         <div className="flex items-center gap-1.5">
+                            <input
+                                type="checkbox"
+                                id="printInvoice"
+                                checked={printInvoice}
+                                onChange={(e) => setPrintInvoice(e.target.checked)}
+                                className="accent-emerald-500"
+                            />
+                            <label htmlFor="printInvoice" className="text-[10px] font-black uppercase text-white">Imprimer</label>
+                        </div>
+                        <button 
+                            onClick={() => setDiscountModal({ type: globalDiscount.type, value: globalDiscount.value, isGlobal: true })}
+                            className="px-3 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-widest text-emerald-300 hover:bg-white/10 border border-emerald-400/20"
+                        >
+                            REMISE GLOBALE
+                        </button>
                     </div>
-                    <div className="text-center">
-                      <p className="text-[7px] font-black text-gray-400 uppercase leading-none mb-0.5">Remise</p>
-                      <button onClick={() => setDiscountModal({ itemId: item.item_id, name: item.name, total: item.quantity * item.price_at_sale, value: item.discount?.value || 0, type: item.discount?.type || '%' })} className={`text-[10px] font-black ${item.discount ? 'text-orange-500' : 'text-gray-300'}`}>
-                        {item.discount ? `${item.discount.value}${item.discount.type}` : '0%'}
-                      </button>
+                    <div className="flex items-center gap-2">
+                        <button onClick={handleReset} disabled={invoiceItems.length === 0 || isProcessing} className="flex-1 px-4 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest text-emerald-400 hover:text-red-400 transition-all disabled:opacity-30 border border-emerald-400/20">Réinitialiser</button>
+                        <button onClick={handleFinalize} disabled={!activeInvoice || invoiceItems.length === 0 || isProcessing} className={`flex-[2] px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-lg ${paymentMode === 'cash' ? 'bg-emerald-500 hover:bg-emerald-400 text-emerald-950' : 'bg-orange-500 hover:bg-orange-400 text-white'}`}>
+                            {isProcessing ? <Loader2 className="animate-spin" size={16} /> : (paymentMode === 'cash' ? "Valider" : "Crédit")}
+                        </button>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[7px] font-black text-gray-400 uppercase leading-none mb-0.5">Sous-total</p>
-                    <p className="text-[12px] font-black text-gray-800">{calculateItemTotal(item).toLocaleString()} Ar</p>
-                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Desktop View: Table */}
-          <table className="w-full text-left min-w-[500px] hidden sm:table">
-            <thead className="sticky top-0 bg-gray-50 border-b border-emerald-50 z-10">
-              <tr className="text-[8px] font-black text-gray-400 uppercase">
-                <th className="p-2 pl-4">Produit</th>
-                <th className="p-2 text-center">Qté</th>
-                <th className="p-2 text-center">Détails Unités</th>
-                <th className="p-2 text-right">Remise</th>
-                <th className="p-2 text-right pr-4">Total</th>
-                <th className="p-2 text-right"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-emerald-50">
-              {invoiceItems.map(item => (
-                <tr key={item.item_id} className="border-b border-emerald-50 text-[10px]">
-                  <td className="p-2 pl-4 font-black uppercase text-gray-800">{item.name}</td>
-                  <td className="p-2 text-center">
+                </div>
+            </div>
+        </div>
+      </div>
+      
+      {/* Modals */}
+      {discountModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-emerald-950/40 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-[2rem] shadow-2xl p-8 w-full max-w-sm">
+                <h3 className="text-lg font-black text-gray-800 mb-2 uppercase">Remise</h3>
+                <p className="text-[10px] text-gray-500 mb-4 font-bold uppercase">Veuillez saisir la valeur de la remise à appliquer sur l'article.</p>
+                <div className="space-y-4">
+                    <div className="flex bg-gray-100 p-1 rounded-xl">
+                        <button 
+                            onClick={() => setDiscountModal({...discountModal, type: 'Ar'})} 
+                            className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${discountModal.type === 'Ar' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}
+                        >
+                            Ar
+                        </button>
+                        <button 
+                            onClick={() => setDiscountModal({...discountModal, type: '%'})} 
+                            className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${discountModal.type === '%' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}
+                        >
+                            %
+                        </button>
+                    </div>
                     <input 
-                      type="number" 
-                      className="w-10 border rounded text-center text-[10px] font-black"
-                      value={item.quantity}
-                      max={item.stock_quantity}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        if (!isNaN(val)) {
-                            if (val > item.stock_quantity) {
-                                alert("Quantité supérieure au stock disponible !");
-                                setInvoiceItems(prev => prev.map(i => i.item_id === item.item_id ? {...i, quantity: item.stock_quantity} : i));
-                            } else {
-                                setInvoiceItems(prev => prev.map(i => i.item_id === item.item_id ? {...i, quantity: val} : i));
-                            }
-                        }
-                      }}
-                      onBlur={(e) => {
-                          const val = parseInt(e.target.value);
-                          const finalVal = Math.min(val, item.stock_quantity);
-                          updateItemQuantity(item.item_id, finalVal);
-                      }}
+                        autoFocus 
+                        type="number" 
+                        className="w-full bg-emerald-50 border-2 border-emerald-100 rounded-xl py-4 px-6 text-xl font-black outline-none" 
+                        value={discountModal.value || ''} 
+                        onChange={(e) => setDiscountModal({...discountModal, value: e.target.value})} 
                     />
-                  </td>
-                  <td className="p-2 text-center text-[8px] font-bold text-gray-400 italic">
-                    {item.quantite_par_unite > 1 ? `${Math.floor(item.quantity / item.quantite_par_unite)} ${item.unite_superieure || 'Ctn'} + ${item.quantity % item.quantite_par_unite} ${item.unite_base || 'Pce'}` : `${item.quantity} ${item.unite_base || 'Pce'}`}
-                  </td>
-                  <td className="p-2 text-right">
-                    <button onClick={() => setDiscountModal({ itemId: item.item_id, name: item.name, total: item.quantity * item.price_at_sale, value: item.discount?.value || 0, type: item.discount?.type || '%' })} className={`font-black ${item.discount ? 'text-orange-500' : 'text-gray-300 hover:text-emerald-500'}`}>
-                      {item.discount ? `${item.discount.value}${item.discount.type}` : <Tag size={10} className="ml-auto" />}
-                    </button>
-                  </td>
-                  <td className="p-2 text-right font-black pr-4">{calculateItemTotal(item).toLocaleString()} Ar</td>
-                  <td className="p-2 text-right"><button onClick={() => removeItem(item.item_id, item.id)} className="text-red-200 hover:text-red-500"><Trash2 size={12} /></button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* 3. MIDDLE CONTROL BAR (PAYMENT & VALIDATION) */}
-      <div className="bg-emerald-950 text-white rounded-[2rem] p-3 flex flex-col gap-3 shadow-xl border border-white/5 shrink-0">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-            {/* MODE DE PAIEMENT */}
-            <div className="flex bg-emerald-900/50 p-1 rounded-2xl border border-white/10 w-full sm:w-auto">
-              <button onClick={() => setPaymentMode('cash')} className={`flex-1 sm:px-6 py-2.5 rounded-xl text-[10px] font-black transition-all ${paymentMode === 'cash' ? 'bg-emerald-500 text-white' : 'text-emerald-400'}`}>COMPTANT</button>
-              <button onClick={() => setPaymentMode('credit')} className={`flex-1 sm:px-6 py-2.5 rounded-xl text-[10px] font-black transition-all ${paymentMode === 'credit' ? 'bg-orange-500 text-white' : 'text-emerald-400'}`}>CRÉDIT</button>
-            </div>
-
-            {/* PARAMÈTRES CRÉDIT (EN LIGNE) */}
-            {paymentMode === 'credit' && (
-              <div className="flex flex-wrap items-center gap-4 animate-in slide-in-from-left-4 w-full sm:w-auto">
-                <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
-                  <Clock size={12} className="text-orange-400" />
-                  <input type="date" className="bg-transparent text-[10px] font-black outline-none" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-                </div>
-                <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
-                  <Tag size={12} className="text-emerald-400" />
-                  <input type="number" placeholder="Avance" className="bg-transparent text-[10px] font-black outline-none w-20 text-emerald-400" value={advanceAmount || ''} onChange={e => setAdvanceAmount(e.target.value)} />
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <input type="checkbox" id="inst" className="w-3.5 h-3.5 accent-emerald-500" checked={isInstallment} onChange={e => setIsInstallment(e.target.checked)} />
-                    <label htmlFor="inst" className="text-[9px] font-black uppercase text-emerald-300">Échelonner</label>
-                  </div>
-                  {isInstallment && (
-                    <div className="flex items-center gap-2 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
-                      <select className="bg-emerald-800 text-[10px] font-black rounded px-1 py-0.5 border border-white/5" value={installmentFrequency} onChange={e => setInstallmentFrequency(e.target.value)}>
-                        <option value="month">MENSUEL</option>
-                        <option value="day">JOURNALIER</option>
-                      </select>
-                      <select className="bg-emerald-800 text-[10px] font-black rounded px-1 py-0.5 border border-white/5" value={installmentMonths} onChange={e => setInstallmentMonths(parseInt(e.target.value))}>
-                        {[1,2,3,4,5,6,12,30].map(m => <option key={m} value={m}>{m} {installmentFrequency === 'day' ? 'jours' : 'mois'}</option>)}
-                      </select>
-                      <div className="flex flex-col">
-                        <span className="text-[11px] font-black text-emerald-400 leading-none">
-                          {Math.floor((total - (parseFloat(advanceAmount) || 0)) / installmentMonths).toLocaleString()} Ar
-                        </span>
-                        <span className="text-[7px] font-bold text-emerald-500 uppercase opacity-60">/ {installmentFrequency === 'day' ? 'jour' : 'mois'}</span>
-                      </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button onClick={() => setDiscountModal(null)} className="py-3 text-xs font-bold text-gray-400 uppercase">Annuler</button>
+                        <button onClick={() => applyDiscount(discountModal.itemId, discountModal.type, discountModal.value)} className="bg-emerald-600 text-white py-3 rounded-xl text-xs font-black shadow-lg">Appliquer</button>
                     </div>
-                  )}
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* ACTION BUTTONS */}
-          <div className="flex flex-wrap items-center gap-2 justify-center lg:justify-end">
-            <button 
-                onClick={() => setDiscountModal({ type: globalDiscount.type, value: globalDiscount.value, isGlobal: true })}
-                className="w-full lg:w-auto px-4 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest text-emerald-300 hover:bg-white/10 transition-all border border-emerald-400/20"
-            >
-                Remise globale
-            </button>
-            <div className="flex items-center gap-3 w-full lg:w-auto justify-center lg:justify-end mt-2 lg:mt-0">
-                <div className="flex items-center gap-1.5">
-                <input
-                    type="checkbox"
-                    id="printInvoice"
-                    checked={printInvoice}
-                    onChange={(e) => setPrintInvoice(e.target.checked)}
-                    className="mr-1 accent-emerald-500"
-                />
-                <label htmlFor="printInvoice" className="text-[10px] font-black uppercase text-white">Imprimer</label>
-                </div>
-                <button
-                onClick={handleReset}
-                disabled={invoiceItems.length === 0 || isProcessing}
-                className="px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest text-emerald-400 hover:text-red-400 hover:bg-white/5 transition-all disabled:opacity-30 border border-emerald-400/20 lg:border-none"
-                >
-                Réinitialiser
-                </button>
-                <button
-                onClick={handleFinalize}
-                disabled={!activeInvoice || invoiceItems.length === 0 || isProcessing}
-                className={`flex-1 lg:flex-none px-12 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg ${paymentMode === 'cash' ? 'bg-emerald-500 hover:bg-emerald-400 text-emerald-950' : 'bg-orange-500 hover:bg-orange-400 text-white'}`}
-                >
-                {isProcessing ? <Loader2 className="animate-spin" size={16} /> : (paymentMode === 'cash' ? <CheckCircle size={16} /> : <Send size={16} />)}
-                <span className="hidden sm:inline">
-                  {paymentMode === 'cash' ? "Valider" : "Crédit"}
-                </span>
-
-
-                </button>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 4. PRODUCT SEARCH (BOTTOM) */}
-      <div className="flex-1 bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col overflow-hidden min-h-0">
-        <div className="p-3 border-b border-emerald-50 bg-emerald-50/20 flex items-center gap-4 shrink-0">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400" size={16} />
-            <input type="text" placeholder="Ajouter un produit..." className="w-full bg-white border border-emerald-100 rounded-xl py-2 pl-10 pr-4 text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-          </div>
-        </div>
-        
-        <div className="flex-1 p-3 sm:p-0">
-          {/* Mobile View: Cards */}
-          <div className="grid grid-cols-1 gap-2 sm:hidden pb-4">
-            {filteredProducts.map(p => (
-              <div key={p.id} className="bg-gray-50/50 border border-emerald-50 rounded-2xl p-3 flex flex-col gap-3 min-w-0">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-black uppercase text-[11px] text-gray-800 leading-tight">{p.name}</p>
-                    <p className="text-[9px] text-gray-400 font-bold uppercase">{p.categories?.name}</p>
-                  </div>
-                  <p className="font-black text-emerald-600 text-[11px]">{p.price.toLocaleString()} Ar</p>
-                </div>
-                
-                <div className="flex items-center justify-between gap-2">
-                  <div className="bg-emerald-100/50 px-2 py-1 rounded-lg">
-                    <p className="text-[8px] font-black text-emerald-700 uppercase leading-none mb-0.5">Stock</p>
-                    <p className="text-[10px] font-bold text-emerald-600 truncate">
-                      {p.quantite_par_unite > 1 ? `${Math.floor(p.stock_quantity / p.quantite_par_unite)} ${p.unite_superieure || 'Ctn'} + ${p.stock_quantity % p.stock_quantity} ${p.unite_base || 'Pce'}` : `${p.stock_quantity} ${p.unite_base || 'Pce'}`}
-                    </p>
-                  </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => addToInvoice(p, 'piece')} className="bg-white border border-emerald-100 text-emerald-700 px-3 py-2 rounded-xl text-[9px] font-black uppercase shadow-sm">+{p.unite_base || 'PCE'}</button>
-                    {p.quantite_par_unite > 1 && <button onClick={() => addToInvoice(p, 'carton')} className="bg-emerald-600 text-white px-3 py-2 rounded-xl text-[9px] font-black uppercase shadow-md transition-all">+{p.unite_superieure || 'CTN'}</button>}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Desktop View: Table */}
-          <table className="w-full text-left min-w-[500px] hidden sm:table">
-            <thead className="sticky top-0 bg-gray-50 border-b border-emerald-50 z-10">
-              <tr className="text-[9px] font-black text-gray-400 uppercase">
-                <th className="p-3 pl-6">Produit</th>
-                <th className="p-3">Stock</th>
-                <th className="p-3 text-right">Prix</th>
-                <th className="p-3 text-right pr-6">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-emerald-50">
-              {filteredProducts.map(p => (
-                <tr key={p.id} className="hover:bg-emerald-50/20 transition-colors group text-[11px]">
-                  <td className="p-3 pl-6 font-black uppercase text-gray-800">{p.name} <span className="text-[8px] text-gray-300 font-bold ml-2">({p.categories?.name})</span></td>
-                  <td className="p-3 font-bold text-emerald-600">
-                    {p.quantite_par_unite > 1 ? `${Math.floor(p.stock_quantity / p.quantite_par_unite)} ${p.unite_superieure || 'Ctn'} + ${p.stock_quantity % p.quantite_par_unite} ${p.unite_base || 'Pce'}` : `${p.stock_quantity} ${p.unite_base || 'Pce'}`}
-                  </td>
-                  <td className="p-3 text-right font-black">{p.price.toLocaleString()} Ar</td>
-                  <td className="p-3 text-right pr-6">
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => addToInvoice(p, 'piece')} className="bg-white border border-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:border-emerald-500 hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm">{p.unite_base || 'PCE'}</button>
-                      {p.quantite_par_unite > 1 && <button onClick={() => addToInvoice(p, 'carton')} className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all duration-200 shadow-md">{p.unite_superieure || 'CTN'}</button>}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Success & Discount Modals remain same but updated Z-Index */}
-      {flashMessage && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-6 py-3 rounded-full shadow-lg z-50 animate-in fade-in slide-in-from-top duration-300">
-          {flashMessage}
         </div>
       )}
-      {discountModal && <div className="fixed inset-0 z-[200] flex items-center justify-center bg-emerald-950/40 backdrop-blur-sm p-4"><div className="bg-white rounded-[2rem] shadow-2xl p-8 w-full max-w-sm"><h3 className="text-lg font-black text-gray-800 mb-2 uppercase">Remise</h3><div className="space-y-4"><div className="flex bg-gray-100 p-1 rounded-xl"><button onClick={() => setDiscountModal({...discountModal, type: '%'})} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${discountModal.type === '%' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}>%</button><button onClick={() => setDiscountModal({...discountModal, type: 'Ar'})} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${discountModal.type === 'Ar' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}>Ar</button></div><input autoFocus type="number" className="w-full bg-emerald-50 border-2 border-emerald-100 rounded-xl py-4 px-6 text-xl font-black outline-none" value={discountModal.value || ''} onChange={(e) => setDiscountModal({...discountModal, value: e.target.value})} /><div className="grid grid-cols-2 gap-3"><button onClick={() => setDiscountModal(null)} className="py-3 text-xs font-bold text-gray-400 uppercase">Annuler</button><button onClick={() => applyDiscount(discountModal.itemId, discountModal.type, discountModal.value)} className="bg-emerald-600 text-white py-3 rounded-xl text-xs font-black shadow-lg">Appliquer</button></div></div></div></div>}
     </div>
   );
 }
