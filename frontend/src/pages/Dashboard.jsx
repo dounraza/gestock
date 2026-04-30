@@ -21,7 +21,8 @@ import {
   Calendar,
   Clock,
   Settings as SettingsIcon,
-  Box
+  Box,
+  Shield
 } from 'lucide-react';
 import Inventory from '../components/Inventory';
 import Clients from '../components/Clients';
@@ -34,6 +35,7 @@ import CreditHistory from '../components/CreditHistory';
 import Settings from '../components/Settings';
 import Conversions from '../components/Conversions';
 import SalesDashboard from '../components/SalesDashboard';
+import Historique from '../components/Historique';
 
 export default function Dashboard({ session }) {
   const navigate = useNavigate();
@@ -245,6 +247,12 @@ export default function Dashboard({ session }) {
                   label={<span className="hidden sm:inline">Paramètres</span>}
                   active={activeTab === 'settings'} 
                   onClick={() => { navigate('/dashboard/settings'); closeSidebar(); }} 
+                />
+                <NavItem 
+                  icon={<Shield size={20} />} 
+                  label="Historique" 
+                  active={activeTab === 'historique'} 
+                  onClick={() => { navigate('/dashboard/historique'); closeSidebar(); }} 
                 />
                 <NavItem 
                   icon={<Box size={20} />} 

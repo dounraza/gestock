@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { Plus, Search, Edit2, Trash2, Package, Tag, Layers, Truck, Loader2, Warehouse, History, X } from 'lucide-react';
+import { logAction } from '../utils/audit';
 
 export default function Inventory() {
   const [products, setProducts] = useState([]);

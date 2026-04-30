@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { Calendar, Filter, FileText, User } from 'lucide-react';
+import { logAction } from '../utils/audit';
 
 export default function SalesDashboard() {
   const [sales, setSales] = useState([]);
@@ -37,10 +38,11 @@ export default function SalesDashboard() {
 
     let query = supabase
         .from('factures')
-        .select('*, clients(name), facture_items(*, produits(name))')
+        .select('*, clients(name), facture_items(*, produits(name, unite_base, unite_superieure, quantite_par_unite))')
         .gte('created_at', startOfDay.toISOString())
         .lte('created_at', endOfDay.toISOString())
-        .neq('status', 'draft');
+        .neq('status', 'draft')
+        .neq('status', 'cancelled');
     
     // Apply status filter
     if (filterType === 'paid') query = query.eq('status', 'paid');
@@ -60,6 +62,26 @@ export default function SalesDashboard() {
         return acc;
     }, { cash: 0, credit: 0, daily: 0 });
   }, [sales]);
+
+  const handleCancelInvoice = async (invoice) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir annuler cette facture ? Le stock sera restauré.")) return;
+    
+    try {
+        // 1. Restore stock
+        for (const item of invoice.facture_items) {
+            const { data: product } = await supabase.from('produits').select('stock_quantity').eq('id', item.produit_id).single();
+            await supabase.from('produits').update({ stock_quantity: product.stock_quantity + item.quantity }).eq('id', item.produit_id);
+        }
+        // 2. Mark invoice as cancelled
+        await supabase.from('factures').update({ status: 'cancelled' }).eq('id', invoice.id);
+
+        await logAction('Annulation Facture', 'SalesDashboard', invoice.id, { number: invoice.number });
+
+        setSelectedInvoice(null);
+
+        fetchSales();
+    } catch (e) { alert(e.message); }
+  };
 
   return (
     <div className="p-4 md:p-8 bg-slate-50 min-h-screen">
@@ -147,22 +169,53 @@ export default function SalesDashboard() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
             <div className="bg-white rounded-[2rem] shadow-2xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-black text-slate-800">Détails Facture: {selectedInvoice.number}</h3>
+                    <div>
+                        <h3 className="text-lg font-black text-slate-800">Facture: {selectedInvoice.number}</h3>
+                        <p className="text-sm font-bold text-slate-600">Client: {selectedInvoice.clients?.name || selectedInvoice.guest_name || 'Anonyme'}</p>
+                        <p className="text-sm font-bold text-slate-600">Contact: {selectedInvoice.guest_contact || 'Non renseigné'}</p>
+                    </div>
                     <button onClick={() => setSelectedInvoice(null)} className="text-slate-400 hover:text-slate-800">Fermer</button>
                 </div>
-                <div className="space-y-3">
-                    {selectedInvoice.facture_items?.map(item => (
-                        <div key={item.id} className="flex justify-between p-3 bg-slate-50 rounded-xl">
-                            <div>
-                                <p className="font-black text-slate-800">{item.produits?.name}</p>
-                                <p className="text-[10px] text-slate-500 font-bold">Qté: {item.quantity} | Prix: {item.price_at_sale?.toLocaleString()} Ar</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="font-black text-slate-800">{((item.quantity * item.price_at_sale) - (item.discount ? (item.discount.type === '%' ? (item.quantity * item.price_at_sale) * (item.discount.value/100) : item.discount.value) : 0)).toLocaleString()} Ar</p>
-                                {item.discount && <p className="text-[9px] text-orange-500 font-bold">Remise: {item.discount.value}{item.discount.type}</p>}
-                            </div>
-                        </div>
-                    ))}
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                        <thead className="text-slate-400 uppercase font-black border-b border-slate-100">
+                            <tr>
+                                <th className="p-2">Désignation</th>
+                                <th className="p-2 text-center">Qté</th>
+                                <th className="p-2 text-center">Unités</th>
+                                <th className="p-2 text-right">Prix</th>
+                                <th className="p-2 text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {selectedInvoice.facture_items?.map(item => (
+                                <tr key={item.id} className="text-slate-800 font-bold">
+                                    <td className="p-2 uppercase">{item.produits?.name}</td>
+                                    <td className="p-2 text-center">{item.quantity}</td>
+                                    <td className="p-2 text-center text-[9px] text-slate-500 italic">
+                                        {console.log("Item debug:", item.produits)}
+                                        {item.produits && item.produits.quantite_par_unite > 1 ? 
+                                            `${Math.floor(item.quantity / item.produits.quantite_par_unite)} ${item.produits.unite_superieure || 'Ctn'} + ${item.quantity % item.produits.quantite_par_unite} ${item.produits.unite_base || 'Pce'}` 
+                                            : `${item.quantity} ${item.produits?.unite_base || 'Pce'}`
+                                        }
+                                    </td>
+                                    <td className="p-2 text-right">{item.price_at_sale?.toLocaleString()} Ar</td>
+                                    <td className="p-2 text-right font-black">
+                                        {((item.quantity * item.price_at_sale) - (item.discount ? (item.discount.type === '%' ? (item.quantity * item.price_at_sale) * (item.discount.value/100) : item.discount.value) : 0)).toLocaleString()} Ar
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div className="mt-8 pt-6 border-t border-slate-100">
+                    <button 
+                        onClick={() => handleCancelInvoice(selectedInvoice)}
+                        className="w-full bg-red-600 hover:bg-red-700 text-white p-4 rounded-xl font-black text-sm uppercase shadow-md transition-all"
+                    >
+                        Annuler la facture
+                    </button>
                 </div>
             </div>
         </div>
