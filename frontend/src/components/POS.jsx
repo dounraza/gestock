@@ -184,25 +184,33 @@ export default function POS({ session }) {
   };
 
   const handleFinalize = async () => {
-  if (!activeInvoice || invoiceItems.length === 0) return;
-  setIsProcessing(true);
-  try {
-  const currentTotal = invoiceItems.reduce((acc, item) => acc + calculateItemTotal(item), 0);
-  const finalPaidAmount = paymentMode === 'cash' ? currentTotal : (parseFloat(advanceAmount) || 0);
-  const amountToSchedule = currentTotal - finalPaidAmount;
+    if (!activeInvoice || invoiceItems.length === 0) return;
+    setIsProcessing(true);
+    try {
+        const currentTotal = invoiceItems.reduce((acc, item) => acc + calculateItemTotal(item), 0);
+        const finalPaidAmount = paymentMode === 'cash' ? currentTotal : (parseFloat(advanceAmount) || 0);
+        const amountToSchedule = currentTotal - finalPaidAmount;
 
-  const guestName = activeInvoice.guest_name || 'Anonyme';
-  const { data: { user } } = await supabase.auth.getUser(); // Fetch user once
+        const guestName = activeInvoice.guest_name || 'Anonyme';
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1; // 1-12
+        const type = paymentMode === 'cash' ? 'Comptant' : 'Crédit';
+        
+        const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: invData, error: invError } = await supabase.from('factures').update({ 
-    status: paymentMode === 'cash' ? 'paid' : 'sent', 
-    due_date: dueDate, 
-    paid_amount: finalPaidAmount, 
-    total_amount: currentTotal,
-    guest_name: guestName
-  }).eq('id', activeInvoice.id).select().single();
+        const { data: invData, error: invError } = await supabase.from('factures').update({ 
+            status: paymentMode === 'cash' ? 'paid' : 'sent', 
+            due_date: dueDate, 
+            paid_amount: finalPaidAmount, 
+            total_amount: currentTotal,
+            guest_name: guestName,
+            type: type, // Explicitly set as 'Comptant' or 'Crédit'
+            year: year,
+            month: month
+        }).eq('id', activeInvoice.id).select().single();
 
-  if (invError) throw invError;
+        if (invError) throw invError;
 
   // Update stock levels with safety check
   for (const item of invoiceItems) {

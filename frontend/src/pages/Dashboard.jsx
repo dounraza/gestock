@@ -33,6 +33,7 @@ import Deadlines from '../components/Deadlines';
 import CreditHistory from '../components/CreditHistory';
 import Settings from '../components/Settings';
 import Conversions from '../components/Conversions';
+import SalesDashboard from '../components/SalesDashboard';
 
 export default function Dashboard({ session }) {
   const navigate = useNavigate();
@@ -172,6 +173,12 @@ export default function Dashboard({ session }) {
                   label="Caisse / Commande" 
                   active={activeTab === 'pos'} 
                   onClick={() => { navigate('/dashboard/pos'); closeSidebar(); }} 
+                />
+                <NavItem 
+                  icon={<TrendingUp size={20} />} 
+                  label="Ventes" 
+                  active={activeTab === 'sales-analytics'} 
+                  onClick={() => { navigate('/dashboard/sales-analytics'); closeSidebar(); }} 
                 />
               </div>
             </div>
@@ -442,6 +449,7 @@ export default function Dashboard({ session }) {
               onSearchReset={() => setDeadlineSearchTerm('')}
             />} />
             <Route path="credit_history" element={<CreditHistory />} />
+            <Route path="sales-analytics" element={<SalesDashboard />} />
             <Route path="conversions" element={<Conversions session={session} />} />
             <Route path="settings" element={<Settings session={session} />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
