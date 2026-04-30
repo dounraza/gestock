@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { Search, ShoppingCart, Trash2, Package, CheckCircle, Loader2, FileText, Plus, Minus, Clock, User, Tag, List, Send, Phone } from 'lucide-react';
 import Calculator from './Calculator';
@@ -395,8 +395,10 @@ export default function POS({ session }) {
 
   const applyDiscount = (itemId, type, value) => {
     const numericValue = parseFloat(value) || 0;
+    console.log("Applying discount:", { itemId, type, value: numericValue, isGlobal: discountModal.isGlobal });
+    
     if (discountModal.isGlobal) {
-        setGlobalDiscount(prev => ({ ...prev, type, value: numericValue }));
+        setGlobalDiscount({ type, value: numericValue });
     } else {
         setInvoiceItems(invoiceItems.map(item => item.item_id === itemId ? { ...item, discount: { type, value: numericValue } } : item));
     }
@@ -440,6 +442,8 @@ export default function POS({ session }) {
 
   const calculateTotal = () => {
     let subtotal = invoiceItems.reduce((acc, item) => acc + calculateItemTotal(item), 0);
+    console.log("Subtotal:", subtotal, "Global Discount:", globalDiscount);
+    
     if (globalDiscount.value > 0) {
       if (globalDiscount.type === '%') {
         subtotal -= (subtotal * (parseFloat(globalDiscount.value) / 100));
@@ -447,10 +451,12 @@ export default function POS({ session }) {
         subtotal -= parseFloat(globalDiscount.value);
       }
     }
+    console.log("Final Total:", subtotal);
     return Math.max(0, subtotal);
   };
 
-  const total = calculateTotal();
+  // Utilisez useMemo pour que 'total' se mette à jour dès que invoiceItems ou globalDiscount changent
+  const total = useMemo(() => calculateTotal(), [invoiceItems, globalDiscount]);
 
   const applyGlobalDiscount = (type, value) => {
     // S'assurer que la valeur est convertie en nombre avant de l'enregistrer
@@ -459,163 +465,152 @@ export default function POS({ session }) {
   };
 
   return (
-    <div className="flex flex-col gap-3 h-screen p-3">
-      {/* 1. TOP BAR: INVOICE # AND CLIENT INFO */}
-      <div className="bg-emerald-600 text-white rounded-[2rem] p-3 shadow-lg flex flex-col md:flex-row items-center gap-4 shrink-0 overflow-hidden">
-        <div className="flex items-center gap-3 px-4 border-b md:border-b-0 md:border-r border-white/20 w-full md:w-auto pb-2 md:pb-0">
-          <FileText size={18} />
-          <h3 className="font-black text-xs uppercase tracking-widest">{activeInvoice?.number}</h3>
+    <div className="flex flex-col gap-3 p-2 min-h-screen">
+      {/* 1. TOP BAR */}
+      <div className="bg-emerald-600 text-white rounded-[1rem] p-2 shadow-md flex flex-col gap-1 shrink-0 text-[9px]">
+        {/* Row 1: Invoice & Total */}
+        <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1 truncate">
+              <FileText size={12} className="shrink-0" />
+              <h3 className="font-black uppercase truncate">{activeInvoice?.number}</h3>
+            </div>
+            <div className="flex items-center gap-2">
+                {globalDiscount.value > 0 && (
+                    <span className="font-black text-orange-200">
+                      {globalDiscount.type === '%' ? `-${globalDiscount.value}%` : `-${globalDiscount.value} Ar`}
+                    </span>
+                )}
+                <span className="font-black text-red-500 bg-white px-2 py-0.5 rounded shadow-sm">
+                  {total.toLocaleString()} Ar
+                </span>
+            </div>
         </div>
 
-        {/* CLIENT SELECTION & QUICK ADD */}
-        <div className="flex-1 flex flex-wrap items-center gap-2 w-full">
-          <div className="flex items-center gap-2 bg-white/10 rounded-xl px-2 py-1 border border-white/10 flex-none w-36">
-            <User size={14} className="text-emerald-200" />
-            <select 
-              className="bg-transparent border-none text-[10px] font-black outline-none w-full cursor-pointer"
-              value={activeInvoice?.client_id || ''}
-              onChange={(e) => handleClientSelect(e.target.value)}
-            >
-              <option value="" className="text-gray-900">Anonyme</option>
-              {clients.map(c => <option key={c.id} value={c.id} className="text-gray-900">{c.name}</option>)}
-            </select>
-          </div>
-
-          <div className="flex-1 min-w-[150px] flex items-center gap-2 bg-white rounded-xl px-3 py-1.5 border border-white shadow-sm">
-            <input 
-              type="text" placeholder="NOM DU NOUVEAU CLIENT..." 
-              className="bg-transparent border-none text-[11px] font-black outline-none placeholder:text-emerald-600/40 w-full text-emerald-900 uppercase" 
-              value={activeInvoice?.guest_name === 'Anonyme' ? '' : activeInvoice?.guest_name || ''} 
-              onChange={(e) => updateInvoiceGuestInfo('guest_name', e.target.value)} 
-            />
-          </div>
-
-          <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-1.5 border border-white shadow-sm">
-            <Phone size={12} className="text-emerald-600" />
-            <input type="text" placeholder="TÉLÉPHONE" className="bg-transparent border-none text-[11px] font-black outline-none placeholder:text-emerald-600/40 w-28 text-emerald-900" value={activeInvoice?.guest_contact || ''} onChange={(e) => updateInvoiceGuestInfo('guest_contact', e.target.value)} />
-          </div>
-        </div>
-
-        <div className="flex items-baseline gap-3 px-4 border-t md:border-t-0 md:border-l border-white/20 w-full md:w-auto pt-2 md:pt-0 justify-between md:justify-start">
-          <div className="flex flex-col items-end">
-            <span className="text-[9px] font-black opacity-75 uppercase text-white">Remise</span>
-            <span className="text-xs font-black text-orange-200">
-              {globalDiscount.value > 0 ? (globalDiscount.type === '%' ? `${globalDiscount.value}%` : `${globalDiscount.value} Ar`) : '0'}
-            </span>
-          </div>
-          <div className="flex flex-col items-end">
-            <span className="text-[10px] font-black opacity-90 uppercase text-white">Total:</span>
-            <span className="text-2xl font-black text-red-500 bg-white px-4 py-1 rounded-2xl shadow-lg border-2 border-red-100 flex items-center gap-1">
-              {total.toLocaleString()} <span className="text-xs opacity-60">Ar</span>
-            </span>
-          </div>
+        {/* Row 2: Client Info */}
+        <div className="flex items-center gap-1">
+          <input 
+            type="text" placeholder="CLIENT..." 
+            className="bg-white/20 border-none rounded p-1 text-[9px] font-black outline-none placeholder:text-emerald-100 flex-1 text-white uppercase" 
+            value={activeInvoice?.guest_name === 'Anonyme' ? '' : activeInvoice?.guest_name || ''} 
+            onChange={(e) => updateInvoiceGuestInfo('guest_name', e.target.value)} 
+          />
+          <input 
+            type="text" placeholder="TÉL..." 
+            className="bg-white/20 border-none rounded p-1 text-[9px] font-black outline-none placeholder:text-emerald-100 w-20 text-white" 
+            value={activeInvoice?.guest_contact || ''} 
+            onChange={(e) => updateInvoiceGuestInfo('guest_contact', e.target.value)} 
+          />
         </div>
       </div>
 
-      {/* MAIN CONTENT AREA: TWO COLUMNS */}
-      <div className="grid grid-cols-2 gap-4 flex-1 items-start">
+      {/* MAIN CONTENT AREA: TWO COLUMNS (Responsive) */}
+      <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4 flex-1">
         {/* COLUMN 1: INVOICE & CALCULATOR */}
         <div className="flex flex-col gap-4">
-            <div className="bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col overflow-hidden max-h-[60vh]">
-                <div className="p-2 sm:p-0 overflow-y-auto">
-                {/* Invoice Table Implementation Here (Same as before) */}
-                <table className="w-full text-left min-w-[500px] hidden sm:table">
-                    <thead className="sticky top-0 bg-gray-50 border-b border-emerald-50 z-10">
-                    <tr className="text-[8px] font-black text-gray-400 uppercase">
-                        <th className="p-2 pl-4">Produit</th>
-                        <th className="p-2 text-center">Qté</th>
-                        <th className="p-2 text-center">Détails Unités</th>
-                        <th className="p-2 text-right">Remise</th>
-                        <th className="p-2 text-right pr-4">Total</th>
-                        <th className="p-2 text-right"></th>
-                    </tr>
-                    </thead>
-                    <tbody className="divide-y divide-emerald-50">
-                    {invoiceItems.map(item => (
-                        <tr key={item.item_id} className="border-b border-emerald-50 text-[10px]">
-                        <td className="p-2 pl-4 font-black uppercase text-gray-800">{item.name}</td>
-                        <td className="p-2 text-center">
-                            <button 
-                                onClick={() => setActiveItemId(item.item_id)}
-                                className={`w-10 border rounded text-center text-[10px] font-black ${activeItemId === item.item_id ? 'bg-emerald-500 text-white' : ''}`}
-                            >
-                                {item.quantity}
-                            </button>
-                        </td>
-                        <td className="p-2 text-center text-[8px] font-bold text-gray-400 italic">
-                            {item.quantite_par_unite > 1 ? `${Math.floor(item.quantity / item.quantite_par_unite)} ${item.unite_superieure || 'Ctn'} + ${item.quantity % item.quantite_par_unite} ${item.unite_base || 'Pce'}` : `${item.quantity} ${item.unite_base || 'Pce'}`}
-                        </td>
-                        <td className="p-2 text-right">
-                            <button onClick={() => setDiscountModal({ itemId: item.item_id, name: item.name, total: item.quantity * item.price_at_sale, value: item.discount?.value || 0, type: item.discount?.type || '%' })} className={`font-black ${item.discount ? 'text-orange-500' : 'text-gray-300 hover:text-emerald-500'}`}>
-                            {item.discount ? `${item.discount.value}${item.discount.type}` : <Tag size={10} className="ml-auto" />}
-                            </button>
-                        </td>
-                        <td className="p-2 text-right font-black pr-4">{calculateItemTotal(item).toLocaleString()} Ar</td>
-                        <td className="p-2 text-right"><button onClick={() => removeItem(item.item_id, item.id)} className="text-red-200 hover:text-red-500"><Trash2 size={12} /></button></td>
+            <div className="bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col h-[30vh] lg:h-[40vh] overflow-hidden">
+                <div className="overflow-y-auto flex-1">
+                    <table className="w-full text-left">
+                        <thead className="sticky top-0 bg-gray-50 border-b border-emerald-50 z-10">
+                        <tr className="text-[8px] font-black text-gray-400 uppercase">
+                            <th className="p-3 pl-4">Produit</th>
+                            <th className="p-3 text-center">Qté</th>
+                            <th className="p-3 text-center">Unités</th>
+                            <th className="p-3 text-right">Remise</th>
+                            <th className="p-3 text-right pr-4">Total</th>
+                            <th className="p-3 text-right"></th>
                         </tr>
-                    ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-emerald-50">
+                        {invoiceItems.map(item => (
+                            <tr key={item.item_id} className="border-b border-emerald-50 text-[10px]">
+                            <td className="p-3 pl-4 font-black uppercase text-gray-800">{item.name}</td>
+                            <td className="p-3 text-center">
+                                <button 
+                                    onClick={() => setActiveItemId(item.item_id)}
+                                    className={`w-8 h-8 rounded-lg font-black ${activeItemId === item.item_id ? 'bg-emerald-500 text-white' : 'bg-gray-100'}`}
+                                >
+                                    {item.quantity}
+                                </button>
+                            </td>
+                            <td className="p-3 text-center text-[8px] font-bold text-gray-400 italic">
+                                {item.quantite_par_unite > 1 ? `${Math.floor(item.quantity / item.quantite_par_unite)} ${item.unite_superieure || 'Ctn'} + ${item.quantity % item.quantite_par_unite} ${item.unite_base || 'Pce'}` : `${item.quantity} ${item.unite_base || 'Pce'}`}
+                            </td>
+                            <td className="p-3 text-right">
+                                <button onClick={() => setDiscountModal({ itemId: item.item_id, name: item.name, total: item.quantity * item.price_at_sale, value: item.discount?.value || 0, type: item.discount?.type || '%' })} className={`font-black ${item.discount ? 'text-orange-500' : 'text-gray-300 hover:text-emerald-500'}`}>
+                                {item.discount ? `${item.discount.value}${item.discount.type}` : <Tag size={12} className="ml-auto" />}
+                                </button>
+                            </td>
+                            <td className="p-3 text-right font-black pr-4">{calculateItemTotal(item).toLocaleString()} Ar</td>
+                            <td className="p-3 text-right">
+                                <button 
+                                    onClick={() => removeItem(item.item_id, item.id)} 
+                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all shadow-sm active:scale-90"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
             {/* CALCULATOR IN COLUMN 1 */}
-            {/* The 'key={activeItemId}' prop forces Calculator to remount and reset its state on every new selection */}
-            <Calculator 
-                key={activeItemId}
-                activeItem={invoiceItems.find(i => i.item_id === activeItemId)} 
-                onResult={handleCalculatorResult} 
-            />
+            <div className="shrink-0">
+                <Calculator 
+                    key={activeItemId}
+                    activeItem={invoiceItems.find(i => i.item_id === activeItemId)} 
+                    onResult={handleCalculatorResult}
+                    onOpenDiscount={(item) => {
+                        if (item.isGlobal) {
+                            setDiscountModal({ isGlobal: true, value: globalDiscount.value, type: globalDiscount.type || 'Ar' });
+                        } else {
+                            setDiscountModal({ itemId: item.item_id, name: item.name, total: item.quantity * item.price_at_sale, value: item.discount?.value || 0, type: item.discount?.type || 'Ar', isGlobal: false });
+                        }
+                    }}
+                />
+            </div>
         </div>
 
         {/* COLUMN 2: SEARCH & CONTROLS */}
         <div className="flex flex-col gap-4">
-            <div className="flex-1 bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col overflow-hidden min-h-0">
-                {/* Search Bar & Products Table (Same as before) */}
+            <div className="bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col h-[50vh] lg:h-[80vh]">
                 <div className="p-3 border-b border-emerald-50 bg-emerald-50/20 flex items-center gap-4 shrink-0">
-                <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400" size={16} />
-                    <input type="text" placeholder="Ajouter un produit..." className="w-full bg-white border border-emerald-100 rounded-xl py-2 pl-10 pr-4 text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                </div>
+                    <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400" size={16} />
+                        <input type="text" placeholder="Ajouter un produit..." className="w-full bg-white border border-emerald-100 rounded-xl py-2 pl-10 pr-4 text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    </div>
                 </div>
                 
-                <div className="flex-1 p-3 overflow-y-auto">
-                <table className="w-full text-left">
-                    <thead className="sticky top-0 bg-gray-50 border-b border-emerald-50 z-10">
-                    <tr className="text-[9px] font-black text-gray-400 uppercase">
-                        <th className="p-3 pl-6">Produit</th>
-                        <th className="p-3">Stock</th>
-                        <th className="p-3 text-right">Prix</th>
-                        <th className="p-3 text-right pr-6">Action</th>
-                    </tr>
-                    </thead>
-                    <tbody className="divide-y divide-emerald-50">
-                    {filteredProducts.map(p => (
-                        <tr key={p.id} className="hover:bg-emerald-50/20 transition-colors group text-[11px]">
-                        <td className="p-3 pl-6 font-black uppercase text-gray-800">{p.name} <span className="text-[8px] text-gray-300 font-bold ml-2">({p.categories?.name})</span></td>
-                        <td className="p-3 font-bold text-emerald-600">
-                            {p.quantite_par_unite > 1 ? `${Math.floor(p.stock_quantity / p.quantite_par_unite)} ${p.unite_superieure || 'Ctn'} + ${p.stock_quantity % p.quantite_par_unite} ${p.unite_base || 'Pce'}` : `${p.stock_quantity} ${p.unite_base || 'Pce'}`}
-                        </td>
-                        <td className="p-3 text-right font-black">{p.price.toLocaleString()} Ar</td>
-                        <td className="p-3 text-right pr-6">
-                            {console.log("Product:", p.name, "Stock:", p.stock_quantity, "Condition:", Number(p.stock_quantity) <= 0)}
-                            <button 
-                                onClick={() => {
-                                    addToInvoice(p);
-                                    setTimeout(() => {
-                                        const item = invoiceItems.find(i => i.id === p.id);
-                                        if (item) setActiveItemId(item.item_id);
-                                    }, 100);
-                                }} 
-                                disabled={Number(p.stock_quantity) <= 0}
-                                className={`${Number(p.stock_quantity) <= 0 ? 'bg-red-500 opacity-50 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 hover:scale-105 shadow-md'} text-white px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all`}
-                            >
-                                {Number(p.stock_quantity) <= 0 ? 'STOCK INSUFFISANT' : 'SELECTIONNER'}
-                            </button>
-                        </td>
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
+                <div class="flex-1 overflow-y-auto p-4 md:p-8">
+                    <table className="w-full text-left">
+                        <tbody className="divide-y divide-emerald-50">
+                        {filteredProducts.map(p => (
+                            <tr key={p.id} className="hover:bg-emerald-50/20 transition-colors group text-[11px]">
+                            <td className="p-3 pl-6 font-black uppercase text-gray-800">{p.name} <span className="text-[8px] text-gray-300 font-bold ml-2">({p.categories?.name})</span></td>
+                            <td className="p-3 font-bold text-emerald-600">
+                                {p.quantite_par_unite > 1 ? `${Math.floor(p.stock_quantity / p.quantite_par_unite)} ${p.unite_superieure || 'Ctn'} + ${p.stock_quantity % p.quantite_par_unite} ${p.unite_base || 'Pce'}` : `${p.stock_quantity} ${p.unite_base || 'Pce'}`}
+                            </td>
+                            <td className="p-3 text-right font-black">{p.price.toLocaleString()} Ar</td>
+                            <td className="p-3 text-right pr-6">
+                                <button 
+                                    onClick={() => {
+                                        addToInvoice(p);
+                                        setTimeout(() => {
+                                            const item = invoiceItems.find(i => i.id === p.id);
+                                            if (item) setActiveItemId(item.item_id);
+                                        }, 100);
+                                    }} 
+                                    disabled={Number(p.stock_quantity) <= 0}
+                                    className={`${Number(p.stock_quantity) <= 0 ? 'bg-red-500 opacity-50 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 hover:scale-105 shadow-md'} text-white px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all`}
+                                >
+                                    {Number(p.stock_quantity) <= 0 ? 'STOCK INSUFFISANT' : 'SELECTIONNER'}
+                                </button>
+                            </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -657,14 +652,6 @@ export default function POS({ session }) {
                             />
                             <label htmlFor="printInvoice" className="text-[10px] font-black uppercase text-white">Imprimer</label>
                         </div>
-                        <button 
-                            onClick={() => setDiscountModal({ type: globalDiscount.type, value: globalDiscount.value, isGlobal: true })}
-                            className="px-3 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-widest text-emerald-300 hover:bg-white/10 border border-emerald-400/20"
-                        >
-                            REMISE GLOBALE
-                        </button>
-                    </div>
-                    <div className="flex items-center gap-2">
                         <button onClick={handleReset} disabled={invoiceItems.length === 0 || isProcessing} className="flex-1 px-4 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest text-emerald-400 hover:text-red-400 transition-all disabled:opacity-30 border border-emerald-400/20">Réinitialiser</button>
                         <button onClick={handleFinalize} disabled={!activeInvoice || invoiceItems.length === 0 || isProcessing} className={`flex-[2] px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-lg ${paymentMode === 'cash' ? 'bg-emerald-500 hover:bg-emerald-400 text-emerald-950' : 'bg-orange-500 hover:bg-orange-400 text-white'}`}>
                             {isProcessing ? <Loader2 className="animate-spin" size={16} /> : (paymentMode === 'cash' ? "Valider" : "Crédit")}
