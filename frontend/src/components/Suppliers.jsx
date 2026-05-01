@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { Plus, Edit2, Trash2, Truck, Search, Mail, Phone, MapPin, Loader2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Truck, Search, Mail, Phone, MapPin, Loader2, History, Banknote, LayoutGrid, List } from 'lucide-react';
 
 export default function Suppliers() {
   const [suppliers, setSuppliers] = useState([]);
@@ -8,9 +8,20 @@ export default function Suppliers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '', address: '' });
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    email: '', 
+    phone: '', 
+    address: '',
+    local_etranger: 'Local',
+    raison_sociale: '',
+    nif: '',
+    stat: '',
+    rcs: ''
+  });
   const [editingSupplier, setEditingSupplier] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
 
   const fetchSuppliers = async () => {
     setLoading(true);
@@ -32,7 +43,9 @@ export default function Suppliers() {
         supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         supplier.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         supplier.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        supplier.address?.toLowerCase().includes(searchTerm.toLowerCase())
+        supplier.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        supplier.raison_sociale?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        supplier.nif?.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredSuppliers(currentSuppliers);
     } else {
@@ -73,13 +86,28 @@ export default function Suppliers() {
       name: supplier.name,
       email: supplier.email || '',
       phone: supplier.phone || '',
-      address: supplier.address || ''
+      address: supplier.address || '',
+      local_etranger: supplier.local_etranger || 'Local',
+      raison_sociale: supplier.raison_sociale || '',
+      nif: supplier.nif || '',
+      stat: supplier.stat || '',
+      rcs: supplier.rcs || ''
     });
     setShowModal(true);
   };
 
   const resetForm = () => {
-    setFormData({ name: '', email: '', phone: '', address: '' });
+    setFormData({ 
+      name: '', 
+      email: '', 
+      phone: '', 
+      address: '',
+      local_etranger: 'Local',
+      raison_sociale: '',
+      nif: '',
+      stat: '',
+      rcs: ''
+    });
     setEditingSupplier(null);
     setShowModal(false);
   };
@@ -94,7 +122,7 @@ export default function Suppliers() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-emerald-50 gap-4">
-        <div className="flex gap-4 flex-1 max-w-lg">
+        <div className="flex gap-4 flex-1 max-w-lg items-center">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
@@ -105,83 +133,231 @@ export default function Suppliers() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+          <div className="flex bg-gray-100 p-1 rounded-xl">
+            <button 
+              onClick={() => setViewMode('grid')} 
+              className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}
+              title="Vue Grille"
+            >
+              <LayoutGrid size={18} />
+            </button>
+            <button 
+              onClick={() => setViewMode('table')} 
+              className={`p-2 rounded-lg transition-all ${viewMode === 'table' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}
+              title="Vue Tableau"
+            >
+              <List size={18} />
+            </button>
+          </div>
         </div>
         <button onClick={() => setShowModal(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-emerald-100">
           <Plus size={18} /> <span>Nouveau Fournisseur</span>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading ? (
-          <p className="col-span-full text-center py-20 text-gray-400">Chargement des fournisseurs...</p>
-        ) : filteredSuppliers.length > 0 ? (
-          filteredSuppliers.map((s) => (
-            <div key={s.id} className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all group relative">
-              <div className="absolute top-4 right-4 flex gap-2">
-                <button onClick={() => handleEdit(s)} className="p-2 text-gray-300 hover:text-emerald-600 transition-colors">
-                  <Edit2 size={16} />
-                </button>
-                <button onClick={() => deleteSupplier(s.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors">
-                  <Trash2 size={16} />
-                </button>
-              </div>
-              
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
-                  <Truck size={28} />
+      {loading ? (
+        <div className="text-center py-20 text-gray-400">
+          <Loader2 className="animate-spin mx-auto mb-4" size={48} />
+          <p>Chargement des fournisseurs...</p>
+        </div>
+      ) : filteredSuppliers.length > 0 ? (
+        viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredSuppliers.map((s) => (
+              <div key={s.id} className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all group relative">
+                <div className="absolute top-4 right-4 flex gap-2">
+                  <button onClick={() => handleEdit(s)} className="p-2 text-gray-300 hover:text-emerald-600 transition-colors">
+                    <Edit2 size={16} />
+                  </button>
+                  <button onClick={() => deleteSupplier(s.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors">
+                    <Trash2 size={16} />
+                  </button>
                 </div>
-                <div>
-                  <h4 className="text-lg font-bold text-gray-800">{s.name}</h4>
-                  <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Partenaire Pharma</p>
+                
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
+                    <Truck size={28} />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-gray-800 leading-tight">{s.name}</h4>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${s.local_etranger === 'Etranger' ? 'bg-purple-100 text-purple-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                        {s.local_etranger || 'Local'}
+                      </span>
+                      {s.nif && (
+                        <span className="text-[8px] font-black text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full uppercase">
+                          NIF: {s.nif}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center gap-3 text-gray-600">
-                  <Mail size={16} className="text-emerald-400" />
-                  <span className="text-sm truncate">{s.email || 'Pas d\'email'}</span>
+                <div className="space-y-3">
+                  {s.raison_sociale && (
+                    <div className="flex items-center gap-3 text-gray-600">
+                      <div className="w-4 h-4 rounded bg-gray-50 flex items-center justify-center">
+                        <span className="text-[8px] font-black">RS</span>
+                      </div>
+                      <span className="text-xs font-bold text-gray-400 uppercase truncate">{s.raison_sociale}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 text-gray-600">
+                    <Mail size={16} className="text-emerald-400" />
+                    <span className="text-sm truncate">{s.email || 'Pas d\'email'}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-gray-600">
+                    <Phone size={16} className="text-emerald-400" />
+                    <span className="text-sm">{s.phone || 'Pas de téléphone'}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-gray-600">
+                    <MapPin size={16} className="text-emerald-400" />
+                    <span className="text-sm truncate">{s.address || 'Pas d\'adresse'}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 text-gray-600">
-                  <Phone size={16} className="text-emerald-400" />
-                  <span className="text-sm">{s.phone || 'Pas de téléphone'}</span>
-                </div>
-                <div className="flex items-center gap-3 text-gray-600">
-                  <MapPin size={16} className="text-emerald-400" />
-                  <span className="text-sm truncate">{s.address || 'Pas d\'adresse'}</span>
-                </div>
-              </div>
 
-              <div className="mt-6 pt-6 border-t border-emerald-50">
-                <button className="w-full py-2 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-xs hover:bg-emerald-100 transition-colors">
-                  Voir les commandes
-                </button>
+                <div className="mt-6 pt-6 border-t border-emerald-50 flex gap-2">
+                  <button className="flex-1 py-2 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-[9px] uppercase tracking-wider hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1.5">
+                    <History size={14} /> Historique
+                  </button>
+                  <button className="flex-1 py-2 bg-emerald-600 text-white rounded-xl font-bold text-[9px] uppercase tracking-wider hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-100">
+                    <Banknote size={14} /> Payer
+                  </button>
+                </div>
               </div>
-            </div>
-          ))
-        ) : (
-          <div className="col-span-full text-center py-20 bg-white/40 border-2 border-dashed border-emerald-100 rounded-3xl">
-            <Truck className="mx-auto text-emerald-200 mb-4" size={48} />
-            <p className="text-gray-500 font-medium">Aucun fournisseur trouvé.</p>
+            ))}
           </div>
-        )}
-      </div>
+        ) : (
+          <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-emerald-50/50 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">
+                    <th className="p-4 pl-6">Fournisseur</th>
+                    <th className="p-4">Type</th>
+                    <th className="p-4">Raison Sociale</th>
+                    <th className="p-4">NIF</th>
+                    <th className="p-4">Contact</th>
+                    <th className="p-4 pr-6 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-emerald-50">
+                  {filteredSuppliers.map((s) => (
+                    <tr key={s.id} className="hover:bg-emerald-50/10 transition-colors text-sm group">
+                      <td className="p-4 pl-6">
+                        <div className="font-bold text-gray-800 uppercase">{s.name}</div>
+                      </td>
+                      <td className="p-4">
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${s.local_etranger === 'Etranger' ? 'bg-purple-100 text-purple-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                          {s.local_etranger || 'Local'}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className="text-xs text-gray-400 font-bold uppercase truncate max-w-[150px] block">{s.raison_sociale || '-'}</span>
+                      </td>
+                      <td className="p-4">
+                        <span className="text-[10px] font-bold text-gray-500">{s.nif || '-'}</span>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-xs font-bold text-gray-700">{s.phone || '-'}</span>
+                          <span className="text-[10px] text-gray-400">{s.email || '-'}</span>
+                        </div>
+                      </td>
+                      <td className="p-4 pr-6 text-right">
+                        <div className="flex justify-end items-center gap-2">
+                          <button onClick={() => handleEdit(s)} className="p-2 text-gray-300 hover:text-emerald-600 transition-colors" title="Modifier">
+                            <Edit2 size={16} />
+                          </button>
+                          <button onClick={() => deleteSupplier(s.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors" title="Supprimer">
+                            <Trash2 size={16} />
+                          </button>
+                          <div className="h-6 w-px bg-emerald-50 mx-1"></div>
+                          <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Historique">
+                            <History size={16} />
+                          </button>
+                          <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Payer">
+                            <Banknote size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      ) : (
+        <div className="text-center py-20 bg-white/40 border-2 border-dashed border-emerald-100 rounded-3xl">
+          <Truck className="mx-auto text-emerald-200 mb-4" size={48} />
+          <p className="text-gray-500 font-medium">Aucun fournisseur trouvé.</p>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-900/20 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="p-8 border-b border-emerald-50 flex justify-between items-center">
-              <h3 className="text-xl font-bold text-gray-800">
+            <div className="p-4 border-b border-emerald-50 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-800">
                 {editingSupplier ? 'Modifier le fournisseur' : 'Ajouter un fournisseur'}
               </h3>
               <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
             </div>
-            <form onSubmit={handleSave} className="p-8 space-y-4">
-              <input required placeholder="Nom du Laboratoire / Fournisseur" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-              <input type="email" placeholder="Email contact" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-              <input placeholder="Téléphone" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
-              <textarea placeholder="Adresse du siège..." className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})}></textarea>
-              <button type="submit" disabled={isSubmitting} className="w-full bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-100 mt-4 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : (editingSupplier ? "Mettre à jour" : "Enregistrer le fournisseur")}
+            <form onSubmit={handleSave} className="p-4 space-y-3 max-h-[85vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                   <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Type de Fournisseur</label>
+                   <select 
+                    className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs font-bold"
+                    value={formData.local_etranger}
+                    onChange={e => setFormData({...formData, local_etranger: e.target.value})}
+                  >
+                    <option value="Local">Local</option>
+                    <option value="Etranger">Étranger</option>
+                  </select>
+                </div>
+
+                <div className="col-span-2">
+                  <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Nom du Fournisseur</label>
+                  <input required placeholder="Ex: Sanofi, GSK..." className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Raison Sociale</label>
+                  <input placeholder="Raison Sociale complète" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs" value={formData.raison_sociale} onChange={e => setFormData({...formData, raison_sociale: e.target.value})} />
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">NIF</label>
+                  <input placeholder="NIF" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">STAT</label>
+                  <input placeholder="STAT" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs" value={formData.stat} onChange={e => setFormData({...formData, stat: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">RCS</label>
+                  <input placeholder="RCS" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs" value={formData.rcs} onChange={e => setFormData({...formData, rcs: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Téléphone</label>
+                  <input placeholder="Téléphone" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Email contact</label>
+                  <input type="email" placeholder="Email" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Adresse du siège</label>
+                  <textarea placeholder="Adresse complète..." className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs min-h-[40px] h-[40px] resize-none" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})}></textarea>
+                </div>
+              </div>
+
+              <button type="submit" disabled={isSubmitting} className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-emerald-100 mt-2 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : (editingSupplier ? "Mettre à jour" : "Enregistrer")}
               </button>
             </form>
           </div>
