@@ -22,7 +22,8 @@ import {
   Clock,
   Settings as SettingsIcon,
   Box,
-  Shield
+  Shield,
+  DollarSign
 } from 'lucide-react';
 import Inventory from '../components/Inventory';
 import Clients from '../components/Clients';
@@ -36,6 +37,7 @@ import Settings from '../components/Settings';
 import Conversions from '../components/Conversions';
 import SalesDashboard from '../components/SalesDashboard';
 import Historique from '../components/Historique';
+import Decaissement from '../components/Decaissement';
 
 export default function Dashboard({ session }) {
   const navigate = useNavigate();
@@ -160,106 +162,44 @@ export default function Dashboard({ session }) {
             </button>
           </div>
 
-          <nav className="space-y-6">
+          <nav className="space-y-8">
+            {/* GROUPE 1: Caisse & Ventes */}
             <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Général</p>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Caisse & Ventes</p>
               <div className="space-y-1">
-                <NavItem 
-                  icon={<LayoutDashboard size={20} />} 
-                  label="Vue d'ensemble" 
-                  active={activeTab === 'dashboard'} 
-                  onClick={() => { navigate('/dashboard'); closeSidebar(); }} 
-                />
-                <NavItem 
-                  icon={<ShoppingCart size={20} />} 
-                  label="Caisse / Commande" 
-                  active={activeTab === 'pos'} 
-                  onClick={() => { navigate('/dashboard/pos'); closeSidebar(); }} 
-                />
-                <NavItem 
-                  icon={<TrendingUp size={20} />} 
-                  label="Ventes" 
-                  active={activeTab === 'sales-analytics'} 
-                  onClick={() => { navigate('/dashboard/sales-analytics'); closeSidebar(); }} 
-                />
+                <NavItem icon={<LayoutDashboard size={20} />} label="Tableau de bord" active={activeTab === 'dashboard'} onClick={() => { navigate('/dashboard'); closeSidebar(); }} />
+                <NavItem icon={<ShoppingCart size={20} />} label="Caisse (POS)" active={activeTab === 'pos'} onClick={() => { navigate('/dashboard/pos'); closeSidebar(); }} />
+                <NavItem icon={<TrendingUp size={20} />} label="Analyse Ventes" active={activeTab === 'sales-analytics'} onClick={() => { navigate('/dashboard/sales-analytics'); closeSidebar(); }} />
               </div>
             </div>
 
+            {/* GROUPE 2: Gestion Financière */}
             <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Ventes & Finance</p>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Gestion Financière</p>
               <div className="space-y-1">
-                <NavItem 
-                  icon={<FileText size={20} />} 
-                  label="Facturation" 
-                  active={activeTab === 'billing'} 
-                  onClick={() => { navigate('/dashboard/billing'); closeSidebar(); }} 
-                />
-                <NavItem 
-                  icon={<Calendar size={20} />} 
-                  label="Échéancier" 
-                  active={activeTab === 'deadlines'} 
-                  onClick={() => { navigate('/dashboard/deadlines'); closeSidebar(); }} 
-                />
-                <NavItem 
-                  icon={<Clock size={20} />} 
-                  label="Historique Crédits" 
-                  active={activeTab === 'credit_history'} 
-                  onClick={() => { navigate('/dashboard/credit_history'); closeSidebar(); }} 
-                />
-                <NavItem 
-                  icon={<Users size={20} />} 
-                  label="Clients" 
-                  active={activeTab === 'clients'} 
-                  onClick={() => { navigate('/dashboard/clients'); closeSidebar(); }} 
-                />
+                <NavItem icon={<FileText size={20} />} label="Facturation" active={activeTab === 'billing'} onClick={() => { navigate('/dashboard/billing'); closeSidebar(); }} />
+                <NavItem icon={<Calendar size={20} />} label="Échéancier" active={activeTab === 'deadlines'} onClick={() => { navigate('/dashboard/deadlines'); closeSidebar(); }} />
+                <NavItem icon={<Clock size={20} />} label="Crédits" active={activeTab === 'credit_history'} onClick={() => { navigate('/dashboard/credit_history'); closeSidebar(); }} />
+                <NavItem icon={<DollarSign size={20} />} label="Décaissements" active={activeTab === 'decaissement'} onClick={() => { navigate('/dashboard/decaissement'); closeSidebar(); }} />
               </div>
             </div>
 
+            {/* GROUPE 3: Stock & Logistique */}
             <div>
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Stock & Logistique</p>
               <div className="space-y-1">
-                <NavItem 
-                  icon={<Package size={20} />} 
-                  label="Stock & Produits" 
-                  active={activeTab === 'inventory'} 
-                  onClick={() => { navigate('/dashboard/inventory'); closeSidebar(); }} 
-                />
-                <NavItem 
-                  icon={<Tag size={20} />} 
-                  label="Catégories" 
-                  active={activeTab === 'categories'} 
-                  onClick={() => { navigate('/dashboard/categories'); closeSidebar(); }} 
-                />
-                <NavItem 
-                  icon={<Truck size={20} />} 
-                  label="Fournisseurs" 
-                  active={activeTab === 'suppliers'} 
-                  onClick={() => { navigate('/dashboard/suppliers'); closeSidebar(); }} 
-                />
+                <NavItem icon={<Package size={20} />} label="Inventaire" active={activeTab === 'inventory'} onClick={() => { navigate('/dashboard/inventory'); closeSidebar(); }} />
+                <NavItem icon={<Box size={20} />} label="Conversions" active={activeTab === 'conversions'} onClick={() => { navigate('/dashboard/conversions'); closeSidebar(); }} />
+                <NavItem icon={<Tag size={20} />} label="Catégories" active={activeTab === 'categories'} onClick={() => { navigate('/dashboard/categories'); closeSidebar(); }} />
               </div>
             </div>
 
+            {/* GROUPE 4: Système */}
             <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Configuration</p>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Système</p>
               <div className="space-y-1">
-                <NavItem 
-                  icon={<SettingsIcon size={20} />} 
-                  label={<span className="hidden sm:inline">Paramètres</span>}
-                  active={activeTab === 'settings'} 
-                  onClick={() => { navigate('/dashboard/settings'); closeSidebar(); }} 
-                />
-                <NavItem 
-                  icon={<Shield size={20} />} 
-                  label="Historique" 
-                  active={activeTab === 'historique'} 
-                  onClick={() => { navigate('/dashboard/historique'); closeSidebar(); }} 
-                />
-                <NavItem 
-                  icon={<Box size={20} />} 
-                  label={<span className="hidden sm:inline">Conversions</span>}
-                  active={activeTab === 'conversions'} 
-                  onClick={() => { navigate('/dashboard/conversions'); closeSidebar(); }} 
-                />
+                <NavItem icon={<SettingsIcon size={20} />} label="Paramètres" active={activeTab === 'settings'} onClick={() => { navigate('/dashboard/settings'); closeSidebar(); }} />
+                <NavItem icon={<Shield size={20} />} label="Historique" active={activeTab === 'historique'} onClick={() => { navigate('/dashboard/historique'); closeSidebar(); }} />
               </div>
             </div>
           </nav>
@@ -457,6 +397,7 @@ export default function Dashboard({ session }) {
               onSearchReset={() => setDeadlineSearchTerm('')}
             />} />
             <Route path="credit_history" element={<CreditHistory />} />
+            <Route path="decaissement" element={<Decaissement session={session} />} />
             <Route path="sales-analytics" element={<SalesDashboard />} />
             <Route path="historique" element={<Historique />} />
             <Route path="conversions" element={<Conversions session={session} />} />

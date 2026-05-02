@@ -430,7 +430,13 @@ export default function Inventory() {
         if (itemError) throw itemError;
 
         const product = products.find(p => p.id === item.product_id);
-        const newStock = product.stock_quantity + parseInt(item.quantity);
+        
+        // Calculate quantity to add: if unit is 'superieure', multiply by factor
+        const quantityToAdd = item.unit === 'superieure' 
+          ? parseInt(item.quantity) * (product.quantite_par_unite || 1) 
+          : parseInt(item.quantity);
+
+        const newStock = product.stock_quantity + quantityToAdd;
         const updatePayload = { stock_quantity: newStock };
         if (item.selling_price_per_unit) {
           updatePayload.price = parseFloat(item.selling_price_per_unit);
@@ -446,8 +452,8 @@ export default function Inventory() {
         await supabase.from('stock_movements').insert([{
           product_id: item.product_id,
           type: 'in',
-          quantity: parseInt(item.quantity),
-          price_at_movement: parseFloat(item.purchase_price_per_unit),
+          quantity: quantityToAdd,
+          price_at_movement: parseFloat(item.purchase_price_per_unit) / (item.unit === 'superieure' ? (product.quantite_par_unite || 1) : 1),
           reason: `Réception BL #${bl.id.slice(0,8)}`,
           user_id: user.id
         }]);
@@ -1038,51 +1044,84 @@ export default function Inventory() {
               </div>
 
               <div className="pt-4 border-t border-emerald-50">
-                <h4 className="text-lg font-bold text-gray-800 mb-4">Articles</h4>
-                <div className="grid grid-cols-6 gap-3 mb-4">
-                  <div className="col-span-3">
-                    <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Produit</label>
+                <h4 className="text-xl font-black text-gray-800 mb-6">Ajouter un produit</h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[11px] font-black uppercase text-emerald-600 mb-1 block">Produit</label>
                     <select 
-                      className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs font-bold"
+                      className="w-full bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-4 outline-none transition-all font-bold"
                       value={newItemFormData.product_id}
                       onChange={e => {
                         const selectedProduct = products.find(p => p.id === e.target.value);
-                        setNewItemFormData({...newItemFormData, product_id: e.target.value, purchase_price_per_unit: '', selling_price_per_unit: selectedProduct?.price || ''});
+                        setNewItemFormData({
+                          ...newItemFormData, 
+                          product_id: e.target.value, 
+                          purchase_price_per_unit: '', 
+                          selling_price_per_unit: selectedProduct?.price || ''
+                        });
                       }}
                     >
-                      <option value="">Sélectionner produit</option>
+                      <option value="">Sélectionner un produit...</option>
                       {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </div>
-                  <div>
-                    <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Qté</label>
-                    <input type="number" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 text-xs" value={newItemFormData.quantity} onChange={e => setNewItemFormData({...newItemFormData, quantity: e.target.value})} />
-                  </div>
-                  <div>
-                    <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">P.A.</label>
-                    <input type="number" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 text-xs" value={newItemFormData.purchase_price_per_unit} onChange={e => setNewItemFormData({...newItemFormData, purchase_price_per_unit: e.target.value})} />
-                  </div>
-                  <div>
-                    <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">P.V.</label>
-                    <input type="number" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 text-xs" value={newItemFormData.selling_price_per_unit} onChange={e => setNewItemFormData({...newItemFormData, selling_price_per_unit: e.target.value})} />
+                  
+                  <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                          <label className="text-[11px] font-black uppercase text-emerald-600 mb-1 block">Quantité</label>
+                          <input type="number" placeholder="0" className="w-full bg-white border border-emerald-100 rounded-2xl px-4 py-3" value={newItemFormData.quantity} onChange={e => setNewItemFormData({...newItemFormData, quantity: e.target.value})} />
+                      </div>
+                      <div>
+                          <label className="text-[11px] font-black uppercase text-emerald-600 mb-1 block">Unité</label>
+                          <select 
+                              className="w-full bg-white border border-emerald-100 rounded-2xl px-4 py-3 font-bold" 
+                              value={newItemFormData.unit} 
+                              onChange={e => setNewItemFormData({...newItemFormData, unit: e.target.value})}
+                          >
+                              <option value="base">{products.find(p => p.id === newItemFormData.product_id)?.unite_base || 'Unité base'}</option>
+                              {products.find(p => p.id === newItemFormData.product_id)?.unite_superieure && (
+                                  <option value="superieure">{products.find(p => p.id === newItemFormData.product_id)?.unite_superieure}</option>
+                              )}
+                          </select>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                          <label className="text-[11px] font-black uppercase text-emerald-600 mb-1 block">Prix Achat</label>
+                          <input type="number" placeholder="0 MGA" className="w-full bg-white border border-emerald-100 rounded-2xl px-4 py-3" value={newItemFormData.purchase_price_per_unit} onChange={e => setNewItemFormData({...newItemFormData, purchase_price_per_unit: e.target.value})} />
+                      </div>
+                      <div>
+                          <label className="text-[11px] font-black uppercase text-emerald-600 mb-1 block">Prix Vente</label>
+                          <input type="number" placeholder="0 MGA" className="w-full bg-white border border-emerald-100 rounded-2xl px-4 py-3" value={newItemFormData.selling_price_per_unit} onChange={e => setNewItemFormData({...newItemFormData, selling_price_per_unit: e.target.value})} />
+                      </div>
+                    </div>
+                    
+                    <button type="button" onClick={addNewItem} className="w-full bg-emerald-600 text-white font-black py-3 rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200">
+                      Ajouter cette ligne
+                    </button>
                   </div>
                 </div>
-                <button type="button" onClick={addNewItem} className="w-full bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs mb-6">
-                  Ajouter Article
-                </button>
-
+                
                 {deliveryNoteItems.length > 0 && (
-                  <ul className="space-y-2">
-                    {deliveryNoteItems.map((item, index) => (
-                      <li key={index} className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex items-center justify-between text-xs font-bold">
-                        <span>{item.productName} ({item.quantity}) - PA: {item.purchase_price_per_unit} / PV: {item.selling_price_per_unit}</span>
-                        <div className="flex items-center gap-4">
-                          <span>{item.total_purchase.toLocaleString()} MGA</span>
-                          <button onClick={() => removeItem(index)} className="text-red-500"><Trash2 size={14} /></button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="mt-8">
+                    <h4 className="text-[10px] font-black uppercase text-gray-400 mb-3 tracking-widest">Articles ajoutés</h4>
+                    <ul className="space-y-3">
+                      {deliveryNoteItems.map((item, index) => (
+                        <li key={index} className="bg-white p-4 rounded-2xl border border-emerald-50 flex items-center justify-between shadow-sm">
+                          <div>
+                            <p className="font-black text-gray-800">{item.productName}</p>
+                            <p className="text-xs text-gray-500 font-bold">{item.quantity} {item.unit} • Achat: {item.purchase_price_per_unit} MGA</p>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <span className="font-black text-emerald-600">{item.total_purchase.toLocaleString()} MGA</span>
+                            <button onClick={() => removeItem(index)} className="text-gray-300 hover:text-red-500 p-2"><Trash2 size={18} /></button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
               </div>
 
@@ -1154,7 +1193,6 @@ export default function Inventory() {
                 <span className="flex-shrink mx-4 text-[10px] font-black text-gray-300 uppercase">OU</span>
                 <div className="flex-grow border-t border-gray-100"></div>
               </div>
-
               <button 
                 onClick={() => {
                   setShowModal(true);
@@ -1163,8 +1201,18 @@ export default function Inventory() {
                 }}
                 className="w-full bg-white border-2 border-emerald-600 text-emerald-600 hover:bg-emerald-600 hover:text-white font-black py-5 rounded-2xl transition-all flex items-center justify-center gap-3"
               >
-                <Plus size={20} />
-                <span className="text-lg">Créer un nouveau produit</span>
+                + Créer un nouveau produit
+              </button>
+
+              <button 
+                onClick={() => {
+                  alert("Fonctionnalité Transfert à développer");
+                  setShowPhysicalChoiceModal(false);
+                  setPhysicalSearchTerm('');
+                }}
+                className="w-full bg-white border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-black py-5 rounded-2xl transition-all flex items-center justify-center gap-3 mt-4"
+              >
+                Transfert (Dépôt → Magasin)
               </button>
             </div>
           </div>
