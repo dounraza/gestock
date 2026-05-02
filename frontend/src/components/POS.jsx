@@ -1,446 +1,96 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../supabaseClient';
-import { Search, ShoppingCart, Trash2, Package, CheckCircle, Loader2, FileText, Plus, Minus, Clock, User, Tag, List, Send, Phone } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Package, CheckCircle, Loader2, Plus, Minus, Tag, Send } from 'lucide-react';
 import Calculator from './Calculator';
 
 export default function POS({ session }) {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const [clients, setClients] = useState([]);
   const [activeInvoice, setActiveInvoice] = useState(null);
   const [invoiceItems, setInvoiceItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [discountModal, setDiscountModal] = useState(null);
   const [activeItemId, setActiveItemId] = useState(null);
+  const [paymentMode, setPaymentMode] = useState('cash'); 
+  const [dueDate, setDueDate] = useState(new Date().toISOString().split('T')[0]);
+  const [creditType, setCreditType] = useState('mensuel');
+  const [advanceAmount, setAdvanceAmount] = useState(0);
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+  const [globalDiscount, setGlobalDiscount] = useState({ value: 0, type: '%' });
+  const [printInvoice, setPrintInvoice] = useState(true);
+  const [isWithdrawal, setIsWithdrawal] = useState(false);
+  const [isOther, setIsOther] = useState(false);
+  const [calculatorPos, setCalculatorPos] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    dragStart.current = { x: e.clientX - calculatorPos.x, y: e.clientY - calculatorPos.y };
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDragging) {
+      setCalculatorPos({ x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    } else {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
 
   const handleCalculatorResult = (value) => {
     if (activeItemId) {
         updateItemQuantity(activeItemId, value);
-        // Ne pas remettre activeItemId à null ici pour garder le produit sélectionné
+        setIsCalculatorOpen(false);
     }
   };
 
-  const [paymentMode, setPaymentMode] = useState('cash'); 
-  const [dueDate, setDueDate] = useState(new Date().toISOString().split('T')[0]);
-  const [advanceAmount, setAdvanceAmount] = useState(0);
-  const [isInstallment, setIsInstallment] = useState(false);
-  const [installmentFrequency, setInstallmentFrequency] = useState('month'); // 'day' or 'month'
-  const [installmentMonths, setInstallmentMonths] = useState(1);
-  const [printInvoice, setPrintInvoice] = useState(false);
-  const [flashMessage, setFlashMessage] = useState(null);
-  const [globalDiscount, setGlobalDiscount] = useState({ value: 0, type: '%' });
-
-  const [companyInfo, setCompanyInfo] = useState(null);
-
-  useEffect(() => {
-    fetchProducts();
-    fetchClients();
-    fetchOrCreateDraftInvoice();
-    fetchCompanyInfo();
-  }, []);
-
-  const fetchCompanyInfo = async () => {
-    if (!session?.user) return;
-    const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-    if (data) setCompanyInfo(data);
-  };
-
-  const fetchProducts = async () => {
-    try {
-      const { data, error } = await supabase.from('produits').select('*').order('name');
-      if (error) throw error;
-      if (data) { setProducts(data); setFilteredProducts(data); }
-    } catch (err) {
-      if (err.name === 'AbortError' || err.message?.includes('AbortError')) {
-        console.warn("Requête annulée (AbortError):", err.message);
-        return;
-      }
-      console.error("Erreur chargement produits POS:", err);
-      alert("Erreur Caisse (Produits): " + err.message);
-    }
-  };
-
-  const fetchClients = async () => {
-    const { data } = await supabase.from('clients').select('*').order('name');
-    if (data) setClients(data);
-  };
-
-  const fetchOrCreateDraftInvoice = async () => {
-    if (!session?.user) return;
-    const { user } = session;
-    const { data: draft } = await supabase.from('factures').select('*').eq('status', 'draft').order('created_at', { ascending: false }).limit(1);
-    if (draft && draft.length > 0) {
-      setActiveInvoice(draft[0]);
-      fetchInvoiceItems(draft[0].id);
-    } else {
-      const invoiceNumber = `FAC-${Date.now().toString().slice(-6)}`;
-      const { data: newInv } = await supabase.from('factures').insert([{ number: invoiceNumber, status: 'draft', total_amount: 0, user_id: user.id }]).select().single();
-      if (newInv) setActiveInvoice(newInv);
-    }
-  };
-
-  const fetchInvoiceItems = async (invoiceId) => {
-    const { data } = await supabase.from('facture_items').select('*, produits(*)').eq('facture_id', invoiceId);
-    if (data) {
-      setInvoiceItems(data.map(item => ({ 
-        ...item.produits, 
-        unite_base: item.produits?.unite_base,
-        unite_superieure: item.produits?.unite_superieure,
-        quantite_par_unite: item.produits?.quantite_par_unite,
-        quantity: item.quantity, 
-        price_at_sale: item.price_at_sale, 
-        item_id: item.id, 
-        discount: item.discount 
-      })));
-    }
-  };
-
-  const handleClientSelect = async (clientId) => {
-    if (!activeInvoice) return;
-    
-    if (!clientId) {
-      // Reset to anonymous
-      const updates = { client_id: null, guest_name: 'Anonyme', guest_contact: '', guest_nif: '', guest_stat: '' };
-      setActiveInvoice({ ...activeInvoice, ...updates });
-      await supabase.from('factures').update(updates).eq('id', activeInvoice.id);
-      return;
-    }
-    const client = clients.find(c => c.id === clientId);
-    if (client) {
-      const updates = { client_id: client.id, guest_name: client.name, guest_contact: client.phone || '', guest_nif: client.nif || '', guest_stat: client.stat || '' };
-      setActiveInvoice({ ...activeInvoice, ...updates });
-      await supabase.from('factures').update(updates).eq('id', activeInvoice.id);
-    }
-  };
-
-  useEffect(() => {
-    setFilteredProducts(products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())));
-  }, [searchTerm, products]);
-
-  const addToInvoice = async (product) => {
-    if (!activeInvoice) return;
-    
-    // Check if item already exists to avoid duplicates
-    const existingItem = invoiceItems.find(item => item.id === product.id);
-    
-    if (existingItem) {
-        setActiveItemId(existingItem.item_id);
-    } else {
-        // Add new item with 0 quantity
-        const { data, error } = await supabase.from('facture_items')
-            .insert([{ facture_id: activeInvoice.id, produit_id: product.id, quantity: 0, price_at_sale: product.price }])
-            .select()
-            .single();
-        
-        if (data) {
-            const newItem = {
-                ...product,
-                item_id: data.id,
-                quantity: 0,
-                price_at_sale: product.price
-            };
-            setInvoiceItems(prev => [...prev, newItem]);
-            setActiveItemId(data.id);
-        }
-    }
-  };
-
-  const removeItem = async (itemId, productId) => {
-    await supabase.from('facture_items').delete().eq('id', itemId);
-    setInvoiceItems(invoiceItems.filter(i => i.id !== productId));
-  };
-
-  const updateItemQuantity = async (itemId, newQuantity) => {
-    // Find the item to check its stock
-    const item = invoiceItems.find(i => i.item_id === itemId);
-    if (!item) return;
-
-    if (newQuantity > item.stock_quantity) {
-        alert(`Stock insuffisant ! Disponible : ${item.stock_quantity}`);
-        return;
-    }
-    
-    if (isNaN(newQuantity) || newQuantity <= 0) return;
-    
-    // 1. Mise à jour locale immédiate de l'interface
-    setInvoiceItems(prevItems => prevItems.map(item => 
-      item.item_id === itemId ? { ...item, quantity: newQuantity } : item
-    ));
-
-    // 2. Persistance en base de données
-    const { error } = await supabase.from('facture_items').update({ quantity: newQuantity }).eq('id', itemId);
-    
-    if (error) {
-      alert("Erreur: " + error.message);
-      // Recharger en cas d'erreur
-      fetchInvoiceItems(activeInvoice.id);
-    }
-  };
-
-  const updateInvoiceGuestInfo = async (field, value) => {
-    setActiveInvoice({ ...activeInvoice, [field]: value });
-    await supabase.from('factures').update({ [field]: value }).eq('id', activeInvoice.id);
-  };
-
-  const handleFinalize = async () => {
-    if (!activeInvoice || invoiceItems.length === 0) return;
-    setIsProcessing(true);
-    try {
-        const currentTotal = invoiceItems.reduce((acc, item) => acc + calculateItemTotal(item), 0);
-        const finalPaidAmount = paymentMode === 'cash' ? currentTotal : (parseFloat(advanceAmount) || 0);
-        const amountToSchedule = currentTotal - finalPaidAmount;
-
-        const guestName = activeInvoice.guest_name || 'Anonyme';
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth() + 1; // 1-12
-        const type = paymentMode === 'cash' ? 'Comptant' : 'Crédit';
-        
-        const { data: { user } } = await supabase.auth.getUser();
-
-        const { data: invData, error: invError } = await supabase.from('factures').update({ 
-            status: paymentMode === 'cash' ? 'paid' : 'sent', 
-            due_date: dueDate, 
-            paid_amount: finalPaidAmount, 
-            total_amount: currentTotal,
-            guest_name: guestName,
-            type: type, // Explicitly set as 'Comptant' or 'Crédit'
-            year: year,
-            month: month
-        }).eq('id', activeInvoice.id).select().single();
-
-        if (invError) throw invError;
-
-  // Update stock levels with safety check
-  for (const item of invoiceItems) {
-    const newStock = item.stock_quantity - item.quantity;
-    if (newStock < 0) {
-      throw new Error(`Stock insuffisant pour ${item.name} (${item.stock_quantity} disponibles)`);
-    }
-    await supabase.from('produits').update({ stock_quantity: newStock }).eq('id', item.id);
-
-    // Record stock movement for sale (sortie)
-    await supabase.from('stock_movements').insert([
-      {
-        product_id: item.id, // ID of the product
-        type: 'out',
-        quantity: item.quantity, // Quantity sold
-        reason: `Vente (Facture ${invData.number})`,
-        user_id: user.id
-      }
-    ]);
-  }
-      if (paymentMode === 'credit') {
-        const echeances = [];
-        if (isInstallment && installmentMonths > 1) {
-          const monthlyAmount = Math.floor(amountToSchedule / installmentMonths);
-          for (let i = 0; i < installmentMonths; i++) {
-            const date = new Date(dueDate); 
-            if (installmentFrequency === 'day') {
-              date.setDate(date.getDate() + i);
-            } else {
-              date.setMonth(date.getMonth() + i);
-            }
-            echeances.push({ 
-              facture_id: invData.id, 
-              montant: i === installmentMonths - 1 ? (amountToSchedule - (monthlyAmount * (installmentMonths - 1))) : monthlyAmount, 
-              date_echeance: date.toISOString().split('T')[0], 
-              statut: 'non_paye' 
-            });
-          }
-        } else {
-          echeances.push({ 
-            facture_id: invData.id, 
-            montant: amountToSchedule, 
-            date_echeance: dueDate, 
-            statut: 'non_paye' 
-          });
-        }
-        await supabase.from('echeances_details').insert(echeances);
-      }
-      
-      setFlashMessage("Vente Terminée !");
-      fetchProducts();
-      setInvoiceItems([]);
-      setPaymentMode('cash');
-      setAdvanceAmount(0);
-      setIsInstallment(false);
-      if (printInvoice) {
-        const subtotalBeforeDiscount = invoiceItems.reduce((acc, item) => acc + calculateItemTotal(item), 0);
-        handlePrintInvoice(invData.number, activeInvoice.guest_name, activeInvoice.guest_contact, invoiceItems, subtotalBeforeDiscount, activeInvoice.created_at);
-      }
-      fetchOrCreateDraftInvoice();
-      setTimeout(() => setFlashMessage(null), 2000);
-    } catch (e) { alert(e.message); }
-    finally { setIsProcessing(false); }
-  };
-
-  const calculateItemTotal = (item) => {
-    const baseTotal = item.quantity * item.price_at_sale;
-    if (!item.discount) return baseTotal;
-    return item.discount.type === '%' ? baseTotal - (baseTotal * (parseFloat(item.discount.value) / 100)) : baseTotal - parseFloat(item.discount.value);
-  };
-
-  const handlePrintInvoice = (invoiceNumber, clientName, clientContact, invoiceItems, totalAmount, invoiceDate) => {
-    const logoBase64 = ''; // PASTE YOUR BASE64 LOGO HERE
-    let printContent = `
-      <style>
-        body { font-family: sans-serif; margin: 20px; color: #333; }
-        .invoice-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; border-bottom: 2px solid #10b981; padding-bottom: 20px; }
-        .company-info { flex: 1; }
-        .company-info h1 { margin: 0; color: #059669; font-size: 24px; text-transform: uppercase; }
-        .company-info p { margin: 2px 0; font-size: 12px; }
-        .invoice-title { text-align: right; flex: 1; }
-        .invoice-title h2 { margin: 0; font-size: 28px; color: #e5e7eb; text-transform: uppercase; }
-        .invoice-logo { max-width: 120px; height: auto; margin-bottom: 10px; }
-        .details-grid { display: flex; justify-content: space-between; margin-bottom: 30px; }
-        .details-box { flex: 1; border: 1px solid #eee; padding: 15px; border-radius: 8px; }
-        .details-box h3 { margin: 0 0 10px 0; font-size: 10px; text-transform: uppercase; color: #6b7280; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-        .details-box p { margin: 5px 0; font-size: 13px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-        th { background: #f9fafb; padding: 12px 8px; text-align: left; font-size: 11px; text-transform: uppercase; color: #9ca3af; border-bottom: 2px solid #f3f4f6; }
-        td { padding: 12px 8px; border-bottom: 1px solid #f9fafb; font-size: 13px; }
-        .total-row td { border-top: 2px solid #10b981; font-weight: bold; font-size: 16px; background: #f0fdf4; }
-        .signature-section { display: flex; justify-content: space-between; margin-top: 50px; padding: 0 20px; }
-        .signature-box { text-align: center; width: 200px; }
-        .signature-line { margin-top: 60px; border-top: 1px dashed #333; padding-top: 5px; font-size: 12px; font-weight: bold; }
-        @media print {
-          @page { margin: 0; }
-          body { margin: 2cm; }
-          .no-print { display: none; }
-        }
-      </style>
-      <div class="invoice-header">
-        <div class="company-info">
-          ${logoBase64 ? `<img src="${logoBase64}" class="invoice-logo">` : `<h1>${companyInfo?.company_name || 'Gestock PPN'}</h1>`}
-          <p><strong>${companyInfo?.company_name || 'TRANSFORMER'}</strong></p>
-          <p>NIF: ${companyInfo?.nif || 'En cours'}</p>
-          <p>STAT: ${companyInfo?.stat || 'En cours'}</p>
-          <p>Adresse: ${companyInfo?.address || 'Antananarivo, Madagascar'}</p>
-          <p>Contact: ${companyInfo?.phone || session?.user?.email}</p>
-        </div>
-        <div class="invoice-title">
-          <h2>Facture</h2>
-          <p><strong>N°:</strong> ${invoiceNumber}</p>
-          <p><strong>Date:</strong> ${new Date(invoiceDate).toLocaleDateString('fr-FR')}</p>
-        </div>
-      </div>
-      
-      <div class="details-grid">
-        <div class="details-box">
-          <h3>Facturé à</h3>
-          <p><strong>${clientName || 'Anonyme'}</strong></p>
-          ${clientContact ? `<p>Contact: ${clientContact}</p>` : ''}
-        </div>
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Produit</th>
-            <th style="text-align: center;">Qté</th>
-            <th style="text-align: right;">Prix Unitaire</th>
-            <th style="text-align: right;">Remise</th>
-            <th style="text-align: right;">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-
-    `;
-
-    invoiceItems.forEach(item => {
-      const discountDisplay = item.discount ? `${item.discount.value}${item.discount.type}` : '-';
-      const itemTotal = calculateItemTotal(item);
-      printContent += `
-        <tr>
-          <td>${item.name}</td>
-          <td style="text-align: center;">${item.quantity}</td>
-          <td style="text-align: right;">${item.price_at_sale.toLocaleString()} Ar</td>
-          <td style="text-align: right;">${discountDisplay}</td>
-          <td style="text-align: right;">${itemTotal.toLocaleString()} Ar</td>
-        </tr>
-      `;
-    });
-
-    const discountAmount = globalDiscount.value > 0 
-      ? (globalDiscount.type === '%' ? (totalAmount * (parseFloat(globalDiscount.value) / 100)) : parseFloat(globalDiscount.value))
-      : 0;
-
-    printContent += `
-        </tbody>
-        <tfoot>
-          ${discountAmount > 0 ? `
-            <tr style="border-top: 2px solid #f3f4f6;">
-              <td colspan="4" style="padding: 10px 0; text-align: right; font-size: 12px; color: #6b7280;">REMISE GLOBALE (${globalDiscount.value}${globalDiscount.type})</td>
-              <td style="padding: 10px 0; text-align: right; font-size: 14px; font-weight: 700; color: #ef4444;">-${discountAmount.toLocaleString('fr-MG')} Ar</td>
-            </tr>
-          ` : ''}
-          <tr style="border-top: 2px solid #f3f4f6;">
-            <td colspan="4" style="padding: 20px 0; text-align: right; font-size: 14px; font-weight: 900; color: #6b7280; text-transform: uppercase;">TOTAL À PAYER</td>
-            <td style="padding: 20px 0; text-align: right; font-size: 16px; font-weight: 900; color: #1f2937;">${(totalAmount - discountAmount).toLocaleString('fr-MG')} Ar</td>
-          </tr>
-        </tfoot>
-      </table>
-
-      <div class="signature-section">
-        <div class="signature-box">
-          <div class="signature-line">Le Vendeur</div>
-          <p style="font-size: 10px; margin-top: 5px; font-weight: bold;">${companyInfo?.full_name || ''}</p>
-        </div>
-        <div class="signature-box">
-          <div class="signature-line">Le Client</div>
-        </div>
-      </div>
-    `;
-
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    printWindow.print();
-    printWindow.close();
-  };
-
-  const applyDiscount = (itemId, type, value) => {
-    const numericValue = parseFloat(value) || 0;
-    console.log("Applying discount:", { itemId, type, value: numericValue, isGlobal: discountModal.isGlobal });
-    
-    if (discountModal.isGlobal) {
-        setGlobalDiscount({ type, value: numericValue });
-    } else {
-        setInvoiceItems(invoiceItems.map(item => item.item_id === itemId ? { ...item, discount: { type, value: numericValue } } : item));
-    }
-    setDiscountModal(null);
+  const updateItemQuantity = async (itemId, quantity) => {
+    if (quantity < 0) quantity = 0;
+    setInvoiceItems(prevItems =>
+        prevItems.map(item =>
+            item.item_id === itemId ? { ...item, quantity: quantity } : item
+        )
+    );
+    await supabase.from('facture_items').update({ quantity: quantity }).eq('id', itemId);
   };
 
   const handleReset = async () => {
     if (!activeInvoice || invoiceItems.length === 0) return;
     if (!window.confirm("Êtes-vous sûr de vouloir réinitialiser cette commande ?")) return;
-    
+
     setIsProcessing(true);
     try {
-      // Delete all items for this invoice
       await supabase.from('facture_items').delete().eq('facture_id', activeInvoice.id);
-      
-      // Reset invoice to anonymous
-      const updates = { 
-        client_id: null, 
-        guest_name: 'Anonyme', 
-        guest_contact: '', 
-        guest_nif: '', 
-        guest_stat: '',
-        total_amount: 0,
-        paid_amount: 0
-      };
+      const updates = { total_amount: 0, paid_amount: 0, payment_mode: 'cash' };
       await supabase.from('factures').update(updates).eq('id', activeInvoice.id);
-      
-      // Reset local state
       setInvoiceItems([]);
       setActiveInvoice({ ...activeInvoice, ...updates });
       setPaymentMode('cash');
       setAdvanceAmount(0);
-      setIsInstallment(false);
       setSearchTerm('');
+      setGlobalDiscount({ value: 0, type: '%' });
+      setActiveItemId(null);
+      setDiscountModal(null);
+      setIsCalculatorOpen(false);
     } catch (e) {
       alert(e.message);
     } finally {
@@ -448,263 +98,292 @@ export default function POS({ session }) {
     }
   };
 
-  const calculateTotal = () => {
-    let subtotal = invoiceItems.reduce((acc, item) => acc + calculateItemTotal(item), 0);
-    console.log("Subtotal:", subtotal, "Global Discount:", globalDiscount);
-    
-    if (globalDiscount.value > 0) {
-      if (globalDiscount.type === '%') {
-        subtotal -= (subtotal * (parseFloat(globalDiscount.value) / 100));
-      } else {
-        subtotal -= parseFloat(globalDiscount.value);
-      }
+  const addToInvoice = async (product) => {
+    let currentInvoice = activeInvoice;
+    if (!currentInvoice || currentInvoice.number === 'TEMP') {
+        const { data, error } = await supabase.from('factures')
+            .insert([{ number: `FAC-${Date.now().toString().slice(-6)}`, user_id: session?.user?.id, created_at: new Date().toISOString() }])
+            .select()
+            .single();
+        if (error) return alert("Erreur de création de facture.");
+        currentInvoice = data;
+        setActiveInvoice(data);
     }
-    console.log("Final Total:", subtotal);
-    return Math.max(0, subtotal);
+
+    const existingItem = invoiceItems.find(item => item.id === product.id);
+    if (existingItem) {
+        setActiveItemId(existingItem.item_id);
+        setIsCalculatorOpen(true);
+    } else {
+        const { data, error } = await supabase.from('facture_items')
+            .insert([{ facture_id: currentInvoice.id, produit_id: product.id, quantity: 0, price_at_sale: product.price }])
+            .select()
+            .single();
+        if (data) {
+            setInvoiceItems(prev => [...prev, { ...product, item_id: data.id, quantity: 0, price_at_sale: product.price, discount: null }]);
+            setActiveItemId(data.id);
+            setIsCalculatorOpen(true);
+        }
+    }
   };
 
-  // Utilisez useMemo pour que 'total' se mette à jour dès que invoiceItems ou globalDiscount changent
-  const total = useMemo(() => calculateTotal(), [invoiceItems, globalDiscount]);
+  const updateInvoiceGuestInfo = (field, value) => setActiveInvoice(prev => ({ ...prev, [field]: value }));
+  const removeItem = async (itemId, supabaseItemId) => {
+    setInvoiceItems(prev => prev.filter(item => item.item_id !== itemId));
+    if (supabaseItemId) await supabase.from('facture_items').delete().eq('id', supabaseItemId);
+  };
 
-  const applyGlobalDiscount = (type, value) => {
-    // S'assurer que la valeur est convertie en nombre avant de l'enregistrer
-    setGlobalDiscount({ type, value: parseFloat(value) || 0 });
-    setDiscountModal(null);
+  const calculateItemTotal = (item) => {
+    const baseTotal = item.quantity * item.price_at_sale;
+    if (!item.discount) return baseTotal;
+    const disc = parseFloat(item.discount.value);
+    return item.discount.type === '%' ? baseTotal - (baseTotal * (disc / 100)) : baseTotal - disc;
+  };
+
+  const applyDiscount = async (itemId, type, value) => {
+    const numericValue = parseFloat(value);
+    if (isNaN(numericValue)) return alert("Valeur invalide.");
+    if (itemId === 'global') {
+        setGlobalDiscount({ value: numericValue, type: type });
+        setDiscountModal(null);
+    } else {
+        setInvoiceItems(prev => prev.map(item => item.item_id === itemId ? { ...item, discount: { value: numericValue, type: type } } : item));
+        await supabase.from('facture_items').update({ discount_value: numericValue, discount_type: type }).eq('id', itemId);
+        setDiscountModal(null);
+    }
+  };
+
+  const handleFinalize = async () => {
+    if (!activeInvoice || invoiceItems.length === 0) return;
+    setIsProcessing(true);
+    try {
+      const total = netTotal;
+      const advance = paymentMode === 'credit' ? parseFloat(advanceAmount) || 0 : 0;
+      await supabase.from('factures').update({
+        total_amount: total,
+        paid_amount: total - advance,
+        type: paymentMode === 'credit' ? 'CREDIT' : 'COMPTANT',
+        frequency: paymentMode === 'credit' ? creditType : null,
+        due_date: paymentMode === 'credit' ? dueDate : new Date().toISOString().split('T')[0],
+        advance_amount: advance,
+        status: 'paid'
+      }).eq('id', activeInvoice.id);
+
+      if (paymentMode === 'credit') {
+        await supabase.from('echeances_details').insert([{ facture_id: activeInvoice.id, date_echeance: dueDate, montant: total - advance, statut: 'non_paye' }]);
+      }
+      
+      // Mise à jour du stock
+      for (const item of invoiceItems) {
+        const { data: product } = await supabase.from('produits').select('stock_quantity').eq('id', item.id).single();
+        if (product) {
+          await supabase.from('produits')
+            .update({ stock_quantity: Number(product.stock_quantity) - Number(item.quantity) })
+            .eq('id', item.id);
+        }
+      }
+      
+      alert('Paiement finalisé !');
+      window.location.reload();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('produits').select('*, categories:categories(*)').order('name');
+      setProducts(data || []);
+      setFilteredProducts(data || []);
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const term = searchTerm.toLowerCase().trim();
+    setFilteredProducts(term ? products.filter(p => p.name.toLowerCase().includes(term)) : products);
+  }, [searchTerm, products]);
+
+  const subtotal = useMemo(() => invoiceItems.reduce((acc, item) => acc + (item.quantity * item.price_at_sale), 0), [invoiceItems]);
+  const lineDiscountsTotal = useMemo(() => invoiceItems.reduce((acc, item) => item.discount ? acc + (item.discount.type === '%' ? (item.quantity * item.price_at_sale) * (item.discount.value / 100) : item.discount.value) : acc, 0), [invoiceItems]);
+  const globalDiscountAmount = useMemo(() => globalDiscount.value > 0 ? (globalDiscount.type === '%' ? (subtotal - lineDiscountsTotal) * (globalDiscount.value / 100) : globalDiscount.value) : 0, [subtotal, lineDiscountsTotal, globalDiscount]);
+  const netTotal = useMemo(() => Math.max(0, subtotal - lineDiscountsTotal - globalDiscountAmount), [subtotal, lineDiscountsTotal, globalDiscountAmount]);
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const paginatedProducts = useMemo(() => filteredProducts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [filteredProducts, currentPage]);
+
+  const openDiscountModalForItem = (item) => {
+    if (!item || item.isGlobal) setDiscountModal({ itemId: 'global', name: 'Globale', isGlobal: true, value: globalDiscount.value, type: globalDiscount.type });
+    else setDiscountModal({ itemId: item.item_id, name: item.name, isGlobal: false, value: item.discount?.value || 0, type: item.discount?.type || '%' });
   };
 
   return (
-    <div className="flex flex-col gap-3 p-2">
-      {/* 1. TOP BAR */}
-      <div className="bg-emerald-600 text-white rounded-[1rem] p-2 shadow-md flex flex-col gap-1 shrink-0 text-[9px]">
-        {/* Row 1: Invoice & Total */}
-        <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1 truncate">
-              <FileText size={12} className="shrink-0" />
-              <h3 className="font-black uppercase truncate">{activeInvoice?.number}</h3>
-            </div>
-            <div className="flex items-center gap-2">
-                {globalDiscount.value > 0 && (
-                    <span className="font-black text-orange-200">
-                      {globalDiscount.type === '%' ? `-${globalDiscount.value}%` : `-${globalDiscount.value} Ar`}
-                    </span>
-                )}
-                <span className="font-black text-red-500 bg-white px-2 py-0.5 rounded shadow-sm">
-                  {total.toLocaleString()} Ar
-                </span>
-            </div>
-        </div>
-
-        {/* Row 2: Client Info */}
-        <div className="flex items-center gap-1">
-          <input 
-            type="text" placeholder="CLIENT..." 
-            className="bg-white/20 border-none rounded p-1 text-[9px] font-black outline-none placeholder:text-emerald-100 flex-1 text-white uppercase" 
-            value={activeInvoice?.guest_name === 'Anonyme' ? '' : activeInvoice?.guest_name || ''} 
-            onChange={(e) => updateInvoiceGuestInfo('guest_name', e.target.value)} 
-          />
-          <input 
-            type="text" placeholder="TÉL..." 
-            className="bg-white/20 border-none rounded p-1 text-[9px] font-black outline-none placeholder:text-emerald-100 w-20 text-white" 
-            value={activeInvoice?.guest_contact || ''} 
-            onChange={(e) => updateInvoiceGuestInfo('guest_contact', e.target.value)} 
-          />
-        </div>
-      </div>
-
-      {/* MAIN CONTENT AREA: TWO COLUMNS (Responsive) */}
-      <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4 flex-1">
-        {/* COLUMN 1: INVOICE & CALCULATOR */}
-        <div className="flex flex-col gap-4">
-            <div className="bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col flex-1 overflow-hidden">
-                <div className="overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                    <table className="w-full text-left">
-                        <thead className="sticky top-0 bg-gray-50 border-b border-emerald-50 z-10">
-                        <tr className="text-[8px] font-black text-gray-400 uppercase">
-                            <th className="p-3 pl-4">Produit</th>
-                            <th className="p-3 text-center">Qté</th>
-                            <th className="p-3 text-center">Unités</th>
-                            <th className="p-3 text-right">Remise</th>
-                            <th className="p-3 text-right pr-4">Total</th>
-                            <th className="p-3 text-right"></th>
-                        </tr>
-                        </thead>
-                        <tbody className="divide-y divide-emerald-50">
-                        {invoiceItems.map(item => (
-                            <tr key={item.item_id} className="border-b border-emerald-50 text-[10px]">
-                            <td className="p-3 pl-4 font-black uppercase text-gray-800">{item.name}</td>
-                            <td className="p-3 text-center">
-                                <button 
-                                    onClick={() => setActiveItemId(item.item_id)}
-                                    className={`w-8 h-8 rounded-lg font-black ${activeItemId === item.item_id ? 'bg-emerald-500 text-white' : 'bg-gray-100'}`}
-                                >
-                                    {item.quantity}
-                                </button>
-                            </td>
-                            <td className="p-3 text-center text-[8px] font-bold text-gray-400 italic">
-                                {item.quantite_par_unite > 1 ? `${Math.floor(item.quantity / item.quantite_par_unite)} ${item.unite_superieure || 'Ctn'} + ${item.quantity % item.quantite_par_unite} ${item.unite_base || 'Pce'}` : `${item.quantity} ${item.unite_base || 'Pce'}`}
-                            </td>
-                            <td className="p-3 text-right">
-                                <button onClick={() => setDiscountModal({ itemId: item.item_id, name: item.name, total: item.quantity * item.price_at_sale, value: item.discount?.value || 0, type: item.discount?.type || '%' })} className={`font-black ${item.discount ? 'text-orange-500' : 'text-gray-300 hover:text-emerald-500'}`}>
-                                {item.discount ? `${item.discount.value}${item.discount.type}` : <Tag size={12} className="ml-auto" />}
-                                </button>
-                            </td>
-                            <td className="p-3 text-right font-black pr-4">{calculateItemTotal(item).toLocaleString()} Ar</td>
-                            <td className="p-3 text-right">
-                                <button 
-                                    onClick={() => removeItem(item.item_id, item.id)} 
-                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all shadow-sm active:scale-90"
-                                >
-                                    <Trash2 size={18} />
-                                </button>
-                            </td>
-                            </tr>
-                        ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            {/* CALCULATOR IN COLUMN 1 */}
-            <div className="shrink-0">
-                <Calculator 
-                    key={activeItemId}
-                    activeItem={invoiceItems.find(i => i.item_id === activeItemId)} 
-                    onResult={handleCalculatorResult}
-                    onOpenDiscount={(item) => {
-                        if (item.isGlobal) {
-                            setDiscountModal({ isGlobal: true, value: globalDiscount.value, type: globalDiscount.type || 'Ar' });
-                        } else {
-                            setDiscountModal({ itemId: item.item_id, name: item.name, total: item.quantity * item.price_at_sale, value: item.discount?.value || 0, type: item.discount?.type || 'Ar', isGlobal: false });
-                        }
-                    }}
-                />
-            </div>
-        </div>
-
-        {/* COLUMN 2: SEARCH & CONTROLS */}
-        <div className="flex flex-col gap-4">
-            <div className="bg-white border border-emerald-100 rounded-[2rem] shadow-sm flex flex-col flex-1 overflow-hidden">
-                <div className="p-3 border-b border-emerald-50 bg-emerald-50/20 flex items-center gap-4 shrink-0">
-                    <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400" size={16} />
-                        <input type="text" placeholder="Ajouter un produit..." className="w-full bg-white border border-emerald-100 rounded-xl py-2 pl-10 pr-4 text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                    </div>
-                </div>
-                
-                <div className="flex-1 overflow-y-auto p-4 md:p-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                    <table className="w-full text-left">
-                        <tbody className="divide-y divide-emerald-50">
-                        {filteredProducts.map(p => (
-                            <tr key={p.id} className="hover:bg-emerald-50/20 transition-colors group text-[11px]">
-                            <td className="p-3 pl-6 font-black uppercase text-gray-800">{p.name} <span className="text-[8px] text-gray-300 font-bold ml-2">({p.categories?.name})</span></td>
-                            <td className="p-3 font-bold text-emerald-600">
-                                {p.quantite_par_unite > 1 ? `${Math.floor(p.stock_quantity / p.quantite_par_unite)} ${p.unite_superieure || 'Ctn'} + ${p.stock_quantity % p.quantite_par_unite} ${p.unite_base || 'Pce'}` : `${p.stock_quantity} ${p.unite_base || 'Pce'}`}
-                            </td>
-                            <td className="p-3 text-right font-black">{p.price.toLocaleString()} Ar</td>
-                            <td className="p-3 text-right pr-6">
-                                <button 
-                                    onClick={() => {
-                                        addToInvoice(p);
-                                        setTimeout(() => {
-                                            const item = invoiceItems.find(i => i.id === p.id);
-                                            if (item) setActiveItemId(item.item_id);
-                                        }, 100);
-                                    }} 
-                                    disabled={Number(p.stock_quantity) <= 0}
-                                    className={`${Number(p.stock_quantity) <= 0 ? 'bg-red-500 opacity-50 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 hover:scale-105 shadow-md'} text-white px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all`}
-                                >
-                                    {Number(p.stock_quantity) <= 0 ? 'STOCK INSUFFISANT' : 'SELECTIONNER'}
-                                </button>
-                            </td>
-                            </tr>
-                        ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Payment Controls at the bottom of Column 2 */}
-            <div className="bg-emerald-950 text-white rounded-[2rem] p-3 flex flex-col gap-3 shadow-xl border border-white/5 shrink-0">
-                <div className="flex flex-col gap-3">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-                    {/* MODE DE PAIEMENT */}
-                    <div className="flex bg-emerald-900/50 p-1 rounded-2xl border border-white/10 w-full">
-                    <button onClick={() => setPaymentMode('cash')} className={`flex-1 sm:px-6 py-2.5 rounded-xl text-[10px] font-black transition-all ${paymentMode === 'cash' ? 'bg-emerald-500 text-white' : 'text-emerald-400'}`}>COMPTANT</button>
-                    <button onClick={() => setPaymentMode('credit')} className={`flex-1 sm:px-6 py-2.5 rounded-xl text-[10px] font-black transition-all ${paymentMode === 'credit' ? 'bg-orange-500 text-white' : 'text-emerald-400'}`}>CRÉDIT</button>
-                    </div>
-
-                    {/* PARAMÈTRES CRÉDIT (EN LIGNE) */}
-                    {paymentMode === 'credit' && (
-                    <div className="flex flex-wrap items-center gap-4 animate-in slide-in-from-left-4 w-full">
-                        <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
-                        <Clock size={12} className="text-orange-400" />
-                        <input type="date" className="bg-transparent text-[10px] font-black outline-none" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-                        </div>
-                        <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
-                        <Tag size={12} className="text-emerald-400" />
-                        <input type="number" placeholder="Avance" className="bg-transparent text-[10px] font-black outline-none w-20 text-emerald-400" value={advanceAmount || ''} onChange={e => setAdvanceAmount(e.target.value)} />
-                        </div>
-                    </div>
-                    )}
-                </div>
-
-                {/* ACTION BUTTONS */}
-                <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2 justify-between">
-                         <div className="flex items-center gap-1.5">
-                            <input
-                                type="checkbox"
-                                id="printInvoice"
-                                checked={printInvoice}
-                                onChange={(e) => setPrintInvoice(e.target.checked)}
-                                className="accent-emerald-500"
-                            />
-                            <label htmlFor="printInvoice" className="text-[10px] font-black uppercase text-white">Imprimer</label>
-                        </div>
-                        <button onClick={handleReset} disabled={invoiceItems.length === 0 || isProcessing} className="flex-1 px-4 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest text-emerald-400 hover:text-red-400 transition-all disabled:opacity-30 border border-emerald-400/20">Réinitialiser</button>
-                        <button onClick={handleFinalize} disabled={!activeInvoice || invoiceItems.length === 0 || isProcessing} className={`flex-[2] px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-lg ${paymentMode === 'cash' ? 'bg-emerald-500 hover:bg-emerald-400 text-emerald-950' : 'bg-orange-500 hover:bg-orange-400 text-white'}`}>
-                            {isProcessing ? <Loader2 className="animate-spin" size={16} /> : (paymentMode === 'cash' ? "Valider" : "Crédit")}
-                        </button>
-                    </div>
-                </div>
-                </div>
-            </div>
-        </div>
+    <div className="flex flex-col gap-2 h-full p-2">
+      <div className="bg-white rounded-xl p-2 shadow-sm border border-emerald-100 flex items-center justify-between">
+        <div className="text-xs font-black">Facture: {activeInvoice?.number || '...'}</div>
+        <div className="text-2xl font-black text-emerald-600">{netTotal.toLocaleString()} Ar</div>
       </div>
       
-      {/* Modals */}
-      {discountModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-emerald-950/40 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-[2rem] shadow-2xl p-8 w-full max-w-sm">
-                <h3 className="text-lg font-black text-gray-800 mb-2 uppercase">Remise</h3>
-                <p className="text-[10px] text-gray-500 mb-4 font-bold uppercase">Veuillez saisir la valeur de la remise à appliquer sur l'article.</p>
-                <div className="space-y-4">
-                    <div className="flex bg-gray-100 p-1 rounded-xl">
-                        <button 
-                            onClick={() => setDiscountModal({...discountModal, type: 'Ar'})} 
-                            className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${discountModal.type === 'Ar' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}
-                        >
-                            Ar
-                        </button>
-                        <button 
-                            onClick={() => setDiscountModal({...discountModal, type: '%'})} 
-                            className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${discountModal.type === '%' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}
-                        >
-                            %
-                        </button>
+      <div className="flex-1 overflow-y-auto">
+        <div className="grid grid-cols-12 gap-3 h-[45%]">
+          {/* CART */}
+          <div className="col-span-12 lg:col-span-8 bg-white rounded-xl shadow-sm border border-emerald-100 flex flex-col min-h-0 overflow-hidden">
+            <div className="p-2 border-b border-emerald-50 bg-emerald-50/30 flex items-center justify-between">
+              <h3 className="font-black text-gray-700 uppercase text-[9px] flex items-center gap-2"><ShoppingCart size={12} className="text-emerald-500" /> Panier</h3>
+              <span className="bg-emerald-500 text-white px-1.5 py-0.5 rounded-full text-[8px] font-black">{invoiceItems.length}</span>
+            </div>
+            {/* Cart Header */}
+            <div className="grid grid-cols-12 gap-1 px-2 py-1 bg-emerald-50 text-[8px] font-black text-emerald-800 uppercase border-b border-emerald-100">
+              <div className="col-span-3">Produit</div>
+              <div className="col-span-1 text-center">Qté</div>
+              <div className="col-span-2 text-center">Unité</div>
+              <div className="col-span-2 text-center">Remise</div>
+              <div className="col-span-2 text-right">PU</div>
+              <div className="col-span-1 text-right">Total</div>
+              <div className="col-span-1 text-center">Action</div>
+            </div>
+            {/* Cart Items */}
+            <div className="flex-1 overflow-y-auto p-1.5 space-y-1">
+              {invoiceItems.map(item => (
+                <div key={item.item_id} onClick={() => { setActiveItemId(item.item_id); setIsCalculatorOpen(true); }} className="grid grid-cols-12 gap-1 items-center px-2 py-2 border-b border-gray-50 hover:bg-emerald-50 cursor-pointer">
+                  <div className="col-span-3 font-black text-[9px] uppercase truncate">{item.name}</div>
+                  <div className="col-span-1 text-center font-black text-xs bg-emerald-100 rounded">{item.quantity}</div>
+                  <div className="col-span-2 text-center text-[8px] font-bold text-gray-500 italic">
+                    {item.quantite_par_unite > 1 ? `${item.unite_superieure || 'Ctn'}` : `${item.unite_base || 'Pce'}`}
+                  </div>
+                  <div className="col-span-2 text-center">
+                    <button onClick={(e) => { e.stopPropagation(); openDiscountModalForItem(item); }} className="text-[9px] font-bold text-orange-600">
+                      {item.discount ? `${item.discount.value}${item.discount.type}` : '+'}
+                    </button>
+                  </div>
+                  <div className="col-span-2 text-right font-black text-[9px]">{item.price_at_sale.toLocaleString()}</div>
+                  <div className="col-span-1 text-right font-black text-xs">{calculateItemTotal(item).toLocaleString()}</div>
+                  <div className="col-span-1 text-center">
+                    <button onClick={(e) => { e.stopPropagation(); removeItem(item.item_id, item.item_id); }} className="text-red-400 hover:text-red-600"><Trash2 size={12} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* VALIDATION */}
+          <div className="col-span-12 lg:col-span-4 bg-emerald-950 text-white rounded-xl p-3 shadow-xl">
+             <div className="flex justify-between items-center mb-2">
+                <h3 className="font-black text-[9px] uppercase">Paiement</h3>
+                {globalDiscountAmount > 0 && (
+                    <span className="text-[9px] font-black text-orange-400">Remise: -{globalDiscountAmount.toLocaleString()} Ar</span>
+                )}
+             </div>
+
+             <div className="grid grid-cols-2 gap-1.5 p-1 bg-emerald-900/50 rounded-lg border border-white/10 mb-2">
+                <button onClick={() => setPaymentMode('cash')} className={`py-1.5 rounded text-[8px] font-black ${paymentMode === 'cash' ? 'bg-emerald-500 text-white' : 'text-emerald-400'}`}>COMPTANT</button>
+                <button onClick={() => setPaymentMode('credit')} className={`py-1.5 rounded text-[8px] font-black ${paymentMode === 'credit' ? 'bg-orange-500 text-white' : 'text-emerald-400'}`}>CRÉDIT</button>
+             </div>
+
+             {paymentMode === 'cash' && (
+                <div className="grid grid-cols-1 gap-1 p-2 bg-emerald-900/30 rounded-lg">
+                    <label className="flex items-center gap-2 text-[8px] font-bold"><input type="checkbox" checked={printInvoice} onChange={() => setPrintInvoice(!printInvoice)} /> Imprimer facture</label>
+                    <label className="flex items-center gap-2 text-[8px] font-bold"><input type="checkbox" checked={isWithdrawal} onChange={() => setIsWithdrawal(!isWithdrawal)} /> Prélèvement</label>
+                    <label className="flex items-center gap-2 text-[8px] font-bold"><input type="checkbox" checked={isOther} onChange={() => setIsOther(!isOther)} /> Autre</label>
+                </div>
+             )}
+
+             {paymentMode === 'credit' && (
+                <div className="grid grid-cols-1 gap-2 bg-emerald-900/30 p-2 rounded-lg border border-white/10 mt-2">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[7px] font-black text-emerald-400 uppercase">Échéance</span>
+                        <input type="date" className="bg-emerald-950 border border-white/10 rounded p-1.5 text-[10px] font-black outline-none w-full text-white" value={dueDate} onChange={e => setDueDate(e.target.value)} />
                     </div>
-                    <input 
-                        autoFocus 
-                        type="number" 
-                        className="w-full bg-emerald-50 border-2 border-emerald-100 rounded-xl py-4 px-6 text-xl font-black outline-none" 
-                        value={discountModal.value || ''} 
-                        onChange={(e) => setDiscountModal({...discountModal, value: e.target.value})} 
-                    />
-                    <div className="grid grid-cols-2 gap-3">
-                        <button onClick={() => setDiscountModal(null)} className="py-3 text-xs font-bold text-gray-400 uppercase">Annuler</button>
-                        <button onClick={() => applyDiscount(discountModal.itemId, discountModal.type, discountModal.value)} className="bg-emerald-600 text-white py-3 rounded-xl text-xs font-black shadow-lg">Appliquer</button>
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[7px] font-black text-emerald-400 uppercase">Type d'échéance</span>
+                        <select className="bg-emerald-950 border border-white/10 rounded p-1.5 text-[10px] font-black outline-none w-full text-white" value={creditType} onChange={e => setCreditType(e.target.value)}>
+                            <option value="mensuel">Mensuel</option>
+                            <option value="journalier">Journalier</option>
+                        </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[7px] font-black text-emerald-400 uppercase">Avance</span>
+                        <input type="number" className="bg-emerald-950 border border-white/10 rounded p-1.5 text-[10px] font-black outline-none w-full text-orange-400" placeholder="0" value={advanceAmount || ''} onChange={e => setAdvanceAmount(e.target.value)} />
                     </div>
                 </div>
+             )}
+             <button onClick={handleFinalize} disabled={isProcessing} className="w-full mt-4 py-1.5 bg-emerald-600 text-white font-black rounded-lg text-[9px] uppercase tracking-wider flex items-center justify-center gap-2">
+                {isProcessing ? <Loader2 className="animate-spin" size={14} /> : 'FINALISER'}
+             </button>
+          </div>
+        </div>
+
+        {/* PRODUCTS LIST */}
+        <div className="mt-4 bg-white rounded-xl p-2 shadow-sm border border-emerald-100">
+           <input type="text" placeholder="Chercher produit..." className="w-full bg-emerald-50 p-2 rounded-lg text-xs font-bold" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+           <div className="mt-2 h-64 overflow-y-auto">
+             <table className="w-full text-left">
+                <tbody className="divide-y divide-emerald-50">
+                  {paginatedProducts.map(p => (
+                    <tr key={p.id} onClick={() => Number(p.stock_quantity) > 0 && addToInvoice(p)} className="border-b border-gray-100 cursor-pointer hover:bg-emerald-50">
+                      <td className="p-2">
+                        <div className="font-black text-xs uppercase">{p.name}</div>
+                        <div className="text-[9px] text-gray-400 font-bold italic">
+                            {p.quantite_par_unite > 1 ? `${Math.floor(p.stock_quantity / p.quantite_par_unite)} ${p.unite_superieure || 'Sac'} + ${p.stock_quantity % p.quantite_par_unite} ${p.unite_base || 'Kg'}` : `${p.stock_quantity} ${p.unite_base || 'Pce'}`}
+                        </div>
+                      </td>
+                      <td className="p-2 text-xs font-black text-right">{p.price.toLocaleString()} Ar</td>
+                      <td className="p-2 text-right"><Plus size={16} className="inline-block" /></td>
+                    </tr>
+                  ))}
+                </tbody>
+                </table>
+                </div>
+                </div>
+                </div>
+
+                {/* ... (Calculator and Discount Modals) ... */}
+
+                {/* Remplacer le contenu du Panier dans le bloc JSX ci-dessus */}
+                {/* <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-100 grid grid-cols-12 gap-1 text-[7px] font-black text-gray-400 uppercase">
+                <div className="col-span-4">Produit</div>
+                <div className="col-span-2 text-center">Qté</div>
+                <div className="col-span-2 text-center">Remise</div>
+                <div className="col-span-4 text-right">Total</div>
+                </div> */}
+                {invoiceItems.map(item => (
+                <div key={item.item_id} onClick={() => { setActiveItemId(item.item_id); setIsCalculatorOpen(true); }} className="grid grid-cols-12 gap-1 items-center px-2 py-2 border-b border-gray-50">
+                <div className="col-span-4 font-black text-[10px] uppercase truncate">{item.name}</div>
+                <div className="col-span-2 text-center font-black text-xs bg-emerald-50 rounded">{item.quantity}</div>
+                <div className="col-span-2 text-center text-[9px] font-bold text-orange-600">
+                <button onClick={(e) => { e.stopPropagation(); openDiscountModalForItem(item); }}>
+                    {item.discount ? `${item.discount.value}${item.discount.type}` : '+'}
+                </button>
+                </div>
+                <div className="col-span-4 text-right font-black text-xs">{calculateItemTotal(item).toLocaleString()} Ar</div>
+                </div>
+                ))}
+
+      {isCalculatorOpen && (
+        <div 
+          className="fixed z-[300] w-full max-w-xs animate-in fade-in duration-200"
+          style={{ top: '10%', left: '10%', transform: `translate(${calculatorPos.x}px, ${calculatorPos.y}px)` }}
+        >
+          <div className="drag-handle cursor-move bg-slate-800 text-white text-[8px] font-black uppercase text-center py-1 rounded-t-xl opacity-80 hover:opacity-100 transition-opacity" onMouseDown={handleMouseDown}>Déplacer</div>
+          <Calculator key={activeItemId} activeItem={invoiceItems.find(i => i.item_id === activeItemId)} onResult={handleCalculatorResult} onOpenDiscount={openDiscountModalForItem} onClose={() => setIsCalculatorOpen(false)} />
+        </div>
+      )}
+      {discountModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-emerald-950/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[2rem] shadow-2xl p-8 w-full max-w-sm">
+            <h3 className="text-lg font-black text-gray-800 mb-2 uppercase">{discountModal.isGlobal ? 'Remise Globale' : `Remise sur ${discountModal.name}`}</h3>
+            <div className="space-y-4">
+              <div className="flex bg-gray-100 p-1 rounded-xl">
+                <button onClick={() => setDiscountModal({...discountModal, type: 'Ar'})} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${discountModal.type === 'Ar' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}>Ar</button>
+                <button onClick={() => setDiscountModal({...discountModal, type: '%'})} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${discountModal.type === '%' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}>%</button>
+              </div>
+              <input autoFocus type="number" className="w-full bg-emerald-50 border-2 border-emerald-100 rounded-xl py-4 px-6 text-xl font-black outline-none" value={discountModal.value || ''} onChange={(e) => setDiscountModal({...discountModal, value: e.target.value})} />
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={() => setDiscountModal(null)} className="py-3 text-xs font-bold text-gray-400 uppercase">Annuler</button>
+                <button onClick={() => applyDiscount(discountModal.isGlobal ? 'global' : discountModal.itemId, discountModal.type, discountModal.value)} className="bg-emerald-600 text-white py-3 rounded-xl text-xs font-black shadow-lg">Appliquer</button>
+              </div>
             </div>
+          </div>
         </div>
       )}
     </div>

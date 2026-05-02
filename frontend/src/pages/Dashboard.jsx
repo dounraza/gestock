@@ -378,10 +378,10 @@ export default function Dashboard({ session }) {
         </header>
 
         {/* Dashboard Body */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="flex-1 overflow-hidden p-4 md:p-6">
           <Routes>
             <Route path="/" element={
-              <div className="space-y-6 md:space-y-8">
+              <div className="h-full overflow-y-auto pr-2 space-y-6 md:space-y-8">
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                   <StatCard 
@@ -464,6 +464,7 @@ export default function Dashboard({ session }) {
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </div>
+       
       </main>
     </div>
   );

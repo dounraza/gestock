@@ -36,12 +36,13 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
             clients (name, phone)
           )
         `)
-        .eq('statut', 'non_paye')
+        // .eq('statut', 'non_paye')
         .order('date_echeance', { ascending: true });
       
+      console.log("Deadlines DEBUG: Data fetched from Supabase:", data);
+      
       if (error) {
-        console.error(error);
-        if (error.code === '42P01') alert("Table manquante");
+        console.error("Error fetching deadlines:", error);
       }
       if (data) setDeadlines(data);
     } catch (err) {
@@ -108,7 +109,9 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
     const avgGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
 
     const isDaily = avgGap < 15; // Moins de 15 jours d'écart = Journalier (souvent 1 jour)
-    return matchesSearch && (frequencyFilter === 'day' ? isDaily : !isDaily);
+    const result = matchesSearch && (frequencyFilter === 'day' ? isDaily : !isDaily);
+    console.log("Filtering debug:", {d, matchesSearch, isDaily, frequencyFilter, result});
+    return result;
   });
 
   // Groupement par facture pour la vue "Cards"
@@ -134,6 +137,8 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
     return acc;
   }, {});
 
+  console.log("Grouped invoices DEBUG:", groupedInvoices);
+
   const groupedList = Object.values(groupedInvoices).map(inv => {
     // Détection de fréquence par groupe
     if (inv.installments.length > 1) {
@@ -157,341 +162,26 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
 
   return (
     <div className="space-y-6">
-      {/* Header avec Filtres de Vue et Fréquence */}
-      <div className="flex flex-col lg:space-y-4 bg-white/60 backdrop-blur-md p-6 rounded-[2.5rem] border border-emerald-50 shadow-sm transition-all">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex flex-col md:flex-row items-center gap-6">
-            <h3 className="text-xl font-black text-gray-800 flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
-                <CalendarIcon className="text-white" size={20} />
-              </div>
-              ÉCHÉANCIER
-            </h3>
-            
-            {/* Tabs de Fréquence */}
-            <div className="flex bg-gray-100/80 p-1.5 rounded-2xl border border-gray-200 shadow-inner">
-              <button 
-                onClick={() => setFrequencyFilter('all')}
-                className={`px-5 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all ${frequencyFilter === 'all' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-400 hover:text-emerald-600'}`}
-              >
-                TOUS
-              </button>
-              <button 
-                onClick={() => setFrequencyFilter('day')}
-                className={`px-5 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all ${frequencyFilter === 'day' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-400 hover:text-emerald-600'}`}
-              >
-                JOURNALIER
-              </button>
-              <button 
-                onClick={() => setFrequencyFilter('month')}
-                className={`px-5 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all ${frequencyFilter === 'month' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-400 hover:text-emerald-600'}`}
-              >
-                MENSUEL
-              </button>
-            </div>
-          </div>
-
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Rechercher un client ou facture..." 
-              className="w-full bg-white border-2 border-emerald-50 rounded-2xl py-3 pl-12 pr-4 text-xs font-bold focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all shadow-sm"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                onSearchReset?.();
-              }}
-            />
-          </div>
-        </div>
-
-        <div className="h-px bg-emerald-50/50 w-full hidden lg:block"></div>
-
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-2">
-          {/* Tabs de Mode de Vue */}
-          <div className="flex bg-emerald-50/50 p-1.5 rounded-2xl border border-emerald-100/50 shadow-sm w-full md:w-auto">
-            <button 
-              onClick={() => setViewMode('cards')}
-              className={`flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${viewMode === 'cards' ? 'bg-white text-emerald-700 shadow-md' : 'text-emerald-600/60 hover:text-emerald-700'}`}
-            >
-              <LayoutGrid size={16} /> CARTES
-            </button>
-            <button 
-              onClick={() => setViewMode('table')}
-              className={`flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${viewMode === 'table' ? 'bg-white text-emerald-700 shadow-md' : 'text-emerald-600/60 hover:text-emerald-700'}`}
-            >
-              <Table size={16} /> TABLEAU
-            </button>
-            <button 
-              onClick={() => setViewMode('calendar')}
-              className={`flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${viewMode === 'calendar' ? 'bg-white text-emerald-700 shadow-md' : 'text-emerald-600/60 hover:text-emerald-700'}`}
-            >
-              <CalendarIcon size={16} /> CALENDRIER
-            </button>
-          </div>
-
-          {viewMode === 'calendar' && (
-            <div className="flex items-center bg-white border-2 border-emerald-50 rounded-2xl p-1.5 gap-2 shadow-sm animate-in fade-in zoom-in duration-300">
-              <button onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() - 1)))} className="p-2 hover:bg-emerald-50 rounded-xl text-emerald-600 transition-colors">←</button>
-              <div className="px-6 py-1 bg-emerald-50 rounded-lg">
-                <span className="text-[11px] font-black uppercase text-emerald-800 min-w-[140px] block text-center tracking-tighter">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</span>
-              </div>
-              <button onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)))} className="p-2 hover:bg-emerald-50 rounded-xl text-emerald-600 transition-colors">→</button>
-            </div>
-          )}
-        </div>
+      <div className="bg-white/80 backdrop-blur-md border border-emerald-50 rounded-[2.5rem] overflow-hidden shadow-sm">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-emerald-50/50 border-b border-emerald-100">
+              <th className="p-4 text-[10px] font-black text-emerald-700 uppercase">ID</th>
+              <th className="p-4 text-[10px] font-black text-emerald-700 uppercase">Facture ID</th>
+              <th className="p-4 text-[10px] font-black text-emerald-700 uppercase">Statut</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-emerald-50">
+            {deadlines.map(d => (
+              <tr key={d.id}>
+                <td className="p-4 text-xs font-bold text-gray-800">{d.id}</td>
+                <td className="p-4 text-xs font-bold text-gray-800">{d.facture_id}</td>
+                <td className="p-4 text-xs font-bold text-gray-800">{d.statut}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-
-      {loading ? (
-        <div className="py-20 text-center"><p className="text-gray-400 font-bold animate-pulse">Chargement des données...</p></div>
-      ) : (
-        <>
-          {/* VUE CARTES (Groupées par facture) */}
-          {viewMode === 'cards' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-in fade-in duration-300">
-              {groupedList.length > 0 ? groupedList.map((inv) => {
-                const nextInst = inv.installments[0];
-                const daysLeft = Math.ceil((new Date(inv.next_due_date) - new Date()) / (1000 * 60 * 60 * 24));
-                const isOverdue = daysLeft < 0;
-                return (
-                  <div key={inv.facture_id} className={`bg-white border ${isOverdue ? 'border-red-200 shadow-red-50' : 'border-emerald-100/50'} rounded-3xl p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden flex flex-col`}>
-                    <div className="flex justify-between items-start mb-4">
-                      <div className={`w-10 h-10 ${isOverdue ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'} rounded-xl flex items-center justify-center shadow-sm`}>
-                        <Clock size={20} />
-                      </div>
-                      <span className={`text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest ${isOverdue ? 'bg-red-500 text-white' : 'bg-orange-100 text-orange-700'}`}>
-                        {isOverdue ? "Retard" : "En cours"}
-                      </span>
-                    </div>
-
-                    <div className="mb-4">
-                      <h4 className="font-black text-gray-800 text-sm">{inv.number}</h4>
-                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest truncate">{inv.client_name}</p>
-                      {inv.installments[0].factures?.clients?.phone && (
-                        <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mt-1">📞 {inv.installments[0].factures.clients.phone}</p>
-                      )}
-                    </div>
-                    
-                    <div className="bg-emerald-50/30 p-3 rounded-xl mb-4 flex justify-between items-center border border-emerald-50/50">
-                      <div>
-                        <p className="text-[7px] font-black text-emerald-600 uppercase leading-none">Reste Total</p>
-                        <p className="text-sm font-black text-emerald-900">{inv.total_remaining.toLocaleString()} Ar</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[7px] font-black text-emerald-600 uppercase leading-none">{inv.is_daily ? 'Jours' : 'Mens.'}</p>
-                        <p className="text-[10px] font-black text-emerald-700">{inv.installments.length}</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-auto space-y-2">
-                      <div className="flex justify-between items-center px-1">
-                        <p className="text-[8px] font-black text-gray-400 uppercase">Prochaine</p>
-                        <p className={`text-[9px] font-black ${isOverdue ? 'text-red-500' : 'text-emerald-600'}`}>
-                          {new Date(inv.next_due_date).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => {
-                            setSearchTerm(inv.client_name);
-                            setViewMode('calendar');
-                          }}
-                          className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm flex items-center justify-center shrink-0 border border-blue-100/50"
-                          title="Voir le calendrier"
-                        >
-                          <CalendarIcon size={14} />
-                        </button>
-                        <button 
-                          onClick={() => setPaymentModal({ echeance: nextInst })}
-                          className={`flex-1 h-10 ${isOverdue ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'} text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all shadow-lg shadow-emerald-100 flex items-center justify-center gap-2`}
-                        >
-                          <CheckCircle size={14} /> {nextInst.montant.toLocaleString()} Ar
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              }) : <EmptyState />}
-            </div>
-          )}
-
-          {/* VUE TABLEAU (Liste détaillée) */}
-          {viewMode === 'table' && (
-            <div className="bg-white/80 backdrop-blur-md border border-emerald-50 rounded-[2.5rem] overflow-hidden shadow-sm animate-in slide-in-from-bottom-4 duration-300">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-emerald-50/50 border-b border-emerald-100">
-                    <th className="p-4 text-[10px] font-black text-emerald-700 uppercase">Date d'échéance</th>
-                    <th className="p-4 text-[10px] font-black text-emerald-700 uppercase">Facture</th>
-                    <th className="p-4 text-[10px] font-black text-emerald-700 uppercase">Client</th>
-                    <th className="p-4 text-[10px] font-black text-emerald-700 uppercase">Montant</th>
-                    <th className="p-4 text-[10px] font-black text-emerald-700 uppercase text-center">Statut</th>
-                    <th className="p-4 text-[10px] font-black text-emerald-700 uppercase text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-emerald-50">
-                  {filtered.length > 0 ? filtered.map((d) => {
-                    const isOverdue = new Date(d.date_echeance) < new Date(new Date().setHours(0,0,0,0));
-                    return (
-                      <tr key={d.id} className="hover:bg-emerald-50/30 transition-colors">
-                        <td className="p-4 text-xs font-bold text-gray-600">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${isOverdue ? 'bg-red-500 animate-pulse' : 'bg-orange-400'}`}></div>
-                            <span className="font-black text-gray-800">{new Date(d.date_echeance).toLocaleDateString('fr-FR')}</span>
-                          </div>
-                        </td>
-                        <td className="p-4 text-xs font-black text-gray-800">{d.factures?.number}</td>
-                        <td className="p-4 text-xs font-bold text-gray-500">{d.factures?.clients?.name || d.factures?.guest_name || 'Direct'}</td>
-                        <td className="p-4 text-xs font-black text-emerald-700">{d.montant.toLocaleString()} Ar</td>
-                        <td className="p-4 text-center">
-                          <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${isOverdue ? 'bg-red-100 text-red-600 border border-red-200' : 'bg-orange-100 text-orange-600 border border-orange-200'}`}>
-                            {isOverdue ? 'Retard' : 'En attente'}
-                          </span>
-                        </td>
-                        <td className="p-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            <button 
-                              onClick={() => {
-                                setSearchTerm(d.factures?.clients?.name || d.factures?.guest_name || '');
-                                setViewMode('calendar');
-                              }}
-                              className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-                              title="Voir le calendrier de ce client"
-                            >
-                              <CalendarIcon size={14} />
-                            </button>
-                            <button 
-                              onClick={() => setPaymentModal({ echeance: d })}
-                              className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
-                              title="Encaisser"
-                            >
-                              <CheckCircle size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  }) : <tr><td colSpan="6" className="p-10 text-center text-gray-400 font-bold italic">Aucune échéance ne correspond à votre recherche</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* VUE CALENDRIER */}
-          {viewMode === 'calendar' && (
-            <div className="bg-white/80 backdrop-blur-md border border-emerald-100 rounded-[2.5rem] p-8 shadow-xl animate-in zoom-in duration-300">
-              <div className="grid grid-cols-7 mb-4">
-                {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map(day => (
-                  <div key={day} className="text-center text-[10px] font-black text-emerald-800 uppercase tracking-widest py-2">{day}</div>
-                ))}
-              </div>
-              <div className="grid grid-cols-7 gap-px bg-emerald-50 border border-emerald-50 rounded-2xl overflow-hidden">
-                {Array.from({ length: firstDay }).map((_, i) => (
-                  <div key={`empty-${i}`} className="bg-emerald-50/30 h-32"></div>
-                ))}
-                {Array.from({ length: days }).map((_, i) => {
-                  const day = i + 1;
-                  const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                  const dayDeadlines = filtered.filter(d => d.date_echeance === dateStr);
-                  const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
-
-                  return (
-                    <div key={day} className="bg-white h-32 p-2 border border-emerald-50/50 hover:bg-emerald-50/20 group relative overflow-y-auto transition-all">
-                      <span className={`text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-lg ${isToday ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-400'}`}>{day}</span>
-                      <div className="mt-1 space-y-1">
-                        {dayDeadlines.map(d => (
-                          <div key={d.id} onClick={() => setPaymentModal({ echeance: d })} className="bg-emerald-50 border border-emerald-100 p-1.5 rounded-xl cursor-pointer hover:border-emerald-500 transition-all shadow-sm">
-                            <p className="text-[8px] font-black text-emerald-700 truncate">{d.factures?.clients?.name || d.factures?.guest_name || 'Client'}</p>
-                            <p className="text-[9px] font-black text-gray-800">{d.montant.toLocaleString()} Ar</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Payment Modal */}
-      {paymentModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-950/20 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in duration-200">
-            <div className="p-8 border-b border-emerald-50 flex justify-between items-center">
-              <div>
-                <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">Encaissement</h3>
-                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{paymentModal.echeance.factures?.number}</p>
-              </div>
-              <button onClick={() => setPaymentModal(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
-            </div>
-            
-            <div className="p-8 space-y-6">
-              <div className="bg-emerald-50 p-6 rounded-3xl text-center border border-emerald-100">
-                <p className="text-[10px] font-black text-emerald-600 uppercase mb-1">Montant à encaisser</p>
-                <p className="text-3xl font-black text-emerald-900">{paymentModal.echeance.montant.toLocaleString()} Ar</p>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Moyen de paiement</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: 'espece', label: 'Espèces' },
-                    { id: 'mvola', label: 'M-Vola' },
-                    { id: 'airtel', label: 'Airtel Money' },
-                    { id: 'orange', label: 'Orange Money' },
-                    { id: 'bank', label: 'Banque / Virement' }
-                  ].map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => setPaymentInfo({ ...paymentInfo, method: m.id })}
-                      className={`py-3 px-4 rounded-xl text-[10px] font-black uppercase border transition-all ${
-                        paymentInfo.method === m.id 
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-md scale-[1.02]' 
-                          : 'bg-white text-gray-500 border-gray-100 hover:bg-emerald-50 hover:border-emerald-200'
-                      }`}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {paymentInfo.method !== 'espece' && (
-                <div className="space-y-1 animate-in slide-in-from-top-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Référence de transaction</label>
-                  <input 
-                    type="text"
-                    placeholder="Ex: Ref 123456..."
-                    className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all"
-                    value={paymentInfo.reference}
-                    onChange={(e) => setPaymentInfo({ ...paymentInfo, reference: e.target.value })}
-                  />
-                </div>
-              )}
-
-              <button 
-                onClick={handleMarkAsPaid}
-                disabled={isProcessing}
-                className="w-full bg-emerald-600 text-white font-black text-[10px] uppercase tracking-[0.2em] py-4 rounded-2xl shadow-lg shadow-emerald-100 mt-2 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-              >
-                {isProcessing ? <Loader2 className="animate-spin" size={18} /> : <><CheckCircle size={18} /> Confirmer l'encaissement</>}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="col-span-full text-center py-20 bg-white/40 border-2 border-dashed border-emerald-100 rounded-3xl">
-      <CalendarIcon className="mx-auto text-emerald-200 mb-4" size={48} />
-      <p className="text-gray-500 font-medium uppercase text-xs font-black tracking-widest">Aucune échéance trouvée</p>
     </div>
   );
 }

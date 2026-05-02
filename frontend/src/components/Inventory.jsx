@@ -472,6 +472,20 @@ export default function Inventory() {
     }
   };
 
+  const formatStock = (quantity, p) => {
+    const q = Number(quantity) || 0;
+    const qpu = Number(p.quantite_par_unite) || 1;
+    const uSup = p.unite_superieure || 'Cartons';
+    const uBase = p.unite_base || 'paquet';
+
+    if (qpu > 1) {
+      const superior = Math.floor(q / qpu);
+      const base = q % qpu;
+      return `${superior} ${uSup} (${qpu}${uBase}) + ${base} ${uBase}`;
+    }
+    return `${q} ${uBase}`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Action Bar */}
@@ -615,7 +629,7 @@ export default function Inventory() {
                       <div className="text-right">
                         <p className="text-[9px] text-gray-400 uppercase font-bold tracking-widest mb-1">Stock</p>
                         <span className={`px-2 py-0.5 rounded-lg font-bold text-xs ${p.stock_quantity < 10 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                          {p.stock_quantity} {p.unite_base || 'unité(s)'}
+                          {formatStock(p.stock_quantity, p)}
                         </span>
                       </div>
                     </div>
@@ -652,7 +666,7 @@ export default function Inventory() {
                         </td>
                         <td className="p-4">
                           <span className={`font-bold ${p.stock_quantity < 10 ? 'text-red-600' : 'text-emerald-600'}`}>
-                            {p.stock_quantity} {p.unite_base}
+                            {formatStock(p.stock_quantity, p)}
                           </span>
                         </td>
                         <td className="p-4 font-bold text-gray-800">

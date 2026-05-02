@@ -4,6 +4,7 @@ import { Calendar, Filter, FileText, User } from 'lucide-react';
 import { logAction } from '../utils/audit';
 
 export default function SalesDashboard() {
+  console.log("SalesDashboard rendu!");
   const [sales, setSales] = useState([]);
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterType, setFilterType] = useState('all'); 
@@ -15,12 +16,18 @@ export default function SalesDashboard() {
 
   useEffect(() => {
     fetchSales();
-  }, [filterDate, filterType]);
+  }, [filterDate]);
 
   // Logic for filtering and pagination
   const filteredSales = useMemo(() => {
-      return sales.filter(sale => sale.number.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [sales, searchTerm]);
+      let salesFiltered = sales;
+      if (filterType === 'paid') {
+          salesFiltered = salesFiltered.filter(s => s.type === 'COMPTANT');
+      } else if (filterType === 'sent') {
+          salesFiltered = salesFiltered.filter(s => s.type === 'CREDIT');
+      }
+      return salesFiltered.filter(sale => sale.number.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [sales, searchTerm, filterType]);
 
   const paginatedSales = useMemo(() => {
       const start = (currentPage - 1) * itemsPerPage;
@@ -56,8 +63,8 @@ export default function SalesDashboard() {
   const totals = useMemo(() => {
     return sales.reduce((acc, sale) => {
         const amount = sale.total_amount || 0;
-        if (sale.status === 'paid') acc.cash += amount;
-        else acc.credit += amount;
+        if (sale.type === 'CREDIT') acc.credit += amount;
+        else acc.cash += amount;
         acc.daily += amount;
         return acc;
     }, { cash: 0, credit: 0, daily: 0 });
@@ -98,7 +105,7 @@ const handleCancelInvoice = async (invoice) => {
         <div className="flex gap-2">
             <input type="text" placeholder="Rechercher facture..." onChange={e => setSearchTerm(e.target.value)} className="p-2 rounded-xl border border-slate-200 text-sm" />
             <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="p-2 rounded-xl border border-slate-200" />
-            <select onChange={e => setFilterType(e.target.value)} className="p-2 rounded-xl border border-slate-200">
+            <select value={filterType} onChange={e => setFilterType(e.target.value)} className="p-2 rounded-xl border border-slate-200">
                 <option value="all">Toutes les ventes</option>
                 <option value="paid">Vente directe</option>
                 <option value="sent">Vente à Crédit</option>
@@ -147,10 +154,10 @@ const handleCancelInvoice = async (invoice) => {
                             </button>
                         </td>
                         <td className="p-4 uppercase font-black text-[10px]">
-                            {sale.status === 'paid' ? (
-                                <span className="text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">Comptant</span>
-                            ) : (
+                            {sale.type === 'CREDIT' ? (
                                 <span className="text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">Crédit</span>
+                            ) : (
+                                <span className="text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">Comptant</span>
                             )}
                         </td>
                         <td className="p-4 text-right">{sale.total_amount.toLocaleString()} Ar</td>
@@ -188,7 +195,8 @@ const handleCancelInvoice = async (invoice) => {
                                 <th className="p-2">Désignation</th>
                                 <th className="p-2 text-center">Qté</th>
                                 <th className="p-2 text-center">Unités</th>
-                                <th className="p-2 text-right">Prix</th>
+                                <th className="p-2 text-center">Remise</th>
+                                <th className="p-2 text-right">P.U</th>
                                 <th className="p-2 text-right">Total</th>
                             </tr>
                         </thead>
@@ -198,15 +206,17 @@ const handleCancelInvoice = async (invoice) => {
                                     <td className="p-2 uppercase">{item.produits?.name}</td>
                                     <td className="p-2 text-center">{item.quantity}</td>
                                     <td className="p-2 text-center text-[9px] text-slate-500 italic">
-                                        {console.log("Item debug:", item.produits)}
                                         {item.produits && item.produits.quantite_par_unite > 1 ? 
                                             `${Math.floor(item.quantity / item.produits.quantite_par_unite)} ${item.produits.unite_superieure || 'Ctn'} + ${item.quantity % item.produits.quantite_par_unite} ${item.produits.unite_base || 'Pce'}` 
                                             : `${item.quantity} ${item.produits?.unite_base || 'Pce'}`
                                         }
                                     </td>
+                                    <td className="p-2 text-center text-orange-600">
+                                        {item.discount_value ? `${item.discount_value}${item.discount_type || ''}` : '-'}
+                                    </td>
                                     <td className="p-2 text-right">{item.price_at_sale?.toLocaleString()} Ar</td>
                                     <td className="p-2 text-right font-black">
-                                        {((item.quantity * item.price_at_sale) - (item.discount ? (item.discount.type === '%' ? (item.quantity * item.price_at_sale) * (item.discount.value/100) : item.discount.value) : 0)).toLocaleString()} Ar
+                                        {((item.quantity * item.price_at_sale) - (item.discount_value ? (item.discount_type === '%' ? (item.quantity * item.price_at_sale) * (item.discount_value/100) : item.discount_value) : 0)).toLocaleString()} Ar
                                     </td>
                                 </tr>
                             ))}
