@@ -32,6 +32,54 @@ export default function Inventory() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewMode, setViewMode] = useState('products'); 
   const [productViewMode, setProductViewMode] = useState('grid');
+  const [credits, setCredits] = useState([]);
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [previewInvoice, setPreviewInvoice] = useState(null);
+  const [paymentFormData, setPaymentFormData] = useState({ delivery_note_id: '', amount: '', payment_method: 'cash', notes: '' });
+
+  // ... (inside the component return, specifically after Credit Modal)
+
+      {/* Invoice Preview Modal */}
+      {previewInvoice && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 print:hidden">
+          <style>{`
+            @media print {
+              body > *:not(#printable-invoice-container) { display: none !important; }
+              #printable-invoice-container { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+            }
+          `}</style>
+          <div id="printable-invoice-container" className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 print:hidden">
+              <h3 className="font-black text-gray-800">Prévisualisation de la facture</h3>
+              <div className="flex gap-2">
+                <button onClick={() => setPreviewInvoice(null)} className="px-4 py-2 text-sm font-bold text-gray-500">Fermer</button>
+                <button onClick={() => window.print()} className="px-6 py-2 bg-emerald-600 text-white font-black rounded-xl text-sm">Imprimer</button>
+              </div>
+            </div>
+            <div className="p-10 overflow-y-auto flex-1 print:p-0">
+                <div id="printable-invoice" className="text-gray-800">
+                    <h1 className="text-3xl font-black text-emerald-800 mb-6">Bon de Livraison</h1>
+                    <div className="grid grid-cols-2 gap-4 mb-8">
+                        <div>
+                            <p className="text-xs uppercase font-bold text-gray-400">Fournisseur</p>
+                            <p className="font-bold">{previewInvoice.fournisseurs?.name}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs uppercase font-bold text-gray-400">Date</p>
+                            <p className="font-bold">{new Date(previewInvoice.bl_date).toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                    <div className="border-t border-b border-gray-200 py-4 mb-4">
+                        <div className="flex justify-between font-black text-lg">
+                            <span>Total</span>
+                            <span>{parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+          </div>
+        </div>
+      )}
 
   // Delivery Note States
   const [showDeliveryNoteModal, setShowDeliveryNoteModal] = useState(false);
@@ -53,6 +101,61 @@ export default function Inventory() {
   });
   const [showPhysicalChoiceModal, setShowPhysicalChoiceModal] = useState(false);
   const [physicalSearchTerm, setPhysicalSearchTerm] = useState('');
+
+  const fetchCredits = async () => {
+    console.log("Fetching credits...");
+    const { data, error } = await supabase
+      .from('delivery_notes')
+      .select(`
+        *, 
+        fournisseurs!delivery_notes_supplier_id_fkey(name), 
+        supplier_payments!supplier_payments_delivery_note_id_fkey(amount)
+      `)
+      .eq('payment_type', 'credit')
+      .order('bl_date', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching credits details:", JSON.stringify(error, null, 2));
+      alert("Erreur de chargement des crédits : " + error.message);
+      return;
+    }
+    
+    console.log("Fetched credits data:", data);
+
+    if (data) {
+      const formattedCredits = data.map(bl => {
+        const totalPaid = (bl.supplier_payments ? bl.supplier_payments.reduce((acc, p) => acc + parseFloat(p.amount), 0) : 0) + parseFloat(bl.advance_amount || 0);
+        return { ...bl, totalPaid, remaining: parseFloat(bl.total_amount) - totalPaid };
+      });
+      setCredits(formattedCredits);
+    }
+  };
+
+  const handlePayCredit = async (e) => {
+    e.preventDefault();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from('supplier_payments').insert([{
+      ...paymentFormData,
+      user_id: user.id
+    }]);
+
+    if (error) alert(error.message);
+    else {
+      console.log("Payment recorded. Finding BL to print:", paymentFormData.delivery_note_id);
+      const blToPrint = credits.find(c => c.id === paymentFormData.delivery_note_id);
+      console.log("BL Found for printing:", blToPrint);
+      
+      setShowCreditModal(false);
+      setPaymentFormData({ delivery_note_id: '', amount: '', payment_method: 'cash', notes: '' });
+      fetchCredits();
+      
+      if (blToPrint) {
+        setTimeout(() => {
+          setPreviewInvoice(blToPrint);
+        }, 100);
+      }
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -413,6 +516,33 @@ export default function Inventory() {
 
       if (blError) throw blError;
 
+      // 1b. Record initial advance payment if credit
+      const advance = parseFloat(deliveryNoteFormData.advance_amount);
+      console.log("Attempting to record advance payment...", { 
+        delivery_note_id: bl.id, 
+        amount: advance,
+        type: deliveryNoteFormData.payment_type 
+      });
+      
+      if (deliveryNoteFormData.payment_type === 'credit' && advance > 0) {
+        const { error: paymentError } = await supabase
+          .from('supplier_payments')
+          .insert([{
+            delivery_note_id: bl.id,
+            amount: advance,
+            payment_method: 'cash',
+            notes: 'Avance initiale lors de la création du BL',
+            user_id: user.id
+          }]);
+        
+        if (paymentError) {
+          console.error("Payment insert error:", paymentError);
+          throw paymentError;
+        } else {
+          console.log("Advance payment recorded successfully!");
+        }
+      }
+
       // 2. Create line items and update stock
       for (const item of deliveryNoteItems) {
         const { error: itemError } = await supabase
@@ -553,8 +683,13 @@ export default function Inventory() {
           )}
         </div>
         
-        {viewMode === 'products' && (
-          <div className="flex gap-2">
+        <div className="flex gap-2">
+            <button 
+              onClick={() => { fetchCredits(); setShowCreditModal(true); }}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-2xl flex items-center gap-2 font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-200 active:scale-95"
+            >
+              <FileText size={16} /> <span>Suivi Crédits</span>
+            </button>
             <button 
               onClick={() => setShowPhysicalChoiceModal(true)} 
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-2xl flex items-center gap-2 font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-emerald-200 active:scale-95"
@@ -567,9 +702,90 @@ export default function Inventory() {
             >
               <FileText size={16} /> <span>Réception BL</span>
             </button>
-          </div>
-        )}
+        </div>
       </div>
+
+      {/* Credit Modal */}
+      {showCreditModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-emerald-900/40 backdrop-blur-md p-4">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-emerald-100">
+            <div className="p-8 border-b border-emerald-50 flex justify-between items-center bg-emerald-50/30">
+              <h3 className="text-2xl font-black text-gray-800 tracking-tight">Suivi des Crédits Fournisseurs</h3>
+              <button onClick={() => setShowCreditModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-sm text-gray-400 hover:text-red-500 transition-all text-2xl">&times;</button>
+            </div>
+            <div className="p-8 max-h-[70vh] overflow-y-auto">
+              {credits.length > 0 ? (
+                <ul className="space-y-4">
+                  {credits.map(c => (
+                    <li key={c.id} className="bg-white border border-emerald-50 p-6 rounded-3xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <p className="text-lg font-black text-gray-800">{c.fournisseurs?.name || 'Fournisseur inconnu'}</p>
+                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">BL du {new Date(c.bl_date).toLocaleDateString()} | Total: {parseFloat(c.total_amount).toLocaleString()} MGA</p>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <div className="text-right">
+                          <p className="text-[10px] uppercase font-black text-emerald-600">Échéance</p>
+                          {(() => {
+                            const dueDate = new Date(new Date(c.bl_date).getTime() + (c.credit_frequency === 'monthly' ? 30 : 1) * 24 * 60 * 60 * 1000);
+                            const today = new Date();
+                            const isOverdue = dueDate < today;
+                            const isSoon = !isOverdue && (dueDate - today) < (3 * 24 * 60 * 60 * 1000);
+                            
+                            return (
+                                <div className="flex flex-col items-end">
+                                    <p className="text-xs font-bold text-gray-600">{dueDate.toLocaleDateString()}</p>
+                                    {isOverdue && <span className="text-[9px] font-black uppercase text-red-600 bg-red-50 px-2 py-0.5 rounded-full mt-1">Retard</span>}
+                                    {isSoon && <span className="text-[9px] font-black uppercase text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full mt-1">Proche</span>}
+                                </div>
+                            );
+                          })()}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] uppercase font-black text-gray-400">Reste à payer</p>
+                          <p className="text-lg font-black text-red-600">{c.remaining.toLocaleString()} MGA</p>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            console.log("Printing invoice for:", c);
+                            setPreviewInvoice(c);
+                          }}
+                          className="bg-gray-100 text-gray-600 font-black px-4 py-3 rounded-2xl text-xs hover:bg-gray-200 transition-all"
+                        >
+                          Imprimer
+                        </button>
+                        <button 
+                          onClick={() => setPaymentFormData({...paymentFormData, delivery_note_id: c.id})}
+                          className="bg-emerald-600 text-white font-black px-6 py-3 rounded-2xl text-xs hover:bg-emerald-700 transition-all"
+                        >
+                          Encaisser paiement
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : <p className="text-center text-gray-400 py-10 font-bold">Aucun crédit en cours.</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Entry Form (within Credit Modal or separate, simple implementation here) */}
+      {paymentFormData.delivery_note_id && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <form onSubmit={handlePayCredit} className="bg-white p-8 rounded-3xl w-full max-w-sm space-y-4">
+            <h3 className="text-xl font-black text-gray-800">Enregistrer paiement</h3>
+            <input required type="number" placeholder="Montant payé" className="w-full bg-emerald-50 rounded-2xl px-4 py-3" value={paymentFormData.amount} onChange={e => setPaymentFormData({...paymentFormData, amount: e.target.value})} />
+            <select className="w-full bg-emerald-50 rounded-2xl px-4 py-3" value={paymentFormData.payment_method} onChange={e => setPaymentFormData({...paymentFormData, payment_method: e.target.value})}>
+                <option value="cash">Espèces</option>
+                <option value="transfer">Virement</option>
+            </select>
+            <div className="flex gap-2 pt-4">
+                <button type="button" onClick={() => setPaymentFormData({...paymentFormData, delivery_note_id: ''})} className="flex-1 py-3 font-bold text-gray-400">Annuler</button>
+                <button type="submit" className="flex-1 py-3 bg-emerald-600 text-white font-black rounded-2xl">Enregistrer</button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="relative z-10 pb-64">
         {viewMode === 'products' && (

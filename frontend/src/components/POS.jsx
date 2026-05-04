@@ -25,7 +25,46 @@ export default function POS({ session }) {
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const [currentPage, setCurrentPage] = useState(1);
+  const [previewInvoice, setPreviewInvoice] = useState(null);
   const itemsPerPage = 15;
+
+  // ... (inside the component return, at the end)
+
+      {/* Invoice Preview Modal */}
+      {previewInvoice && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 print:hidden">
+          <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="font-black text-gray-800">Prévisualisation de la facture</h3>
+              <div className="flex gap-2">
+                <button onClick={() => setPreviewInvoice(null)} className="px-4 py-2 text-sm font-bold text-gray-500">Fermer</button>
+                <button onClick={() => window.print()} className="px-6 py-2 bg-emerald-600 text-white font-black rounded-xl text-sm">Imprimer</button>
+              </div>
+            </div>
+            <div className="p-10 overflow-y-auto flex-1 print:p-0">
+                <div id="printable-invoice" className="text-gray-800">
+                    <h1 className="text-3xl font-black text-emerald-800 mb-6">Facture de Vente</h1>
+                    <div className="grid grid-cols-2 gap-4 mb-8">
+                        <div>
+                            <p className="text-xs uppercase font-bold text-gray-400">Facture #</p>
+                            <p className="font-bold">{previewInvoice.id.slice(0,8).toUpperCase()}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs uppercase font-bold text-gray-400">Date</p>
+                            <p className="font-bold">{new Date(previewInvoice.created_at).toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                    <div className="border-t border-b border-gray-200 py-4 mb-4">
+                        <div className="flex justify-between font-black text-lg">
+                            <span>Total</span>
+                            <span>{parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+          </div>
+        </div>
+      )}
 
   const handleMouseDown = (e) => {
     setIsDragging(true);
@@ -154,12 +193,18 @@ export default function POS({ session }) {
   };
 
   const handleFinalize = async () => {
-    if (!activeInvoice || invoiceItems.length === 0) return;
+    console.log("Finalize started. Active Invoice:", activeInvoice);
+    if (!activeInvoice || invoiceItems.length === 0) {
+        console.warn("No invoice or items");
+        return;
+    }
     setIsProcessing(true);
     try {
+      console.log("Processing payment...");
       const total = netTotal;
       const advance = paymentMode === 'credit' ? parseFloat(advanceAmount) || 0 : 0;
-      await supabase.from('factures').update({
+      
+      const { data: updatedInvoice, error: updateError } = await supabase.from('factures').update({
         total_amount: total,
         paid_amount: total - advance,
         type: paymentMode === 'credit' ? 'CREDIT' : 'COMPTANT',
@@ -167,27 +212,50 @@ export default function POS({ session }) {
         due_date: paymentMode === 'credit' ? dueDate : new Date().toISOString().split('T')[0],
         advance_amount: advance,
         status: 'paid'
-      }).eq('id', activeInvoice.id);
+      }).eq('id', activeInvoice.id).select().single();
+
+      if (updateError) {
+        console.error("Update invoice error:", updateError);
+        throw updateError;
+      }
+      console.log("Invoice updated.");
 
       if (paymentMode === 'credit') {
-        await supabase.from('echeances_details').insert([{ facture_id: activeInvoice.id, date_echeance: dueDate, montant: total - advance, statut: 'non_paye' }]);
+        const { error: echeanceError } = await supabase.from('echeances_details').insert([{ facture_id: activeInvoice.id, date_echeance: dueDate, montant: total - advance, statut: 'non_paye' }]);
+        if (echeanceError) {
+            console.error("Echeance error:", echeanceError);
+            throw echeanceError;
+        }
       }
       
       // Mise à jour du stock
       for (const item of invoiceItems) {
-        const { data: product } = await supabase.from('produits').select('stock_quantity').eq('id', item.id).single();
+        const { data: product, error: fetchProdError } = await supabase.from('produits').select('stock_quantity').eq('id', item.id).single();
+        if (fetchProdError) {
+            console.error("Fetch prod error:", fetchProdError);
+            throw fetchProdError;
+        }
         if (product) {
-          await supabase.from('produits')
+          const { error: updateProdError } = await supabase.from('produits')
             .update({ stock_quantity: Number(product.stock_quantity) - Number(item.quantity) })
             .eq('id', item.id);
+          if (updateProdError) {
+              console.error("Update prod error:", updateProdError);
+              throw updateProdError;
+          }
         }
       }
       
       alert('Paiement finalisé !');
-      window.location.reload();
+      
+      if (printInvoice) {
+          setPreviewInvoice(updatedInvoice);
+      } else {
+          window.location.reload();
+      }
     } catch (e) {
-      alert(e.message);
-    } finally {
+      console.error("Caught error in handleFinalize:", e);
+      alert("Erreur: " + e.message);
       setIsProcessing(false);
     }
   };
@@ -382,6 +450,48 @@ export default function POS({ session }) {
                 <button onClick={() => setDiscountModal(null)} className="py-3 text-xs font-bold text-gray-400 uppercase">Annuler</button>
                 <button onClick={() => applyDiscount(discountModal.isGlobal ? 'global' : discountModal.itemId, discountModal.type, discountModal.value)} className="bg-emerald-600 text-white py-3 rounded-xl text-xs font-black shadow-lg">Appliquer</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Invoice Preview Modal */}
+      {previewInvoice && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 print:hidden">
+          <style>{`
+            @media print {
+              body > *:not(#printable-invoice-container) { display: none !important; }
+              #printable-invoice-container { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+            }
+          `}</style>
+          <div id="printable-invoice-container" className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 print:hidden">
+              <h3 className="font-black text-gray-800">Prévisualisation de la facture</h3>
+              <div className="flex gap-2">
+                <button onClick={() => { setPreviewInvoice(null); window.location.reload(); }} className="px-4 py-2 text-sm font-bold text-gray-500">Fermer</button>
+                <button onClick={() => window.print()} className="px-6 py-2 bg-emerald-600 text-white font-black rounded-xl text-sm">Imprimer</button>
+              </div>
+            </div>
+            <div className="p-10 overflow-y-auto flex-1 print:p-0">
+                <div id="printable-invoice" className="text-gray-800">
+                    <h1 className="text-3xl font-black text-emerald-800 mb-6">Facture de Vente</h1>
+                    <div className="grid grid-cols-2 gap-4 mb-8">
+                        <div>
+                            <p className="text-xs uppercase font-bold text-gray-400">Facture #</p>
+                            <p className="font-bold">{previewInvoice.number}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs uppercase font-bold text-gray-400">Date</p>
+                            <p className="font-bold">{new Date(previewInvoice.created_at).toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                    <div className="border-t border-b border-gray-200 py-4 mb-4">
+                        <div className="flex justify-between font-black text-lg">
+                            <span>Total</span>
+                            <span>{parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</span>
+                        </div>
+                    </div>
+                </div>
             </div>
           </div>
         </div>
