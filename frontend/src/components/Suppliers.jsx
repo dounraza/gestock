@@ -9,19 +9,30 @@ export default function Suppliers() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ 
-    name: '', 
-    email: '', 
-    phone: '', 
-    address: '',
-    local_etranger: 'Local',
-    raison_sociale: '',
-    nif: '',
-    stat: '',
-    rcs: ''
+    name: '', email: '', phone: '', address: '',
+    local_etranger: 'Local', raison_sociale: '',
+    nif: '', stat: '', rcs: ''
   });
   const [editingSupplier, setEditingSupplier] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
+  const [viewMode, setViewMode] = useState('grid');
+  const [creditModal, setCreditModal] = useState(null);
+  const [supplierCredits, setSupplierCredits] = useState([]);
+
+  const fetchSupplierCredits = async (supplierId) => {
+    const { data } = await supabase
+      .from('delivery_notes')
+      .select(`
+        *,
+        delivery_note_items (
+          quantity,
+          produits (name)
+        )
+      `)
+      .eq('supplier_id', supplierId)
+      .eq('payment_type', 'credit');
+    setSupplierCredits(data || []);
+  };
 
   const fetchSuppliers = async () => {
     setLoading(true);
@@ -273,10 +284,7 @@ export default function Suppliers() {
                             <Trash2 size={16} />
                           </button>
                           <div className="h-6 w-px bg-emerald-50 mx-1"></div>
-                          <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Historique">
-                            <History size={16} />
-                          </button>
-                          <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Payer">
+                          <button onClick={() => { setCreditModal(s); fetchSupplierCredits(s.id); }} className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-all" title="Crédits">
                             <Banknote size={16} />
                           </button>
                         </div>
@@ -292,6 +300,40 @@ export default function Suppliers() {
         <div className="text-center py-20 bg-white/40 border-2 border-dashed border-emerald-100 rounded-3xl">
           <Truck className="mx-auto text-emerald-200 mb-4" size={48} />
           <p className="text-gray-500 font-medium">Aucun fournisseur trouvé.</p>
+        </div>
+      )}
+
+      {creditModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-900/20 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-gray-800">Détails Crédits: {creditModal.name}</h3>
+              <button onClick={() => setCreditModal(null)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                {supplierCredits.length > 0 ? supplierCredits.map(c => (
+                    <div key={c.id} className="border border-emerald-100 rounded-2xl overflow-hidden">
+                        <div className="bg-emerald-50 p-3 flex justify-between items-center font-black text-emerald-800 text-xs uppercase tracking-widest">
+                            <span>BL: {c.bl_number}</span>
+                            <span>{c.total_amount.toLocaleString()} Ar</span>
+                        </div>
+                        <table className="w-full text-xs">
+                          <thead className="bg-gray-50 text-gray-400">
+                            <tr><th className="p-2">Produit</th><th className="p-2 text-right">Qté</th></tr>
+                          </thead>
+                          <tbody>
+                            {c.delivery_note_items.map((item, idx) => (
+                              <tr key={idx} className="border-t">
+                                <td className="p-2">{item.produits?.name || 'Inconnu'}</td>
+                                <td className="p-2 text-right font-bold">{item.quantity}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                    </div>
+                )) : <p className="text-gray-400 text-center py-4 text-xs font-black uppercase">Aucun crédit en cours</p>}
+            </div>
+          </div>
         </div>
       )}
 
@@ -366,4 +408,3 @@ export default function Suppliers() {
     </div>
   );
 }
-

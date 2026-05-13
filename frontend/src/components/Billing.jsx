@@ -124,6 +124,16 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
     if (!confirm('Annuler cette facture et réintégrer les stocks ?')) return;
 
     try {
+      // 1. Get items and the depot_id of the invoice
+      const { data: invoiceData, error: invError } = await supabase
+        .from('factures')
+        .select('depot_id')
+        .eq('id', invoice.id)
+        .single();
+        
+      if (invError) throw invError;
+      const depotId = invoiceData.depot_id;
+
       const { data: items, error: itemsError } = await supabase
         .from('facture_items')
         .select('produit_id, quantity')
@@ -131,27 +141,38 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
 
       if (itemsError) throw itemsError;
 
-      for (const item of items) {
-        const { data: currentProd } = await supabase
-          .from('produits')
-          .select('stock_quantity')
-          .eq('id', item.produit_id)
-          .single();
+      // 2. Reintegrate stock in the specific depot
+      if (depotId) {
+        for (const item of items) {
+          const { data: depotStock } = await supabase
+            .from('stocks')
+            .select('id, quantity')
+            .eq('product_id', item.produit_id)
+            .eq('depot_id', depotId)
+            .maybeSingle();
 
-        const newQty = (currentProd?.stock_quantity || 0) + item.quantity;
-        
-        await supabase
-          .from('produits')
-          .update({ stock_quantity: newQty })
-          .eq('id', item.produit_id);
+          if (depotStock) {
+            await supabase.from('stocks')
+              .update({ quantity: Number(depotStock.quantity) + Number(item.quantity) })
+              .eq('id', depotStock.id);
+          } else {
+            // If the stock entry doesn't exist, create it (should rarely happen)
+            await supabase.from('stocks').insert({
+                product_id: item.produit_id,
+                depot_id: depotId,
+                quantity: item.quantity
+            });
+          }
+        }
       }
 
+      // 3. Mark invoice as cancelled
       await supabase
         .from('factures')
         .update({ status: 'cancelled' })
         .eq('id', invoice.id);
 
-      alert('Facture annulée et stocks réintégrés !');
+      alert('Facture annulée et stocks réintégrés dans le dépôt !');
       fetchData();
     } catch (error) {
       console.error('Erreur annulation:', error);

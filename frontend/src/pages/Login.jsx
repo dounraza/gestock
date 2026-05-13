@@ -12,7 +12,7 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     
-    const { error } = isSignUp 
+    const { data, error } = isSignUp 
       ? await supabase.auth.signUp({ 
           email, 
           password,
@@ -26,6 +26,17 @@ export default function Login() {
       alert(error.message);
     } else if (isSignUp) {
       alert('Vérifiez vos e-mails pour confirmer l\'inscription !');
+    } else if (data?.user) {
+      // Récupérer le dépôt associé
+      const { data: userRole, error: roleError } = await supabase
+        .from('user_roles')
+        .select('depot_id')
+        .eq('user_id', data.user.id)
+        .single();
+      
+      if (userRole?.depot_id) {
+        localStorage.setItem('user_depot_id', userRole.depot_id);
+      }
     }
     
     setLoading(false);

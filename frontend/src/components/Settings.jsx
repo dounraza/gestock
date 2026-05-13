@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { UserPlus, Building2, Save, Loader2, CheckCircle, Mail, Lock, User, MapPin, Phone, Hash, Box } from 'lucide-react';
+import { UserPlus, Building2, Save, Loader2, CheckCircle, Mail, Lock, User, MapPin, Phone, Hash } from 'lucide-react';
 
 export default function Settings({ session }) {
   const [activeTab, setActiveTab] = useState('profile');
@@ -23,8 +23,11 @@ export default function Settings({ session }) {
     fullName: ''
   });
 
+  const [users, setUsers] = useState([]);
+
   useEffect(() => {
     fetchProfile();
+    fetchUsers();
   }, []);
 
   const fetchProfile = async () => {
@@ -43,6 +46,33 @@ export default function Settings({ session }) {
         nif: data.nif || '',
         stat: data.stat || ''
       });
+    }
+  };
+
+  const fetchUsers = async () => {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('user_id, role');
+
+    if (error) {
+      console.error("Erreur récupération utilisateurs:", error);
+      return;
+    }
+    if (data) setUsers(data);
+  };
+
+  const updateRole = async (userId, newRole) => {
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .update({ role: newRole })
+        .eq('user_id', userId);
+      if (error) throw error;
+      fetchUsers();
+      setSuccessMessage('Rôle mis à jour !');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      alert(err.message);
     }
   };
 
@@ -69,20 +99,31 @@ export default function Settings({ session }) {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data, error: authError } = await supabase.auth.signUp({
+      // 1. Récupérer le rôle de l'admin actuel
+      const { data: adminData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', session.user.id)
+        .single();
+
+      // 2. Créer l'utilisateur
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: newUser.email,
-        password: newUser.password,
-        options: {
-          data: {
-            full_name: newUser.fullName
-          }
-        }
+        password: newUser.password
       });
 
       if (authError) throw authError;
 
-      setSuccessMessage('Utilisateur créé avec succès !');
+      // 3. Insérer le rôle dans user_roles
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert([{ user_id: authData.user.id, role: adminData?.role || 'user' }]);
+
+      if (roleError) throw roleError;
+
+      setSuccessMessage('Utilisateur et rôle créés avec succès !');
       setNewUser({ email: '', password: '', fullName: '' });
+      fetchUsers();
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       alert(err.message);
@@ -94,18 +135,18 @@ export default function Settings({ session }) {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Tabs */}
-      <div className="flex bg-white/60 backdrop-blur-md p-1.5 rounded-[2rem] border border-emerald-50 shadow-sm">
+      <div className="flex bg-white/60 backdrop-blur-md p-1.5 rounded-[2rem] border border-emerald-50 shadow-sm overflow-x-auto">
         <button 
           onClick={() => setActiveTab('profile')}
-          className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-xs font-black transition-all ${activeTab === 'profile' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200' : 'text-gray-500 hover:bg-emerald-50'}`}
+          className={`flex-1 flex items-center justify-center gap-2 py-4 px-6 rounded-2xl text-xs font-black transition-all ${activeTab === 'profile' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200' : 'text-gray-500 hover:bg-emerald-50'}`}
         >
-          <Building2 size={18} /> INFOS ENTREPRISE
+          <Building2 size={18} /> INFOS
         </button>
         <button 
           onClick={() => setActiveTab('users')}
-          className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-xs font-black transition-all ${activeTab === 'users' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200' : 'text-gray-500 hover:bg-emerald-50'}`}
+          className={`flex-1 flex items-center justify-center gap-2 py-4 px-6 rounded-2xl text-xs font-black transition-all ${activeTab === 'users' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200' : 'text-gray-500 hover:bg-emerald-50'}`}
         >
-          <UserPlus size={18} /> GÉRER UTILISATEURS
+          <UserPlus size={18} /> UTILISATEURS
         </button>
       </div>
 
@@ -188,94 +229,102 @@ export default function Settings({ session }) {
               {loading ? <Loader2 className="animate-spin" size={20} /> : <><Save size={20} /> Enregistrer les infos</>}
             </button>
           </form>
-        ) : activeTab === 'conversion' ? (
-          <div className="space-y-8">
-            <form onSubmit={addConversion} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-              <div className="md:col-span-1 space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Produit</label>
-                <select required className="w-full bg-white border border-emerald-100 rounded-2xl py-3 px-4 text-sm font-bold focus:ring-4 focus:ring-emerald-500/5 outline-none" value={newConversion.product_id} onChange={(e) => setNewConversion({...newConversion, product_id: e.target.value})}>
-                  <option value="">Sélectionner...</option>
-                  {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+        ) : (
+          <div className="space-y-12">
+            <form onSubmit={handleCreateUser} className="space-y-8">
+              <div className="space-y-6 max-w-lg mx-auto">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nom complet</label>
+                  <div className="relative">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={20} />
+                    <input 
+                      type="text" required
+                      className="w-full bg-white border border-emerald-100 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all"
+                      value={newUser.fullName}
+                      onChange={(e) => setNewUser({...newUser, fullName: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={20} />
+                    <input 
+                      type="email" required
+                      className="w-full bg-white border border-emerald-100 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all"
+                      value={newUser.email}
+                      onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Mot de passe provisoire</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={20} />
+                    <input 
+                      type="password" required minLength={6}
+                      className="w-full bg-white border border-emerald-100 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all"
+                      value={newUser.password}
+                      onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <button 
+                  type="submit" disabled={loading}
+                  className="w-full px-12 py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
+                >
+                  {loading ? <Loader2 className="animate-spin" size={20} /> : <><UserPlus size={20} /> Créer l'utilisateur</>}
+                </button>
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Unité Secondaire</label>
-                <input required type="text" placeholder="ex: Carton" className="w-full bg-white border border-emerald-100 rounded-2xl py-3 px-4 text-sm font-bold" value={newConversion.unite_secondaire} onChange={(e) => setNewConversion({...newConversion, unite_secondaire: e.target.value})} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Facteur</label>
-                <input required type="number" placeholder="ex: 20" className="w-full bg-white border border-emerald-100 rounded-2xl py-3 px-4 text-sm font-bold" value={newConversion.facteur} onChange={(e) => setNewConversion({...newConversion, facteur: e.target.value})} />
-              </div>
-              <button type="submit" className="bg-emerald-600 text-white rounded-2xl py-3 px-6 font-bold hover:bg-emerald-700 transition-all">Ajouter</button>
             </form>
-            <div className="border-t border-emerald-50 pt-8">
+
+            <div className="border-t border-emerald-50 pt-8 mt-8">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-sm font-black text-gray-500 uppercase">Configuration Sécurité</h3>
+                <button 
+                  onClick={async () => {
+                    setLoading(true);
+                    try {
+                      const { error } = await supabase.rpc('enable_read_access_for_all');
+                      if (error) throw error;
+                      alert('Accès en lecture ouvert pour toutes les tables !');
+                    } catch (err) {
+                      alert('Erreur : ' + err.message);
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                  className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-red-600 transition-all disabled:opacity-50"
+                >
+                  {loading ? 'Application...' : 'Ouvrir accès Lecture Total'}
+                </button>
+              </div>
               <table className="w-full">
                 <thead>
                   <tr className="text-[10px] text-gray-400 uppercase text-left">
-                    <th className="pb-4">Produit</th>
-                    <th className="pb-4">Unité</th>
-                    <th className="pb-4">Facteur</th>
+                    <th className="pb-4">Utilisateur</th>
+                    <th className="pb-4">Rôle</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-emerald-50">
-                  {conversions.map(c => (
-                    <tr key={c.id}>
-                      <td className="py-4 text-sm font-bold text-gray-700">{products.find(p => p.id === c.product_id)?.name || 'Produit inconnu'}</td>
-                      <td className="py-4 text-sm text-gray-600">{c.unite_secondaire}</td>
-                      <td className="py-4 text-sm text-gray-600">{c.facteur}</td>
+                  {users.map(u => (
+                    <tr key={u.user_id}>
+                      <td className="py-4">
+                        <div className="text-sm font-bold text-gray-800">{u.user_id}</div>
+                      </td>
+                      <td className="py-4">
+                        <select value={u.role} onChange={(e) => updateRole(u.user_id, e.target.value)} className="bg-emerald-50 text-emerald-700 font-bold text-xs rounded-lg py-1 px-2 cursor-pointer outline-none">
+                          <option value="user">Utilisateur</option>
+                          <option value="admin">Administrateur</option>
+                        </select>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
-        ) : (
-          <form onSubmit={handleCreateUser} className="space-y-8">
-            <div className="space-y-6 max-w-lg mx-auto">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nom complet</label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={20} />
-                  <input 
-                    type="text" required
-                    className="w-full bg-white border border-emerald-100 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all"
-                    value={newUser.fullName}
-                    onChange={(e) => setNewUser({...newUser, fullName: e.target.value})}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={20} />
-                  <input 
-                    type="email" required
-                    className="w-full bg-white border border-emerald-100 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Mot de passe provisoire</label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={20} />
-                  <input 
-                    type="password" required minLength={6}
-                    className="w-full bg-white border border-emerald-100 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                  />
-                </div>
-              </div>
-              <button 
-                type="submit" disabled={loading}
-                className="w-full px-12 py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="animate-spin" size={20} /> : <><UserPlus size={20} /> Créer l'utilisateur</>}
-              </button>
-            </div>
-          </form>
         )}
       </div>
     </div>

@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { Search, ShoppingCart, Trash2, Package, CheckCircle, Loader2, Plus, Minus, Tag, Send } from 'lucide-react';
 import Calculator from './Calculator';
+import confetti from 'canvas-confetti';
 
-export default function POS({ session }) {
+export default function POS({ session, selectedDepotId }) {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [activeInvoice, setActiveInvoice] = useState(null);
@@ -26,6 +27,7 @@ export default function POS({ session }) {
   const dragStart = useRef({ x: 0, y: 0 });
   const [currentPage, setCurrentPage] = useState(1);
   const [previewInvoice, setPreviewInvoice] = useState(null);
+  const [tokens, setTokens] = useState([]); 
   const itemsPerPage = 15;
 
   // ... (inside the component return, at the end)
@@ -211,7 +213,8 @@ export default function POS({ session }) {
         frequency: paymentMode === 'credit' ? creditType : null,
         due_date: paymentMode === 'credit' ? dueDate : new Date().toISOString().split('T')[0],
         advance_amount: advance,
-        status: 'paid'
+        status: 'paid',
+        depot_id: selectedDepotId // Store which depot the sale was made from
       }).eq('id', activeInvoice.id).select().single();
 
       if (updateError) {
@@ -230,20 +233,40 @@ export default function POS({ session }) {
       
       // Mise à jour du stock
       for (const item of invoiceItems) {
-        const { data: product, error: fetchProdError } = await supabase.from('produits').select('stock_quantity').eq('id', item.id).single();
-        if (fetchProdError) {
-            console.error("Fetch prod error:", fetchProdError);
-            throw fetchProdError;
-        }
-        if (product) {
-          const { error: updateProdError } = await supabase.from('produits')
-            .update({ stock_quantity: Number(product.stock_quantity) - Number(item.quantity) })
-            .eq('id', item.id);
-          if (updateProdError) {
-              console.error("Update prod error:", updateProdError);
-              throw updateProdError;
+        // Update depot-specific stock
+        if (selectedDepotId) {
+          const { data: depotStock } = await supabase
+            .from('stocks')
+            .select('id, quantity')
+            .eq('product_id', item.id)
+            .eq('depot_id', selectedDepotId)
+            .maybeSingle();
+
+          if (depotStock) {
+            await supabase.from('stocks')
+              .update({ quantity: Number(depotStock.quantity) - Number(item.quantity) })
+              .eq('id', depotStock.id);
+          } else {
+            // This case should normally not happen due to POS filtering, 
+            // but for safety we could insert if needed.
+            await supabase.from('stocks').insert([{
+              product_id: item.id,
+              depot_id: selectedDepotId,
+              quantity: -Number(item.quantity)
+            }]);
           }
         }
+        
+        // Record stock movement
+        await supabase.from('stock_movements').insert([{
+          product_id: item.id,
+          type: 'out',
+          quantity: item.quantity,
+          price_at_movement: item.price_at_sale,
+          reason: `Vente Facture #${updatedInvoice.number}`,
+          user_id: session?.user?.id,
+          depot_id: selectedDepotId
+        }]);
       }
       
       alert('Paiement finalisé !');
@@ -262,12 +285,35 @@ export default function POS({ session }) {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data } = await supabase.from('produits').select('*, categories:categories(*)').order('name');
-      setProducts(data || []);
-      setFilteredProducts(data || []);
+      // Fetch products and join with stocks table for the selected depot
+      let query = supabase
+        .from('produits')
+        .select(`
+          *,
+          categories:categories(*),
+          stocks!inner(*)
+        `)
+        .eq('stocks.depot_id', selectedDepotId)
+        .order('name');
+
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error("Error fetching products with stock:", error);
+      }
+
+      if (data) {
+        // Map stock quantity from the joined stocks table
+        const formattedData = data.map(p => ({
+          ...p,
+          stock_quantity: p.stocks?.[0]?.quantity || 0
+        }));
+        setProducts(formattedData);
+        setFilteredProducts(formattedData);
+      }
     };
-    fetchData();
-  }, []);
+    if (selectedDepotId) fetchData();
+  }, [selectedDepotId]);
 
   useEffect(() => {
     const term = searchTerm.toLowerCase().trim();
@@ -284,6 +330,21 @@ export default function POS({ session }) {
   const openDiscountModalForItem = (item) => {
     if (!item || item.isGlobal) setDiscountModal({ itemId: 'global', name: 'Globale', isGlobal: true, value: globalDiscount.value, type: globalDiscount.type });
     else setDiscountModal({ itemId: item.item_id, name: item.name, isGlobal: false, value: item.discount?.value || 0, type: item.discount?.type || '%' });
+  };
+
+  const formatQuantity = (quantity, product) => {
+    if (!product || !product.quantite_par_unite) return `${quantity} ${product?.unite_base || 'Pce'}`;
+    const qpu = Number(product.quantite_par_unite);
+    if (qpu <= 1) return `${quantity} ${product.unite_base || 'Pce'}`;
+    
+    const superior = Math.floor(quantity / qpu);
+    const base = quantity % qpu;
+    
+    let result = '';
+    if (superior > 0) result += `${superior} ${product.unite_superieure || 'Sac'} `;
+    if (base > 0) result += `+ ${base} ${product.unite_base || 'Kg'}`;
+    
+    return result.trim() || `${quantity} ${product.unite_base}`;
   };
 
   return (
@@ -304,30 +365,26 @@ export default function POS({ session }) {
             {/* Cart Header */}
             <div className="grid grid-cols-12 gap-1 px-2 py-1 bg-emerald-50 text-[8px] font-black text-emerald-800 uppercase border-b border-emerald-100">
               <div className="col-span-3">Produit</div>
-              <div className="col-span-1 text-center">Qté</div>
-              <div className="col-span-2 text-center">Unité</div>
+              <div className="col-span-2 text-center">Qté</div>
               <div className="col-span-2 text-center">Remise</div>
-              <div className="col-span-2 text-right">PU</div>
-              <div className="col-span-1 text-right">Total</div>
-              <div className="col-span-1 text-center">Action</div>
+              <div className="col-span-3 text-right">Total</div>
+              <div className="col-span-2 text-center">Action</div>
             </div>
             {/* Cart Items */}
             <div className="flex-1 overflow-y-auto p-1.5 space-y-1">
               {invoiceItems.map(item => (
                 <div key={item.item_id} onClick={() => { setActiveItemId(item.item_id); setIsCalculatorOpen(true); }} className="grid grid-cols-12 gap-1 items-center px-2 py-2 border-b border-gray-50 hover:bg-emerald-50 cursor-pointer">
                   <div className="col-span-3 font-black text-[9px] uppercase truncate">{item.name}</div>
-                  <div className="col-span-1 text-center font-black text-xs bg-emerald-100 rounded">{item.quantity}</div>
-                  <div className="col-span-2 text-center text-[8px] font-bold text-gray-500 italic">
-                    {item.quantite_par_unite > 1 ? `${item.unite_superieure || 'Ctn'}` : `${item.unite_base || 'Pce'}`}
+                  <div className="col-span-2 text-center font-black text-[10px] bg-emerald-100 rounded">
+                    {formatQuantity(item.quantity, item)}
                   </div>
                   <div className="col-span-2 text-center">
                     <button onClick={(e) => { e.stopPropagation(); openDiscountModalForItem(item); }} className="text-[9px] font-bold text-orange-600">
                       {item.discount ? `${item.discount.value}${item.discount.type}` : '+'}
                     </button>
                   </div>
-                  <div className="col-span-2 text-right font-black text-[9px]">{item.price_at_sale.toLocaleString()}</div>
-                  <div className="col-span-1 text-right font-black text-xs">{calculateItemTotal(item).toLocaleString()}</div>
-                  <div className="col-span-1 text-center">
+                  <div className="col-span-3 text-right font-black text-[9px]">{calculateItemTotal(item).toLocaleString()} Ar</div>
+                  <div className="col-span-2 text-center">
                     <button onClick={(e) => { e.stopPropagation(); removeItem(item.item_id, item.item_id); }} className="text-red-400 hover:text-red-600"><Trash2 size={12} /></button>
                   </div>
                 </div>
@@ -404,28 +461,6 @@ export default function POS({ session }) {
                 </div>
                 </div>
                 </div>
-
-                {/* ... (Calculator and Discount Modals) ... */}
-
-                {/* Remplacer le contenu du Panier dans le bloc JSX ci-dessus */}
-                {/* <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-100 grid grid-cols-12 gap-1 text-[7px] font-black text-gray-400 uppercase">
-                <div className="col-span-4">Produit</div>
-                <div className="col-span-2 text-center">Qté</div>
-                <div className="col-span-2 text-center">Remise</div>
-                <div className="col-span-4 text-right">Total</div>
-                </div> */}
-                {invoiceItems.map(item => (
-                <div key={item.item_id} onClick={() => { setActiveItemId(item.item_id); setIsCalculatorOpen(true); }} className="grid grid-cols-12 gap-1 items-center px-2 py-2 border-b border-gray-50">
-                <div className="col-span-4 font-black text-[10px] uppercase truncate">{item.name}</div>
-                <div className="col-span-2 text-center font-black text-xs bg-emerald-50 rounded">{item.quantity}</div>
-                <div className="col-span-2 text-center text-[9px] font-bold text-orange-600">
-                <button onClick={(e) => { e.stopPropagation(); openDiscountModalForItem(item); }}>
-                    {item.discount ? `${item.discount.value}${item.discount.type}` : '+'}
-                </button>
-                </div>
-                <div className="col-span-4 text-right font-black text-xs">{calculateItemTotal(item).toLocaleString()} Ar</div>
-                </div>
-                ))}
 
       {isCalculatorOpen && (
         <div 

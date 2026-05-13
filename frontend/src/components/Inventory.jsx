@@ -6,11 +6,12 @@ import {
   LayoutGrid, List 
 } from 'lucide-react';
 
-export default function Inventory() {
+export default function Inventory({ selectedDepotId }) {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [depots, setDepots] = useState([]);
   const [unites, setUnites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,7 +19,7 @@ export default function Inventory() {
   const [showModal, setShowModal] = useState(false);
   const [showStockModal, setShowStockModal] = useState(false); 
   const [selectedProductForStock, setSelectedProductForStock] = useState(null); 
-  const [stockFormData, setStockFormData] = useState({ type: 'in', quantity: '', reason: '', unit: 'base', entry_type: 'physique' });
+  const [stockFormData, setStockFormData] = useState({ type: 'in', quantity: '', reason: '', unit: 'base', entry_type: 'physique', destination_depot: 'Magasin Principal' });
   const [stockHistoryModal, setStockHistoryModal] = useState(false); 
   const [selectedProductForHistory, setSelectedProductForHistory] = useState(null); 
   const [stockMovements, setStockMovements] = useState([]); 
@@ -160,14 +161,48 @@ export default function Inventory() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data: prods } = await supabase.from('produits').select('*, categories(name), fournisseurs(name), unites_standards(*)');
+      // Fetch data
+      const { data: depotList } = await supabase.from('depots').select('*').order('name');
+      if (depotList) setDepots(depotList);
+
+      let query = supabase
+        .from('produits')
+        .select(`
+          *, 
+          categories(name), 
+          fournisseurs(name), 
+          unites_standards(*),
+          stocks(*)
+        `)
+        .order('name');
+
+      const { data: prods } = await query;
       const { data: cats } = await supabase.from('categories').select('*').order('name');
       const { data: sups } = await supabase.from('fournisseurs').select('*').order('name');
       const { data: units } = await supabase.from('unites_standards').select('*').order('nom');
       
       if (prods) {
-        setProducts(prods);
-        setFilteredProducts(prods);
+        // Map stock quantity to the one from the selected depot
+        const formattedProds = prods.map(p => {
+          const depotStock = p.stocks?.find(s => s.depot_id === selectedDepotId);
+          return {
+            ...p,
+            stock_quantity: depotStock ? Number(depotStock.quantity) : 0
+          };
+        });
+        
+        // Find selected depot object using the fresh list
+        const selectedDepot = (depotList || []).find(d => d.id === selectedDepotId);
+        
+        // If it's 'Dépôt Principal', show all products. Otherwise, only show with stock.
+        const isPrincipal = selectedDepot && selectedDepot.name.toLowerCase().includes('principal');
+        
+        const productsToDisplay = isPrincipal 
+          ? formattedProds 
+          : formattedProds.filter(p => p.stock_quantity > 0);
+        
+        setProducts(formattedProds); // Keep all for search/filtering
+        setFilteredProducts(productsToDisplay);
       }
       if (cats) setCategories(cats);
       if (sups) setSuppliers(sups);
@@ -181,7 +216,7 @@ export default function Inventory() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedDepotId]);
 
   useEffect(() => {
     let currentProducts = [...products];
@@ -217,7 +252,6 @@ export default function Inventory() {
     const payload = {
       name: formData.name,
       price: parseFloat(formData.price) || 0,
-      stock_quantity: stockQty,
       category_id: formData.category_id || null,
       fournisseur_id: formData.fournisseur_id || null,
       description: formData.description || '',
@@ -247,6 +281,15 @@ export default function Inventory() {
       
       if (error) alert(error.message);
       else {
+        // Mettre à jour le stock du dépôt spécifique
+        if (selectedDepotId) {
+          await supabase.from('stocks').upsert({
+            product_id: editingProduct.id,
+            depot_id: selectedDepotId,
+            quantity: stockQty
+          }, { onConflict: 'product_id, depot_id' });
+        }
+
         if (stockDifference !== 0) {
           await supabase.from('stock_movements').insert([
             {
@@ -255,7 +298,8 @@ export default function Inventory() {
               quantity: Math.abs(stockDifference),
               price_at_movement: editingProduct.price,
               reason: stockDifference > 0 ? 'Mise à jour (Entrée)' : 'Mise à jour (Sortie)',
-              user_id: user.id
+              user_id: user.id,
+              depot_id: selectedDepotId
             }
           ]);
         }
@@ -269,15 +313,25 @@ export default function Inventory() {
       }]).select().single();
       if (error) alert(error.message);
       else {
-        if (newProduct.stock_quantity > 0) {
+        // Affecter au dépôt sélectionné
+        if (selectedDepotId) {
+          await supabase.from('stocks').insert([{
+            product_id: newProduct.id,
+            depot_id: selectedDepotId,
+            quantity: stockQty
+          }]);
+        }
+
+        if (stockQty > 0) {
           await supabase.from('stock_movements').insert([
             {
               product_id: newProduct.id,
               type: 'in',
-              quantity: newProduct.stock_quantity,
+              quantity: stockQty,
               price_at_movement: newProduct.price,
               reason: 'Nouvel ajout de produit (Entrée initiale)',
-              user_id: user.id
+              user_id: user.id,
+              depot_id: selectedDepotId
             }
           ]);
         }
@@ -370,26 +424,26 @@ export default function Inventory() {
       return;
     }
 
-    let newStock = selectedProductForStock.stock_quantity;
-    if (stockFormData.type === 'in') {
-      newStock += quantity;
-    } else {
-      newStock -= quantity;
-    }
+    // Mise à jour du stock par dépôt
+    if (selectedDepotId) {
+      const { data: existingStock } = await supabase
+        .from('stocks')
+        .select('*')
+        .eq('product_id', selectedProductForStock.id)
+        .eq('depot_id', selectedDepotId)
+        .maybeSingle();
 
-    if (newStock < 0) {
-      alert("Le stock ne peut pas être négatif.");
-      return;
-    }
-
-    const { error: productUpdateError } = await supabase
-      .from('produits')
-      .update({ stock_quantity: newStock })
-      .eq('id', selectedProductForStock.id);
-
-    if (productUpdateError) {
-      alert("Erreur mise à jour stock produit: " + productUpdateError.message);
-      return;
+      if (existingStock) {
+        const newDepotStock = Number(existingStock.quantity) + (stockFormData.type === 'in' ? quantity : -quantity);
+        await supabase.from('stocks').update({ quantity: newDepotStock }).eq('id', existingStock.id);
+      } else {
+        const newDepotStock = stockFormData.type === 'in' ? quantity : -quantity;
+        await supabase.from('stocks').insert([{ 
+          product_id: selectedProductForStock.id, 
+          depot_id: selectedDepotId, 
+          quantity: newDepotStock 
+        }]);
+      }
     }
 
     const { error: movementInsertError } = await supabase
@@ -401,7 +455,9 @@ export default function Inventory() {
           quantity: quantity,
           price_at_movement: selectedProductForStock.price,
           reason: `[${stockFormData.entry_type.toUpperCase()}] ` + stockFormData.reason + (stockFormData.unit === 'superieure' ? ` (${stockFormData.quantity} ${selectedProductForStock.unite_superieure})` : ''),
-          user_id: user.id
+          destination_depot: stockFormData.destination_depot,
+          user_id: user.id,
+          depot_id: selectedDepotId
         }
       ]);
 
@@ -410,7 +466,7 @@ export default function Inventory() {
       return;
     }
 
-    setStockFormData({ type: 'in', quantity: '', reason: '', unit: 'base', entry_type: 'physique' });
+    setStockFormData({ type: 'in', quantity: '', reason: '', unit: 'base', entry_type: 'physique', destination_depot: 'Magasin Principal' });
     setSelectedProductForStock(null);
     setShowStockModal(false);
     fetchData();
@@ -566,18 +622,40 @@ export default function Inventory() {
           ? parseInt(item.quantity) * (product.quantite_par_unite || 1) 
           : parseInt(item.quantity);
 
-        const newStock = product.stock_quantity + quantityToAdd;
-        const updatePayload = { stock_quantity: newStock };
+        const updatePayload = {};
         if (item.selling_price_per_unit) {
           updatePayload.price = parseFloat(item.selling_price_per_unit);
         }
 
-        const { error: productUpdateError } = await supabase
-          .from('produits')
-          .update(updatePayload)
-          .eq('id', item.product_id);
+        if (Object.keys(updatePayload).length > 0) {
+          const { error: productUpdateError } = await supabase
+            .from('produits')
+            .update(updatePayload)
+            .eq('id', item.product_id);
 
-        if (productUpdateError) throw productUpdateError;
+          if (productUpdateError) throw productUpdateError;
+        }
+
+        // Mise à jour du stock par dépôt
+        if (selectedDepotId) {
+          const { data: existingStock } = await supabase
+            .from('stocks')
+            .select('*')
+            .eq('product_id', item.product_id)
+            .eq('depot_id', selectedDepotId)
+            .maybeSingle();
+
+          if (existingStock) {
+            const newDepotStock = Number(existingStock.quantity) + quantityToAdd;
+            await supabase.from('stocks').update({ quantity: newDepotStock }).eq('id', existingStock.id);
+          } else {
+            await supabase.from('stocks').insert([{ 
+              product_id: item.product_id, 
+              depot_id: selectedDepotId, 
+              quantity: quantityToAdd 
+            }]);
+          }
+        }
 
         await supabase.from('stock_movements').insert([{
           product_id: item.product_id,
@@ -585,7 +663,8 @@ export default function Inventory() {
           quantity: quantityToAdd,
           price_at_movement: parseFloat(item.purchase_price_per_unit) / (item.unit === 'superieure' ? (product.quantite_par_unite || 1) : 1),
           reason: `Réception BL #${bl.id.slice(0,8)}`,
-          user_id: user.id
+          user_id: user.id,
+          depot_id: selectedDepotId
         }]);
       }
 
@@ -612,12 +691,12 @@ export default function Inventory() {
     const q = Number(quantity) || 0;
     const qpu = Number(p.quantite_par_unite) || 1;
     const uSup = p.unite_superieure || 'Cartons';
-    const uBase = p.unite_base || 'paquet';
+    const uBase = p.unite_base || 'unité';
 
     if (qpu > 1) {
       const superior = Math.floor(q / qpu);
       const base = q % qpu;
-      return `${superior} ${uSup} (${qpu}${uBase}) + ${base} ${uBase}`;
+      return `${superior} ${uSup} + ${base} ${uBase}`;
     }
     return `${q} ${uBase}`;
   };
@@ -1063,6 +1142,9 @@ export default function Inventory() {
             <div className="p-8 border-b border-emerald-50 flex justify-between items-center">
               <h3 className="text-xl font-bold text-gray-800">
                 Gérer le stock de "{selectedProductForStock.name}"
+                <span className="block text-xs font-black text-emerald-600 mt-1 uppercase tracking-widest">
+                  Dépôt: {depots.find(d => d.id === selectedDepotId)?.name || 'Chargement...'}
+                </span>
               </h3>
               <button onClick={() => {setShowStockModal(false); setSelectedProductForStock(null); setStockFormData({ type: 'in', quantity: '', reason: '', unit: 'base', entry_type: 'physique' });}} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
             </div>

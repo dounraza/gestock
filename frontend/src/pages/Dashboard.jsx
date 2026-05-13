@@ -17,15 +17,20 @@ import {
   Tag,
   Menu,
   X,
+  ChevronDown,
   ShoppingCart,
   Calendar,
   Clock,
   Settings as SettingsIcon,
   Box,
   Shield,
-  DollarSign
+  DollarSign,
+  Building2,
+  ArrowRightLeft
 } from 'lucide-react';
 import Inventory from '../components/Inventory';
+import ProductList from '../components/ProductList';
+import StockEntry from '../components/StockEntry';
 import Clients from '../components/Clients';
 import Suppliers from '../components/Suppliers';
 import Categories from '../components/Categories';
@@ -33,10 +38,13 @@ import Billing from '../components/Billing';
 import POS from '../components/POS';
 import Deadlines from '../components/Deadlines';
 import CreditHistory from '../components/CreditHistory';
+import SupplierCredits from '../components/SupplierCredits';
 import Settings from '../components/Settings';
+import Depots from '../components/Depots';
+import StockTransfer from '../components/StockTransfer';
 import Conversions from '../components/Conversions';
 import SalesDashboard from '../components/SalesDashboard';
-import Historique from '../components/Historique';
+import StockHistory from '../components/StockHistory';
 import Decaissement from '../components/Decaissement';
 
 export default function Dashboard({ session }) {
@@ -51,6 +59,8 @@ export default function Dashboard({ session }) {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [dashboardSearchTerm, setDashboardSearchTerm] = useState('');
+  const [depots, setDepots] = useState([]);
+  const [selectedDepotId, setSelectedDepotId] = useState(localStorage.getItem('selectedDepotId') || '');
   const [stats, setStats] = useState({
     totalSales: 0,
     stockAlerts: 0,
@@ -69,6 +79,27 @@ export default function Dashboard({ session }) {
   const handleViewClientCredit = (clientName) => {
     setDeadlineSearchTerm(clientName);
     navigate('/dashboard/deadlines');
+  };
+
+  const fetchDepots = async () => {
+    const { data } = await supabase.from('depots').select('*').order('name');
+    if (data) {
+      setDepots(data);
+      if (!selectedDepotId) {
+        const principalDepot = data.find(d => d.name.toLowerCase().includes('principal'));
+        const defaultId = principalDepot ? principalDepot.id : (data.length > 0 ? data[0].id : '');
+        if (defaultId) {
+          setSelectedDepotId(defaultId);
+          localStorage.setItem('selectedDepotId', defaultId);
+        }
+      }
+    }
+  };
+
+  const handleDepotChange = (e) => {
+    const newId = e.target.value;
+    setSelectedDepotId(newId);
+    localStorage.setItem('selectedDepotId', newId);
   };
 
   const fetchStats = async () => {
@@ -111,13 +142,17 @@ export default function Dashboard({ session }) {
 
   useEffect(() => {
     fetchStats();
+    fetchDepots();
   }, []);
+
+  const [isInventoryOpen, setIsInventoryOpen] = useState(false);
 
   const getTitle = () => {
     switch(activeTab) {
       case 'dashboard': return "Vue d'ensemble";
       case 'pos': return "Caisse / Vente Directe";
-      case 'inventory': return "Stock & Denrées";
+      case 'inventory': return "Stock & Denrées (Appro)";
+      case 'stock-entry': return "Entrée de Stock";
       case 'clients': return "Clients";
       case 'suppliers': return "Fournisseurs";
       case 'categories': return "Catégories";
@@ -125,6 +160,7 @@ export default function Dashboard({ session }) {
       case 'deadlines': return "Échéancier";
       case 'credit_history': return "Historique Crédits";
       case 'settings': return "Paramètres & Utilisateurs";
+      case 'historique': return "Historique des Actions";
       default: return "Dashboard";
     }
   };
@@ -179,7 +215,8 @@ export default function Dashboard({ session }) {
               <div className="space-y-1">
                 <NavItem icon={<FileText size={20} />} label="Facturation" active={activeTab === 'billing'} onClick={() => { navigate('/dashboard/billing'); closeSidebar(); }} />
                 <NavItem icon={<Calendar size={20} />} label="Échéancier" active={activeTab === 'deadlines'} onClick={() => { navigate('/dashboard/deadlines'); closeSidebar(); }} />
-                <NavItem icon={<Clock size={20} />} label="Crédits" active={activeTab === 'credit_history'} onClick={() => { navigate('/dashboard/credit_history'); closeSidebar(); }} />
+                <NavItem icon={<Clock size={20} />} label="Crédits Clients" active={activeTab === 'credit_history'} onClick={() => { navigate('/dashboard/credit_history'); closeSidebar(); }} />
+                <NavItem icon={<Truck size={20} />} label="Crédits Fournisseurs" active={activeTab === 'supplier_credits'} onClick={() => { navigate('/dashboard/supplier_credits'); closeSidebar(); }} badge={stats.overdueCredits} />
                 <NavItem icon={<DollarSign size={20} />} label="Décaissements" active={activeTab === 'decaissement'} onClick={() => { navigate('/dashboard/decaissement'); closeSidebar(); }} />
               </div>
             </div>
@@ -188,9 +225,60 @@ export default function Dashboard({ session }) {
             <div>
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Stock & Logistique</p>
               <div className="space-y-1">
-                <NavItem icon={<Package size={20} />} label="Inventaire" active={activeTab === 'inventory'} onClick={() => { navigate('/dashboard/inventory'); closeSidebar(); }} />
+                <div className="space-y-1">
+                  <button 
+                    onClick={() => setIsInventoryOpen(!isInventoryOpen)}
+                    className={`flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all w-full text-left ${
+                      ['inventory', 'products', 'stock-entry', 'historique'].includes(activeTab)
+                        ? 'bg-emerald-50 text-emerald-600' 
+                        : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <Package size={20} />
+                      <span className="font-bold text-sm tracking-tight">Gestion Stock</span>
+                    </div>
+                    <ChevronDown size={16} className={`transition-transform ${isInventoryOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {isInventoryOpen && (
+                    <div className="ml-6 mt-1 space-y-1 border-l-2 border-emerald-100 pl-4">
+                      <button 
+                        onClick={() => { navigate('/dashboard/products'); closeSidebar(); }}
+                        className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'products' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                      >
+                        Stock Principal
+                      </button>
+                      <button 
+                        onClick={() => { navigate('/dashboard/inventory'); closeSidebar(); }}
+                        className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'inventory' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                      >
+                        Stock par Dépôt
+                      </button>
+                      <button 
+                        onClick={() => { navigate('/dashboard/stock-entry'); closeSidebar(); }}
+                        className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'stock-entry' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                      >
+                        Entrée de Stock
+                      </button>
+                      <button 
+                        onClick={() => { navigate('/dashboard/historique'); closeSidebar(); }}
+                        className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'historique' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                      >
+                        Historique
+                      </button>
+                      <button 
+                        onClick={() => { navigate('/dashboard/stock-transfer'); closeSidebar(); }}
+                        className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'stock-transfer' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                      >
+                        Transfert
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <NavItem icon={<Box size={20} />} label="Conversions" active={activeTab === 'conversions'} onClick={() => { navigate('/dashboard/conversions'); closeSidebar(); }} />
                 <NavItem icon={<Tag size={20} />} label="Catégories" active={activeTab === 'categories'} onClick={() => { navigate('/dashboard/categories'); closeSidebar(); }} />
+                <NavItem icon={<Building2 size={20} />} label="Dépôts" active={activeTab === 'depots'} onClick={() => { navigate('/dashboard/depots'); closeSidebar(); }} />
               </div>
             </div>
 
@@ -199,7 +287,6 @@ export default function Dashboard({ session }) {
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Système</p>
               <div className="space-y-1">
                 <NavItem icon={<SettingsIcon size={20} />} label="Paramètres" active={activeTab === 'settings'} onClick={() => { navigate('/dashboard/settings'); closeSidebar(); }} />
-                <NavItem icon={<Shield size={20} />} label="Historique" active={activeTab === 'historique'} onClick={() => { navigate('/dashboard/historique'); closeSidebar(); }} />
               </div>
             </div>
           </nav>
@@ -241,6 +328,18 @@ export default function Dashboard({ session }) {
           </div>
 
           <div className="flex items-center gap-3 md:gap-6">
+            <div className="hidden sm:flex items-center gap-2 bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-1.5">
+              <Building2 size={16} className="text-emerald-600" />
+              <select 
+                className="bg-transparent border-none text-xs font-black text-emerald-800 focus:ring-0 outline-none cursor-pointer"
+                value={selectedDepotId}
+                onChange={handleDepotChange}
+              >
+                {depots.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
             <div className="relative w-40 md:w-64 hidden sm:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input 
@@ -383,8 +482,10 @@ export default function Dashboard({ session }) {
                 </div>
               </div>
             } />
-            <Route path="pos" element={<POS session={session} />} />
-            <Route path="inventory" element={<Inventory />} />
+            <Route path="pos" element={<POS session={session} selectedDepotId={selectedDepotId} />} />
+            <Route path="products" element={<ProductList />} />
+            <Route path="inventory" element={<Inventory selectedDepotId={selectedDepotId} />} />
+            <Route path="stock-entry" element={<StockEntry />} />
             <Route path="categories" element={<Categories />} />
             <Route path="clients" element={<Clients onViewCredit={handleViewClientCredit} />} />
             <Route path="suppliers" element={<Suppliers />} />
@@ -397,10 +498,13 @@ export default function Dashboard({ session }) {
               onSearchReset={() => setDeadlineSearchTerm('')}
             />} />
             <Route path="credit_history" element={<CreditHistory />} />
+            <Route path="supplier_credits" element={<SupplierCredits />} />
             <Route path="decaissement" element={<Decaissement session={session} />} />
             <Route path="sales-analytics" element={<SalesDashboard />} />
-            <Route path="historique" element={<Historique />} />
+            <Route path="historique" element={<StockHistory />} />
             <Route path="conversions" element={<Conversions session={session} />} />
+            <Route path="depots" element={<Depots />} />
+            <Route path="stock-transfer" element={<StockTransfer />} />
             <Route path="settings" element={<Settings session={session} />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
@@ -413,11 +517,11 @@ export default function Dashboard({ session }) {
 
 
 
-function NavItem({ icon, label, active = false, onClick }) {
+function NavItem({ icon, label, active = false, onClick, badge }) {
   return (
     <button 
       onClick={onClick}
-      className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all w-full text-left ${
+      className={`relative flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all w-full text-left ${
         active 
           ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200' 
           : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'
@@ -425,6 +529,11 @@ function NavItem({ icon, label, active = false, onClick }) {
     >
       {icon}
       <span className="font-bold text-sm tracking-tight">{label}</span>
+      {badge > 0 && (
+        <span className="absolute right-4 top-1/2 -translate-y-1/2 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full animate-bounce">
+            {badge}
+        </span>
+      )}
     </button>
   );
 }

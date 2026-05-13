@@ -74,10 +74,35 @@ const handleCancelInvoice = async (invoice) => {
 
   try {
       console.log("Attempting cancellation for invoice:", invoice.id);
-      // 1. Restore stock
+      
+      // 1. Restore stock in the correct depot
       for (const item of invoice.facture_items) {
-          const { data: product } = await supabase.from('produits').select('stock_quantity').eq('id', item.produit_id).single();
-          await supabase.from('produits').update({ stock_quantity: product.stock_quantity + item.quantity }).eq('id', item.produit_id);
+          // Si depot_id est présent sur la facture, on restaure dans ce dépôt
+          if (invoice.depot_id) {
+            const { data: depotStock } = await supabase
+              .from('stocks')
+              .select('id, quantity')
+              .eq('product_id', item.produit_id)
+              .eq('depot_id', invoice.depot_id)
+              .maybeSingle();
+
+            if (depotStock) {
+              await supabase.from('stocks')
+                .update({ quantity: Number(depotStock.quantity) + Number(item.quantity) })
+                .eq('id', depotStock.id);
+            } else {
+              // Si pas de stock trouvé pour ce produit dans ce dépôt, on l'insère
+              await supabase.from('stocks').insert([{
+                product_id: item.produit_id,
+                depot_id: invoice.depot_id,
+                quantity: item.quantity
+              }]);
+            }
+          } else {
+            // Fallback pour compatibilité ascendante si depot_id n'est pas sur la facture
+            const { data: product } = await supabase.from('produits').select('stock_quantity').eq('id', item.produit_id).single();
+            await supabase.from('produits').update({ stock_quantity: product.stock_quantity + item.quantity }).eq('id', item.produit_id);
+          }
       }
       // 2. Mark invoice as cancelled
       await supabase.from('factures').update({ status: 'cancelled' }).eq('id', invoice.id);
