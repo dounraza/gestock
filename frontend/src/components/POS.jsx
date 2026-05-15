@@ -27,6 +27,8 @@ export default function POS({ session, selectedDepotId }) {
   const dragStart = useRef({ x: 0, y: 0 });
   const [currentPage, setCurrentPage] = useState(1);
   const [previewInvoice, setPreviewInvoice] = useState(null);
+  const [clientName, setClientName] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
   const [tokens, setTokens] = useState([]); 
   const itemsPerPage = 15;
 
@@ -57,7 +59,31 @@ export default function POS({ session, selectedDepotId }) {
                         </div>
                     </div>
                     <div className="border-t border-b border-gray-200 py-4 mb-4">
-                        <div className="flex justify-between font-black text-lg">
+                        <table className="w-full text-left text-sm border-collapse">
+                            <thead>
+                                <tr className="border-b border-gray-200 text-gray-500 text-[10px] uppercase">
+                                    <th className="py-2">Désignation</th>
+                                    <th className="py-2 text-center">Qté</th>
+                                    <th className="py-2 text-right">P.U</th>
+                                    <th className="py-2 text-center">Remise</th>
+                                    <th className="py-2 text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {invoiceItems.map(item => (
+                                    <tr key={item.item_id} className="border-b border-gray-50">
+                                        <td className="py-2 font-bold">{item.name}</td>
+                                        <td className="py-2 text-center">{item.quantity}</td>
+                                        <td className="py-2 text-right">{item.price_at_sale.toLocaleString()}</td>
+                                        <td className="py-2 text-center text-orange-600 font-bold">
+                                            {item.discount ? `${item.discount.value}${item.discount.type}` : '-'}
+                                        </td>
+                                        <td className="py-2 text-right font-bold">{calculateItemTotal(item).toLocaleString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <div className="flex justify-between font-black text-lg pt-4">
                             <span>Total</span>
                             <span>{parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</span>
                         </div>
@@ -168,17 +194,17 @@ export default function POS({ session, selectedDepotId }) {
     }
   };
 
-  const updateInvoiceGuestInfo = (field, value) => setActiveInvoice(prev => ({ ...prev, [field]: value }));
-  const removeItem = async (itemId, supabaseItemId) => {
-    setInvoiceItems(prev => prev.filter(item => item.item_id !== itemId));
-    if (supabaseItemId) await supabase.from('facture_items').delete().eq('id', supabaseItemId);
-  };
-
-  const calculateItemTotal = (item) => {
+  function calculateItemTotal(item) {
     const baseTotal = item.quantity * item.price_at_sale;
     if (!item.discount) return baseTotal;
     const disc = parseFloat(item.discount.value);
     return item.discount.type === '%' ? baseTotal - (baseTotal * (disc / 100)) : baseTotal - disc;
+  }
+
+  const updateInvoiceGuestInfo = (field, value) => setActiveInvoice(prev => ({ ...prev, [field]: value }));
+  const removeItem = async (itemId, supabaseItemId) => {
+    setInvoiceItems(prev => prev.filter(item => item.item_id !== itemId));
+    if (supabaseItemId) await supabase.from('facture_items').delete().eq('id', supabaseItemId);
   };
 
   const applyDiscount = async (itemId, type, value) => {
@@ -405,13 +431,20 @@ export default function POS({ session, selectedDepotId }) {
                 <button onClick={() => setPaymentMode('credit')} className={`py-1.5 rounded text-[8px] font-black ${paymentMode === 'credit' ? 'bg-orange-500 text-white' : 'text-emerald-400'}`}>CRÉDIT</button>
              </div>
 
+             <div className="p-2 bg-emerald-900/30 rounded-lg mb-2">
+                <label className="flex items-center gap-2 text-[8px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
+                  <input type="checkbox" checked={printInvoice} onChange={() => setPrintInvoice(!printInvoice)} className="accent-emerald-500" /> 
+                  IMPRIMER LA FACTURE
+                </label>
+             </div>
+
              {paymentMode === 'cash' && (
                 <div className="grid grid-cols-1 gap-1 p-2 bg-emerald-900/30 rounded-lg">
-                    <label className="flex items-center gap-2 text-[8px] font-bold"><input type="checkbox" checked={printInvoice} onChange={() => setPrintInvoice(!printInvoice)} /> Imprimer facture</label>
                     <label className="flex items-center gap-2 text-[8px] font-bold"><input type="checkbox" checked={isWithdrawal} onChange={() => setIsWithdrawal(!isWithdrawal)} /> Prélèvement</label>
                     <label className="flex items-center gap-2 text-[8px] font-bold"><input type="checkbox" checked={isOther} onChange={() => setIsOther(!isOther)} /> Autre</label>
                 </div>
              )}
+
 
              {paymentMode === 'credit' && (
                 <div className="grid grid-cols-1 gap-2 bg-emerald-900/30 p-2 rounded-lg border border-white/10 mt-2">
@@ -492,24 +525,66 @@ export default function POS({ session, selectedDepotId }) {
       
       {/* Invoice Preview Modal */}
       {previewInvoice && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 print:hidden">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <style>{`
             @media print {
-              body > *:not(#printable-invoice-container) { display: none !important; }
-              #printable-invoice-container { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+              @page {
+                margin: 0 !important;
+                size: auto;
+              }
+              body, html {
+                margin: 0 !important;
+                padding: 0 !important;
+                visibility: hidden;
+              }
+              #printable-invoice-container {
+                visibility: visible !important;
+                display: block !important;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                padding: 20px !important;
+                border: none !important;
+                box-shadow: none !important;
+                background: white !important;
+                color: black !important;
+                border-radius: 0 !important;
+              }
+              #printable-invoice-container * {
+                visibility: visible !important;
+              }
+              .print\\:hidden {
+                display: none !important;
+              }
             }
           `}</style>
           <div id="printable-invoice-container" className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 print:hidden">
-              <h3 className="font-black text-gray-800">Prévisualisation de la facture</h3>
-              <div className="flex gap-2">
-                <button onClick={() => { setPreviewInvoice(null); window.location.reload(); }} className="px-4 py-2 text-sm font-bold text-gray-500">Fermer</button>
-                <button onClick={() => window.print()} className="px-6 py-2 bg-emerald-600 text-white font-black rounded-xl text-sm">Imprimer</button>
+            <div className="p-6 border-b border-gray-100 flex flex-wrap justify-between items-center bg-gray-50 print:hidden gap-3">
+              <h3 className="font-black text-gray-800 text-sm">Prévisualisation</h3>
+              <div className="flex flex-wrap gap-2 items-center">
+                <input type="text" placeholder="Nom client" className="px-3 py-1.5 border rounded-lg text-xs w-32" value={clientName} onChange={(e) => setClientName(e.target.value)} />
+                <input type="text" placeholder="Tél" className="px-3 py-1.5 border rounded-lg text-xs w-24" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} />
+                <button onClick={() => { setPreviewInvoice(null); window.location.reload(); }} className="px-3 py-1.5 text-xs font-bold text-gray-500 bg-gray-100 rounded-lg">Fermer</button>
+                <button onClick={() => window.print()} className="px-4 py-1.5 bg-emerald-600 text-white font-black rounded-lg text-xs">Imprimer</button>
               </div>
             </div>
             <div className="p-10 overflow-y-auto flex-1 print:p-0">
                 <div id="printable-invoice" className="text-gray-800">
-                    <h1 className="text-3xl font-black text-emerald-800 mb-6">Facture de Vente</h1>
+                    <div className="flex justify-between items-start mb-6">
+                        <div>
+                            <h1 className="text-3xl font-black text-emerald-800">Facture</h1>
+                            <div className="text-xs font-bold text-gray-500 mt-2">
+                                <p>GESTOCK SARL</p>
+                                <p>123 Rue Principale, Antananarivo</p>
+                                <p>Tél: +261 34 00 000 00</p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-sm font-bold uppercase">Client: {clientName || 'Non spécifié'}</p>
+                            <p className="text-sm font-bold">Tél: {clientPhone || '---'}</p>
+                        </div>
+                    </div>
                     <div className="grid grid-cols-2 gap-4 mb-8">
                         <div>
                             <p className="text-xs uppercase font-bold text-gray-400">Facture #</p>
@@ -521,7 +596,31 @@ export default function POS({ session, selectedDepotId }) {
                         </div>
                     </div>
                     <div className="border-t border-b border-gray-200 py-4 mb-4">
-                        <div className="flex justify-between font-black text-lg">
+                        <table className="w-full text-left text-sm border-collapse">
+                            <thead>
+                                <tr className="border-b border-gray-200 text-gray-500 text-[10px] uppercase">
+                                    <th className="py-2">Désignation</th>
+                                    <th className="py-2 text-center">Qté</th>
+                                    <th className="py-2 text-right">P.U</th>
+                                    <th className="py-2 text-center">Remise</th>
+                                    <th className="py-2 text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {invoiceItems.map(item => (
+                                    <tr key={item.item_id} className="border-b border-gray-50">
+                                        <td className="py-2 font-bold">{item.name}</td>
+                                        <td className="py-2 text-center">{item.quantity}</td>
+                                        <td className="py-2 text-right">{item.price_at_sale.toLocaleString()}</td>
+                                        <td className="py-2 text-center text-orange-600 font-bold">
+                                            {item.discount ? `${item.discount.value}${item.discount.type}` : '-'}
+                                        </td>
+                                        <td className="py-2 text-right font-bold">{calculateItemTotal(item).toLocaleString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <div className="flex justify-between font-black text-lg pt-4">
                             <span>Total</span>
                             <span>{parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</span>
                         </div>
