@@ -33,6 +33,7 @@ import ProductList from '../components/ProductList';
 import StockEntry from '../components/StockEntry';
 import Clients from '../components/Clients';
 import Suppliers from '../components/Suppliers';
+import SupplierCreditHistory from '../components/SupplierCreditHistory';
 import Categories from '../components/Categories';
 import Billing from '../components/Billing';
 import POS from '../components/POS';
@@ -146,6 +147,8 @@ export default function Dashboard({ session }) {
   }, []);
 
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+  const [isSuppliersOpen, setIsSuppliersOpen] = useState(false);
+  const [isClientsOpen, setIsClientsOpen] = useState(false);
 
   const getTitle = () => {
     switch(activeTab) {
@@ -153,8 +156,12 @@ export default function Dashboard({ session }) {
       case 'pos': return "Caisse / Vente Directe";
       case 'inventory': return "Stock & Denrées (Appro)";
       case 'stock-entry': return "Entrée de Stock";
-      case 'clients': return "Clients";
-      case 'suppliers': return "Fournisseurs";
+      case 'clients': return "Liste des Clients";
+      case 'credit_history': return "Historique Crédits Clients";
+      case 'deadlines': return "Échéancier des Paiements";
+      case 'suppliers': return "Liste Fournisseurs";
+      case 'supplier-history': return "Historique Fournisseurs";
+      case 'supplier_credits': return "Crédit Fournisseurs";
       case 'categories': return "Catégories";
       case 'billing': return "Facturation";
       case 'deadlines': return "Échéancier";
@@ -214,14 +221,99 @@ export default function Dashboard({ session }) {
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Gestion Financière</p>
               <div className="space-y-1">
                 <NavItem icon={<FileText size={20} />} label="Facturation" active={activeTab === 'billing'} onClick={() => { navigate('/dashboard/billing'); closeSidebar(); }} />
-                <NavItem icon={<Calendar size={20} />} label="Échéancier" active={activeTab === 'deadlines'} onClick={() => { navigate('/dashboard/deadlines'); closeSidebar(); }} />
-                <NavItem icon={<Clock size={20} />} label="Crédits Clients" active={activeTab === 'credit_history'} onClick={() => { navigate('/dashboard/credit_history'); closeSidebar(); }} />
-                <NavItem icon={<Truck size={20} />} label="Crédits Fournisseurs" active={activeTab === 'supplier_credits'} onClick={() => { navigate('/dashboard/supplier_credits'); closeSidebar(); }} badge={stats.overdueCredits} />
                 <NavItem icon={<DollarSign size={20} />} label="Décaissements" active={activeTab === 'decaissement'} onClick={() => { navigate('/dashboard/decaissement'); closeSidebar(); }} />
               </div>
             </div>
 
-            {/* GROUPE 3: Stock & Logistique */}
+            {/* GROUPE 3: Clients */}
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Clients</p>
+              <div className="space-y-1">
+                <button 
+                  onClick={() => setIsClientsOpen(!isClientsOpen)}
+                  className={`flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all w-full text-left ${
+                    ['clients', 'credit_history', 'deadlines'].includes(activeTab)
+                      ? 'bg-emerald-50 text-emerald-600' 
+                      : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <Users size={20} />
+                    <span className="font-bold text-sm tracking-tight">Menu Client</span>
+                  </div>
+                  <ChevronDown size={16} className={`transition-transform ${isClientsOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isClientsOpen && (
+                  <div className="ml-6 mt-1 space-y-1 border-l-2 border-emerald-100 pl-4">
+                    <button 
+                      onClick={() => { navigate('/dashboard/clients'); closeSidebar(); }}
+                      className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'clients' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                    >
+                      Liste
+                    </button>
+                    <button 
+                      onClick={() => { navigate('/dashboard/credit_history'); closeSidebar(); }}
+                      className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'credit_history' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                    >
+                      Historique client
+                    </button>
+                    <button 
+                      onClick={() => { navigate('/dashboard/deadlines'); closeSidebar(); }}
+                      className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'deadlines' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                    >
+                      Echéancier
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* GROUPE 4: Fournisseurs */}
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Fournisseurs</p>
+              <div className="space-y-1">
+                <button 
+                  onClick={() => setIsSuppliersOpen(!isSuppliersOpen)}
+                  className={`flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all w-full text-left ${
+                    ['suppliers', 'supplier-history', 'supplier_credits'].includes(activeTab)
+                      ? 'bg-emerald-50 text-emerald-600' 
+                      : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <Users size={20} />
+                    <span className="font-bold text-sm tracking-tight">Menu Fournisseur</span>
+                  </div>
+                  <ChevronDown size={16} className={`transition-transform ${isSuppliersOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isSuppliersOpen && (
+                  <div className="ml-6 mt-1 space-y-1 border-l-2 border-emerald-100 pl-4">
+                    <button 
+                      onClick={() => { navigate('/dashboard/suppliers'); closeSidebar(); }}
+                      className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'suppliers' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                    >
+                      Liste Fournisseurs
+                    </button>
+                    <button 
+                      onClick={() => { navigate('/dashboard/supplier-history'); closeSidebar(); }}
+                      className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'supplier-history' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                    >
+                      Historique
+                    </button>
+                    <button 
+                      onClick={() => { navigate('/dashboard/supplier_credits'); closeSidebar(); }}
+                      className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'supplier_credits' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                    >
+                      Crédit Fournisseurs
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* GROUPE 4: Stock & Logistique */}
             <div>
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Stock & Logistique</p>
               <div className="space-y-1">
@@ -489,6 +581,7 @@ export default function Dashboard({ session }) {
             <Route path="categories" element={<Categories />} />
             <Route path="clients" element={<Clients onViewCredit={handleViewClientCredit} />} />
             <Route path="suppliers" element={<Suppliers />} />
+            <Route path="supplier-history" element={<SupplierCreditHistory />} />
             <Route path="billing" element={<Billing 
               initialSearchTerm={billingSearchTerm} 
               onSearchReset={() => setBillingSearchTerm('')} 
