@@ -39,6 +39,8 @@ export default function StockEntry() {
     bl_number: `BL-${Date.now().toString().slice(-6)}`,
     bl_date: new Date().toISOString().split('T')[0],
     payment_type: 'direct_sale',
+    credit_type: '',
+    first_due_date: '',
     total_amount: 0,
     depot_id: ''
   });
@@ -134,46 +136,49 @@ export default function StockEntry() {
             delivery_notes (
               bl_number,
               bl_date,
+              payment_type,
               fournisseurs!delivery_notes_supplier_id_fkey (
                 name
               )
             ),
             produits!delivery_note_items_product_id_fkey (
-              name,
-              categories (
-                name
-              )
+              name
             )
           `)
+          .not('delivery_notes.supplier_id', 'is', null)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
         console.log("StockEntry: Fetched with-supplier data:", data);
         setWithSupplierData(data || []);
       } else {
+        // Fetch entries that have NO supplier (or movements without BL)
         const { data, error } = await supabase
-          .from('stock_movements')
+          .from('delivery_note_items')
           .select(`
             id,
             quantity,
-            price_at_movement,
-            reason,
-            created_at,
+            purchase_price_per_unit,
+            line_total_purchase,
             unit,
-            produits:product_id (
+            created_at,
+            delivery_notes (
+              bl_number,
+              bl_date,
+              payment_type
+            ),
+            produits!delivery_note_items_product_id_fkey (
               name
             )
           `)
-          .eq('type', 'in')
-          .is('delivery_note_id', null)
-          .gte('created_at', `${startDate}T00:00:00`)
-          .lte('created_at', `${endDate}T23:59:59`)
+          .is('delivery_notes.supplier_id', null)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
         console.log("StockEntry: Fetched without-supplier data:", data);
         setWithoutSupplierData(data || []);
       }
+
     } catch (err) {
       console.error("Error fetching stock entries:", err);
     } finally {
@@ -226,8 +231,8 @@ export default function StockEntry() {
 
   const handleSaveBL = async (e) => {
     e.preventDefault();
-    if (!blFormData.supplier_id || blItems.length === 0) {
-      alert("Veuillez sélectionner un fournisseur et ajouter au moins un article.");
+    if (blItems.length === 0) {
+      alert("Veuillez ajouter au moins un article.");
       return;
     }
 
@@ -239,11 +244,13 @@ export default function StockEntry() {
       const { data: bl, error: blError } = await supabase
         .from('delivery_notes')
         .insert([{
-          supplier_id: blFormData.supplier_id,
+          supplier_id: blFormData.supplier_id && blFormData.supplier_id.trim() !== '' ? blFormData.supplier_id : null,
           bl_number: blFormData.bl_number,
           bl_date: blFormData.bl_date,
           total_amount: blFormData.total_amount,
           payment_type: blFormData.payment_type,
+          credit_type: blFormData.payment_type === 'credit' ? blFormData.credit_type : null,
+          first_due_date: (blFormData.payment_type === 'credit' && blFormData.first_due_date && blFormData.first_due_date.trim() !== '') ? blFormData.first_due_date : null,
           user_id: user.id
         }])
         .select()
@@ -415,16 +422,16 @@ export default function StockEntry() {
                 {/* BL Info */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-emerald-700 uppercase ml-2 tracking-widest">Fournisseur</label>
+                    <label className="text-[10px] font-black text-emerald-700 uppercase ml-2 tracking-widest">Fournisseur (Optionnel)</label>
                     <select 
-                      required
                       className="w-full bg-emerald-50/30 border-2 border-emerald-50 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:border-emerald-500/20"
                       value={blFormData.supplier_id}
                       onChange={e => setBLFormData({...blFormData, supplier_id: e.target.value})}
                     >
-                      <option value="">Choisir un fournisseur</option>
+                      <option value="">Pas de fournisseur</option>
                       {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
+
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-emerald-700 uppercase ml-2 tracking-widest">N° Bon de Livraison</label>
@@ -457,6 +464,45 @@ export default function StockEntry() {
                       {depots.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-emerald-700 uppercase ml-2 tracking-widest">Type de Paiement</label>
+                    <select 
+                      required
+                      className="w-full bg-emerald-50/30 border-2 border-emerald-50 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:border-emerald-500/20"
+                      value={blFormData.payment_type}
+                      onChange={e => setBLFormData({...blFormData, payment_type: e.target.value})}
+                    >
+                      <option value="direct_sale">Vente Directe</option>
+                      <option value="credit">Vente à Crédit</option>
+                    </select>
+                  </div>
+                  {blFormData.payment_type === 'credit' && (
+                    <>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-emerald-700 uppercase ml-2 tracking-widest">Type de Crédit</label>
+                        <select 
+                          required
+                          className="w-full bg-emerald-50/30 border-2 border-emerald-50 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:border-emerald-500/20"
+                          value={blFormData.credit_type}
+                          onChange={e => setBLFormData({...blFormData, credit_type: e.target.value})}
+                        >
+                          <option value="">Choisir...</option>
+                          <option value="journalier">Crédit Journalier</option>
+                          <option value="mensuel">Crédit Mensuel</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-emerald-700 uppercase ml-2 tracking-widest">Date 1ère échéance</label>
+                        <input 
+                          type="date"
+                          required
+                          className="w-full bg-emerald-50/30 border-2 border-emerald-50 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:border-emerald-500/20"
+                          value={blFormData.first_due_date}
+                          onChange={e => setBLFormData({...blFormData, first_due_date: e.target.value})}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Add Items Form */}
@@ -617,6 +663,7 @@ export default function StockEntry() {
                     <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">Fournisseur</th>
                     <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">N° BL</th>
                     <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">Désignation</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">Type Paiement</th>
                     <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100 text-center">Qté</th>
                     <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">Unité</th>
                     <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100 text-right">P.A.U</th>
@@ -640,6 +687,11 @@ export default function StockEntry() {
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-sm font-bold text-gray-700">{item.produits?.name}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${item.delivery_notes?.payment_type === 'credit' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {item.delivery_notes?.payment_type === 'credit' ? 'Crédit' : 'Direct'}
+                        </span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <p className="text-sm font-black text-emerald-600">{item.quantity}</p>
@@ -671,6 +723,7 @@ export default function StockEntry() {
                     <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">Dates</th>
                     <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">Motif</th>
                     <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">Désignation</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">Type Paiement</th>
                     <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100 text-center">Qté</th>
                     <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">Unité</th>
                     <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100 text-right">P.A.U</th>
@@ -689,6 +742,11 @@ export default function StockEntry() {
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-sm font-bold text-gray-700">{item.produits?.name}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${item.delivery_notes?.payment_type === 'credit' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {item.delivery_notes?.payment_type === 'credit' ? 'Crédit' : 'Direct'}
+                        </span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <p className="text-sm font-black text-emerald-600">{item.quantity}</p>
