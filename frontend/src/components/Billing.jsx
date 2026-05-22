@@ -231,21 +231,45 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
     // Fetch items with product names and discounts for the invoice
     const { data: items } = await supabase
       .from('facture_items')
-      .select('quantity, price_at_sale, discount, produits(name)')
+      .select('quantity, unit_price, discount, unit_type, produits(name, price, price_superior, unite_base, unite_superieure, quantite_par_unite)')
       .eq('facture_id', inv.id);
 
     // Ensure we handle products object correctly since join result is an object
     const itemsHtml = items ? items.map(item => {
-      const baseTotal = item.quantity * item.price_at_sale;
+      const baseTotal = item.quantity * item.unit_price;
       const discountVal = item.discount ? (item.discount.type === '%' ? (baseTotal * parseFloat(item.discount.value) / 100) : parseFloat(item.discount.value)) : 0;
       const finalTotal = baseTotal - discountVal;
+      const unitLabel = item.unit_type === 'superior' ? (item.produits?.unite_superieure || 'Gros') : (item.produits?.unite_base || 'U');
+      
+      // Format quantity display
+      let displayQuantity = '';
+      if (item.unit_type === 'superior') {
+        displayQuantity = `${item.quantity} ${item.produits?.unite_superieure || 'Gros'}`;
+      } else {
+        const qpu = Number(item.produits?.quantite_par_unite) || 1;
+        if (qpu > 1 && item.quantity >= qpu) {
+          const superior = Math.floor(item.quantity / qpu);
+          const base = item.quantity % qpu;
+          displayQuantity = `${superior} ${item.produits?.unite_superieure || 'Sac'}${base > 0 ? ` + ${base} ${item.produits?.unite_base || 'Kg'}` : ''}`;
+        } else {
+          displayQuantity = `${item.quantity} ${item.produits?.unite_base || 'U'}`;
+        }
+      }
+      
       return `
       <tr style="border-bottom: 1px solid #f9fafb;">
-        <td style="padding: 20px 0; font-size: 14px; font-weight: 700; color: #1f2937;">${item.produits?.name || 'Produit inconnu'}</td>
-        <td style="padding: 20px 0; text-align: center; font-size: 14px;">${item.quantity}</td>
-        <td style="padding: 20px 0; text-align: right; font-size: 14px;">${Number(item.price_at_sale).toLocaleString('fr-MG')}</td>
-        <td style="padding: 20px 0; text-align: right; font-size: 14px;">${item.discount ? `${item.discount.value}${item.discount.type}` : '-'}</td>
-        <td style="padding: 20px 0; text-align: right; font-size: 14px; font-weight: 900; color: #1f2937;">${finalTotal.toLocaleString('fr-MG')} MGA</td>
+        <td style="padding: 15px 0;">
+          <div style="font-size: 14px; font-weight: 700; color: #1f2937;">${item.produits?.name || 'Produit inconnu'}</div>
+          <div style="font-size: 10px; color: #6b7280; margin-top: 2px;">
+            Ref: ${Number(item.produits?.price).toLocaleString('fr-MG')} /${item.produits?.unite_base || 'U'} 
+            ${item.produits?.price_superior > 0 ? `• ${Number(item.produits?.price_superior).toLocaleString('fr-MG')} /${item.produits?.unite_superieure || 'Sup'}` : ''}
+          </div>
+        </td>
+        <td style="padding: 15px 0; text-align: center; font-size: 12px; font-weight: 700; color: #059669;">${unitLabel}</td>
+        <td style="padding: 15px 0; text-align: center; font-size: 14px; font-weight: 700;">${displayQuantity}</td>
+        <td style="padding: 15px 0; text-align: right; font-size: 14px;">${Number(item.unit_price).toLocaleString('fr-MG')}</td>
+        <td style="padding: 15px 0; text-align: right; font-size: 14px;">${item.discount ? `${item.discount.value}${item.discount.type}` : '-'}</td>
+        <td style="padding: 15px 0; text-align: right; font-size: 14px; font-weight: 900; color: #1f2937;">${finalTotal.toLocaleString('fr-MG')} MGA</td>
       </tr>
     `}).join('') : '';
 
@@ -304,7 +328,6 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
             <tr style="border-bottom: 2px solid #f3f4f6;">
               <th style="padding: 15px 0; text-align: left; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Produit</th>
               <th style="padding: 15px 0; text-align: center; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Qté</th>
-              <th style="padding: 15px 0; text-align: right; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Prix</th>
               <th style="padding: 15px 0; text-align: right; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Remise</th>
               <th style="padding: 15px 0; text-align: right; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Total</th>
             </tr>
@@ -314,7 +337,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
           </tbody>
           <tfoot>
             <tr style="border-top: 2px solid #f3f4f6;">
-              <td colspan="4" style="padding: 20px 0; text-align: right; font-size: 14px; font-weight: 900; color: #6b7280; text-transform: uppercase;">TOTAL</td>
+              <td colspan="3" style="padding: 20px 0; text-align: right; font-size: 14px; font-weight: 900; color: #6b7280; text-transform: uppercase;">TOTAL</td>
               <td style="padding: 20px 0; text-align: right; font-size: 16px; font-weight: 900; color: #1f2937;">${inv.total_amount.toLocaleString('fr-MG')} MGA</td>
             </tr>
           </tfoot>

@@ -239,9 +239,9 @@ const handleCancelInvoice = async (invoice) => {
                                     <td className="p-2 text-center text-orange-600">
                                         {item.discount_value ? `${item.discount_value}${item.discount_type || ''}` : '-'}
                                     </td>
-                                    <td className="p-2 text-right">{item.price_at_sale?.toLocaleString()} Ar</td>
+                                    <td className="p-2 text-right">{item.unit_price?.toLocaleString()} Ar</td>
                                     <td className="p-2 text-right font-black">
-                                        {((item.quantity * item.price_at_sale) - (item.discount_value ? (item.discount_type === '%' ? (item.quantity * item.price_at_sale) * (item.discount_value/100) : item.discount_value) : 0)).toLocaleString()} Ar
+                                        {((item.quantity * item.unit_price) - (item.discount_value ? (item.discount_type === '%' ? (item.quantity * item.unit_price) * (item.discount_value/100) : item.discount_value) : 0)).toLocaleString()} Ar
                                     </td>
                                 </tr>
                             ))}

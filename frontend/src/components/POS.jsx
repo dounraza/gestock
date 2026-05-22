@@ -74,7 +74,7 @@ export default function POS({ session, selectedDepotId }) {
                                     <tr key={item.item_id} className="border-b border-gray-50">
                                         <td className="py-2 font-bold">{item.name}</td>
                                         <td className="py-2 text-center">{item.quantity}</td>
-                                        <td className="py-2 text-right">{item.price_at_sale.toLocaleString()}</td>
+                                        <td className="py-2 text-right">{item.unit_price.toLocaleString()}</td>
                                         <td className="py-2 text-center text-orange-600 font-bold">
                                             {item.discount ? `${item.discount.value}${item.discount.type}` : '-'}
                                         </td>
@@ -183,11 +183,11 @@ export default function POS({ session, selectedDepotId }) {
         setIsCalculatorOpen(true);
     } else {
         const { data, error } = await supabase.from('facture_items')
-            .insert([{ facture_id: currentInvoice.id, produit_id: product.id, quantity: 0, price_at_sale: product.price }])
+            .insert([{ facture_id: currentInvoice.id, produit_id: product.id, quantity: 0, unit_price: product.price }])
             .select()
             .single();
         if (data) {
-            setInvoiceItems(prev => [...prev, { ...product, item_id: data.id, quantity: 0, price_at_sale: product.price, discount: null }]);
+            setInvoiceItems(prev => [...prev, { ...product, item_id: data.id, quantity: 0, unit_price: product.price, discount: null }]);
             setActiveItemId(data.id);
             setIsCalculatorOpen(true);
         }
@@ -195,7 +195,7 @@ export default function POS({ session, selectedDepotId }) {
   };
 
   function calculateItemTotal(item) {
-    const baseTotal = item.quantity * item.price_at_sale;
+    const baseTotal = item.quantity * item.unit_price;
     if (!item.discount) return baseTotal;
     const disc = parseFloat(item.discount.value);
     return item.discount.type === '%' ? baseTotal - (baseTotal * (disc / 100)) : baseTotal - disc;
@@ -288,7 +288,7 @@ export default function POS({ session, selectedDepotId }) {
           product_id: item.id,
           type: 'out',
           quantity: item.quantity,
-          price_at_movement: item.price_at_sale,
+          price_at_movement: item.unit_price,
           reason: `Vente Facture #${updatedInvoice.number}`,
           user_id: session?.user?.id,
           depot_id: selectedDepotId
@@ -346,8 +346,8 @@ export default function POS({ session, selectedDepotId }) {
     setFilteredProducts(term ? products.filter(p => p.name.toLowerCase().includes(term)) : products);
   }, [searchTerm, products]);
 
-  const subtotal = useMemo(() => invoiceItems.reduce((acc, item) => acc + (item.quantity * item.price_at_sale), 0), [invoiceItems]);
-  const lineDiscountsTotal = useMemo(() => invoiceItems.reduce((acc, item) => item.discount ? acc + (item.discount.type === '%' ? (item.quantity * item.price_at_sale) * (item.discount.value / 100) : item.discount.value) : acc, 0), [invoiceItems]);
+  const subtotal = useMemo(() => invoiceItems.reduce((acc, item) => acc + (item.quantity * item.unit_price), 0), [invoiceItems]);
+  const lineDiscountsTotal = useMemo(() => invoiceItems.reduce((acc, item) => item.discount ? acc + (item.discount.type === '%' ? (item.quantity * item.unit_price) * (item.discount.value / 100) : item.discount.value) : acc, 0), [invoiceItems]);
   const globalDiscountAmount = useMemo(() => globalDiscount.value > 0 ? (globalDiscount.type === '%' ? (subtotal - lineDiscountsTotal) * (globalDiscount.value / 100) : globalDiscount.value) : 0, [subtotal, lineDiscountsTotal, globalDiscount]);
   const netTotal = useMemo(() => Math.max(0, subtotal - lineDiscountsTotal - globalDiscountAmount), [subtotal, lineDiscountsTotal, globalDiscountAmount]);
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -485,10 +485,18 @@ export default function POS({ session, selectedDepotId }) {
                             {p.quantite_par_unite > 1 ? `${Math.floor(p.stock_quantity / p.quantite_par_unite)} ${p.unite_superieure || 'Sac'} + ${p.stock_quantity % p.quantite_par_unite} ${p.unite_base || 'Kg'}` : `${p.stock_quantity} ${p.unite_base || 'Pce'}`}
                         </div>
                       </td>
-                      <td className="p-2 text-xs font-black text-right">{p.price.toLocaleString()} Ar</td>
+                      <td className="p-2 text-right">
+                        <div className="text-[10px] font-black text-emerald-700">
+                          {p.price.toLocaleString()} Ar / {p.unite_base || 'pce'}
+                        </div>
+                        {p.price_superior && (
+                          <div className="text-[8px] font-bold text-gray-500">
+                            Sup: {p.price_superior.toLocaleString()} Ar / {p.unite_superieure || 'unité'}
+                          </div>
+                        )}
+                      </td>
                       <td className="p-2 text-right"><Plus size={16} className="inline-block" /></td>
-                    </tr>
-                  ))}
+                    </tr>                  ))}
                 </tbody>
                 </table>
                 </div>
@@ -611,7 +619,7 @@ export default function POS({ session, selectedDepotId }) {
                                     <tr key={item.item_id} className="border-b border-gray-50">
                                         <td className="py-2 font-bold">{item.name}</td>
                                         <td className="py-2 text-center">{item.quantity}</td>
-                                        <td className="py-2 text-right">{item.price_at_sale.toLocaleString()}</td>
+                                        <td className="py-2 text-right">{item.unit_price.toLocaleString()}</td>
                                         <td className="py-2 text-center text-orange-600 font-bold">
                                             {item.discount ? `${item.discount.value}${item.discount.type}` : '-'}
                                         </td>

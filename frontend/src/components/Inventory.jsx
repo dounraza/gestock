@@ -25,7 +25,7 @@ export default function Inventory({ selectedDepotId }) {
   const [stockMovements, setStockMovements] = useState([]); 
   const [selectedMovementProduct, setSelectedMovementProduct] = useState(''); 
   const [formData, setFormData] = useState({ 
-    name: '', price: '', stock_quantity: '', category_id: '', fournisseur_id: '', description: '',
+    name: '', price: '', price_superior: '', stock_quantity: '', category_id: '', fournisseur_id: '', description: '',
     unite_base: 'unité', unite_superieure: '', quantite_par_unite: 1,
     unite_standard_id: ''
   });
@@ -252,6 +252,7 @@ export default function Inventory({ selectedDepotId }) {
     const payload = {
       name: formData.name,
       price: parseFloat(formData.price) || 0,
+      price_superior: parseFloat(formData.price_superior) || 0,
       category_id: formData.category_id || null,
       fournisseur_id: formData.fournisseur_id || null,
       description: formData.description || '',
@@ -347,6 +348,7 @@ export default function Inventory({ selectedDepotId }) {
     setFormData({
       name: product.name,
       price: product.price,
+      price_superior: product.price_superior || '',
       stock_quantity: product.stock_quantity,
       category_id: product.category_id || '',
       fournisseur_id: product.fournisseur_id || '',
@@ -375,7 +377,7 @@ export default function Inventory({ selectedDepotId }) {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', price: '', stock_quantity: '', category_id: '', fournisseur_id: '', description: '', unite_base: 'unité', unite_superieure: '', quantite_par_unite: 1, unite_standard_id: '' });
+    setFormData({ name: '', price: '', price_superior: '', stock_quantity: '', category_id: '', fournisseur_id: '', description: '', unite_base: 'unité', unite_superieure: '', quantite_par_unite: 1, unite_standard_id: '' });
     setEditingProduct(null);
     setShowModal(false);
   };
@@ -775,12 +777,12 @@ export default function Inventory({ selectedDepotId }) {
             >
               <Package size={16} /> <span>Approvisionnement</span>
             </button>
-            <button 
+            {/* <button 
               onClick={() => setShowDeliveryNoteModal(true)} 
               className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-2xl flex items-center gap-2 font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-blue-200 active:scale-95"
             >
               <FileText size={16} /> <span>Réception BL</span>
-            </button>
+            </button> */}
         </div>
       </div>
 
@@ -923,9 +925,17 @@ export default function Inventory({ selectedDepotId }) {
                     )}
                     
                     <div className="mt-4 pt-4 border-t border-emerald-50 flex justify-between items-end">
-                      <div>
-                        <p className="text-[9px] text-gray-400 uppercase font-bold tracking-widest">Prix par {p.unite_base || 'unité'}</p>
-                        <p className="text-lg font-black text-gray-800">{Number(p.price).toLocaleString('fr-MG')} MGA</p>
+                      <div className="space-y-1">
+                        <div>
+                          <p className="text-[9px] text-gray-400 uppercase font-bold tracking-widest">Prix / {p.unite_base || 'unité'}</p>
+                          <p className="text-sm font-black text-gray-800">{Number(p.price).toLocaleString('fr-MG')} MGA</p>
+                        </div>
+                        {p.price_superior > 0 && (
+                          <div>
+                            <p className="text-[9px] text-emerald-600 uppercase font-bold tracking-widest">Prix / {p.unite_superieure || 'sup.'}</p>
+                            <p className="text-sm font-black text-emerald-700">{Number(p.price_superior).toLocaleString('fr-MG')} MGA</p>
+                          </div>
+                        )}
                       </div>
                       <div className="text-right">
                         <p className="text-[9px] text-gray-400 uppercase font-bold tracking-widest mb-1">Stock</p>
@@ -944,11 +954,11 @@ export default function Inventory({ selectedDepotId }) {
               )}
             </div>
           ) : (
-            <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-emerald-50/50 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">
+            <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl overflow-hidden shadow-sm flex flex-col max-h-[calc(100vh-280px)]">
+              <div className="overflow-auto flex-1">
+                <table className="w-full text-left border-collapse sticky-header">
+                  <thead className="sticky top-0 z-20 bg-emerald-50 shadow-sm">
+                    <tr className="text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">
                       <th className="p-4 pl-6">Produit</th>
                       <th className="p-4">Catégorie</th>
                       <th className="p-4">Stock</th>
@@ -970,8 +980,11 @@ export default function Inventory({ selectedDepotId }) {
                             {formatStock(p.stock_quantity, p)}
                           </span>
                         </td>
-                        <td className="p-4 font-bold text-gray-800">
-                          {Number(p.price).toLocaleString('fr-MG')} MGA
+                        <td className="p-4">
+                          <div className="font-bold text-gray-800">{Number(p.price).toLocaleString('fr-MG')} MGA <span className="text-[10px] text-gray-400">/{p.unite_base}</span></div>
+                          {p.price_superior > 0 && (
+                            <div className="text-xs font-bold text-emerald-600">{Number(p.price_superior).toLocaleString('fr-MG')} MGA <span className="text-[10px] text-emerald-400">/{p.unite_superieure}</span></div>
+                          )}
                         </td>
                         <td className="p-4 pr-6 text-right">
                           <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1094,15 +1107,30 @@ export default function Inventory({ selectedDepotId }) {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">
-                      Prix (MGA) {formData.unite_base ? `/ ${formData.unite_base}` : ''}
+                      Prix / {formData.unite_base || 'unité'}
                     </label>
-                    <input required type="number" placeholder={`Prix ${formData.unite_base ? '(' + formData.unite_base + ')' : ''}`} className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
+                    <input required type="number" placeholder="Prix Unité" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">
+                      Prix / {formData.unite_superieure || 'unité sup.'}
+                    </label>
+                    <input type="number" placeholder="Prix Supérieur" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none" value={formData.price_superior} onChange={e => setFormData({...formData, price_superior: e.target.value})} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Catégorie</label>
                     <select className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none text-sm text-gray-600" value={formData.category_id} onChange={e => setFormData({...formData, category_id: e.target.value})}>
                       <option value="">Sélectionner...</option>
                       {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Fournisseur</label>
+                    <select className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none text-sm text-gray-600" value={formData.fournisseur_id} onChange={e => setFormData({...formData, fournisseur_id: e.target.value})}>
+                      <option value="">Sélectionner...</option>
+                      {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                   </div>
                 </div>

@@ -647,18 +647,18 @@ export default function StockEntry() {
       </div>
 
       {/* Table Area */}
-      <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-[2.5rem] shadow-sm overflow-hidden">
+      <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-[2.5rem] shadow-sm overflow-hidden flex flex-col max-h-[calc(100vh-350px)]">
         {loading ? (
           <div className="p-20 flex flex-col items-center justify-center gap-4">
             <Loader2 className="animate-spin text-emerald-500" size={40} />
             <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Chargement des données...</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto flex-1">
             {activeTab === 'with-supplier' ? (
-              <table className="w-full text-left border-collapse min-w-[1000px]">
-                <thead>
-                  <tr className="bg-emerald-50/50">
+              <table className="w-full text-left border-collapse min-w-[1000px] sticky-header">
+                <thead className="sticky top-0 z-20 bg-emerald-50 shadow-sm">
+                  <tr>
                     <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">Date</th>
                     <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">Fournisseur</th>
                     <th className="px-6 py-5 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">N° BL</th>
