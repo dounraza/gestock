@@ -612,7 +612,7 @@ export default function POS({ session, selectedDepotId }) {
         </div>
 
         {/* PRODUCTS LIST */}
-        <div className="mt-8 bg-white rounded-xl p-2 shadow-sm border border-emerald-100">
+        <div className="mt-4 bg-white rounded-xl p-2 shadow-sm border border-emerald-100" style={{ marginTop: '7%!important' }}>
            <input type="text" placeholder="Chercher produit..." className="w-full bg-emerald-50 p-2 rounded-lg text-xs font-bold" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
            <div className="mt-2 h-64 overflow-y-auto">
              <table className="w-full text-left">
