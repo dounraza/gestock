@@ -32,6 +32,21 @@ export default function POS({ session, selectedDepotId }) {
   const [tokens, setTokens] = useState([]); 
   const itemsPerPage = 15;
 
+  const formatQuantity = (quantity, product) => {
+    if (!product || !product.quantite_par_unite) return `${quantity} ${product?.unite_base || 'Pce'}`;
+    const qpu = Number(product.quantite_par_unite);
+    if (qpu <= 1) return `${quantity} ${product.unite_base || 'Pce'}`;
+    
+    const superior = Math.floor(quantity / qpu);
+    const base = quantity % qpu;
+    
+    let result = '';
+    if (superior > 0) result += `${superior} ${product.unite_superieure || 'Sac'} `;
+    if (base > 0) result += `+ ${base} ${product.unite_base || 'Kg'}`;
+    
+    return result.trim() || `${quantity} ${product.unite_base}`;
+  };
+
   // ... (inside the component return, at the end)
 
       {/* Invoice Preview Modal */}
@@ -73,12 +88,15 @@ export default function POS({ session, selectedDepotId }) {
                                 {invoiceItems.map(item => (
                                     <tr key={item.item_id} className="border-b border-gray-50">
                                         <td className="py-2 font-bold">{item.name}</td>
-                                        <td className="py-2 text-center">{item.quantity}</td>
-                                        <td className="py-2 text-right">{item.unit_price.toLocaleString()}</td>
+                                        <td className="py-2 text-center">{formatQuantity(item.quantity, item)}</td>
+                                        <td className="py-2 text-right">
+                                            {item.unit_price.toLocaleString()}
+                                            {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()}</div>}
+                                        </td>
                                         <td className="py-2 text-center text-orange-600 font-bold">
                                             {item.discount ? `${item.discount.value}${item.discount.type}` : '-'}
                                         </td>
-                                        <td className="py-2 text-right font-bold">{calculateItemTotal(item).toLocaleString()}</td>
+                                        <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -369,21 +387,6 @@ export default function POS({ session, selectedDepotId }) {
     else setDiscountModal({ itemId: item.item_id, name: item.name, isGlobal: false, value: item.discount?.value || 0, type: item.discount?.type || '%' });
   };
 
-  const formatQuantity = (quantity, product) => {
-    if (!product || !product.quantite_par_unite) return `${quantity} ${product?.unite_base || 'Pce'}`;
-    const qpu = Number(product.quantite_par_unite);
-    if (qpu <= 1) return `${quantity} ${product.unite_base || 'Pce'}`;
-    
-    const superior = Math.floor(quantity / qpu);
-    const base = quantity % qpu;
-    
-    let result = '';
-    if (superior > 0) result += `${superior} ${product.unite_superieure || 'Sac'} `;
-    if (base > 0) result += `+ ${base} ${product.unite_base || 'Kg'}`;
-    
-    return result.trim() || `${quantity} ${product.unite_base}`;
-  };
-
   return (
     <div className="flex flex-col gap-2 h-full p-2">
       <div className="bg-white rounded-xl p-2 shadow-sm border border-emerald-100 flex items-center justify-between">
@@ -629,12 +632,15 @@ export default function POS({ session, selectedDepotId }) {
                                 {invoiceItems.map(item => (
                                     <tr key={item.item_id} className="border-b border-gray-50">
                                         <td className="py-2 font-bold">{item.name}</td>
-                                        <td className="py-2 text-center">{item.quantity}</td>
-                                        <td className="py-2 text-right">{item.unit_price.toLocaleString()}</td>
+                                        <td className="py-2 text-center">{formatQuantity(item.quantity, item)}</td>
+                                        <td className="py-2 text-right">
+                                            {item.unit_price.toLocaleString()}
+                                            {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()}</div>}
+                                        </td>
                                         <td className="py-2 text-center text-orange-600 font-bold">
                                             {item.discount ? `${item.discount.value}${item.discount.type}` : '-'}
                                         </td>
-                                        <td className="py-2 text-right font-bold">{calculateItemTotal(item).toLocaleString()}</td>
+                                        <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()}</td>
                                     </tr>
                                 ))}
                             </tbody>
