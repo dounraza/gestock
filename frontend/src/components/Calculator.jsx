@@ -7,12 +7,31 @@ export default function CalculatorKeypad({ activeItem, onResult, onOpenDiscount,
     setDisplay(prev => (prev === '0' && value !== '.' ? value : prev + value));
   };
 
+  const calculateTotal = (qty, type) => {
+    const factor = activeItem?.facteur || 1;
+    // Utiliser price_superior si type='superior', sinon utiliser price_unit ou price (prix par défaut)
+    const price = type === 'superior' 
+        ? (activeItem?.price_superior || activeItem?.price || 0) 
+        : (activeItem?.price_unit || activeItem?.price || 0);
+    
+    // Formule: total = (qté * (facteur/facteur)) * price_final
+    const total = (qty * (factor / factor)) * price;
+    alert(`Calcul pour ${qty} ${type}: (${qty} * (${factor}/${factor})) * ${price} = ${total}`);
+    
+    return total;
+  };
+
   const addQuantityByUnit = (type) => {
     const val = parseFloat(display) > 0 ? parseFloat(display) : 0; 
     const unitQty = type === 'superior' ? (activeItem?.quantite_par_unite || 1) : 1;
     const increment = (val === 0 ? 1 : val) * unitQty;
     
-    onResult((activeItem?.quantity || 0) + increment);
+    // Calcul de la nouvelle quantité et du nouveau montant ajouté
+    const newQty = (activeItem?.quantity || 0) + increment;
+    const addedTotal = calculateTotal(val === 0 ? 1 : val, type);
+    
+    // On transmet la nouvelle quantité totale et le montant à ajouter
+    onResult(newQty, addedTotal);
     setDisplay('0');
   };
 

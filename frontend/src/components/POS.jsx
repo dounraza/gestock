@@ -123,21 +123,32 @@ export default function POS({ session, selectedDepotId }) {
     };
   }, [isDragging]);
 
-  const handleCalculatorResult = (value) => {
+  const handleCalculatorResult = (quantity, addedTotal) => {
     if (activeItemId) {
-        updateItemQuantity(activeItemId, value);
+        updateItem(activeItemId, quantity, addedTotal);
         setIsCalculatorOpen(false);
     }
   };
 
-  const updateItemQuantity = async (itemId, quantity) => {
+  const updateItem = async (itemId, quantity, addedTotal) => {
     if (quantity < 0) quantity = 0;
     setInvoiceItems(prevItems =>
         prevItems.map(item =>
-            item.item_id === itemId ? { ...item, quantity: quantity } : item
+            item.item_id === itemId ? { 
+                ...item, 
+                quantity: quantity, 
+                total: (item.total || 0) + addedTotal 
+            } : item
         )
     );
-    await supabase.from('facture_items').update({ quantity: quantity }).eq('id', itemId);
+    // On doit récupérer le nouveau total après la mise à jour pour la requête Supabase
+    setInvoiceItems(prevItems => {
+        const updatedItem = prevItems.find(i => i.item_id === itemId);
+        if (updatedItem) {
+            supabase.from('facture_items').update({ quantity: updatedItem.quantity, total: updatedItem.total }).eq('id', itemId);
+        }
+        return prevItems;
+    });
   };
 
   const handleReset = async () => {
@@ -346,7 +357,7 @@ export default function POS({ session, selectedDepotId }) {
     setFilteredProducts(term ? products.filter(p => p.name.toLowerCase().includes(term)) : products);
   }, [searchTerm, products]);
 
-  const subtotal = useMemo(() => invoiceItems.reduce((acc, item) => acc + (item.quantity * item.unit_price), 0), [invoiceItems]);
+  const subtotal = useMemo(() => invoiceItems.reduce((acc, item) => acc + (item.total || (item.quantity * item.unit_price)), 0), [invoiceItems]);
   const lineDiscountsTotal = useMemo(() => invoiceItems.reduce((acc, item) => item.discount ? acc + (item.discount.type === '%' ? (item.quantity * item.unit_price) * (item.discount.value / 100) : item.discount.value) : acc, 0), [invoiceItems]);
   const globalDiscountAmount = useMemo(() => globalDiscount.value > 0 ? (globalDiscount.type === '%' ? (subtotal - lineDiscountsTotal) * (globalDiscount.value / 100) : globalDiscount.value) : 0, [subtotal, lineDiscountsTotal, globalDiscount]);
   const netTotal = useMemo(() => Math.max(0, subtotal - lineDiscountsTotal - globalDiscountAmount), [subtotal, lineDiscountsTotal, globalDiscountAmount]);
@@ -409,7 +420,7 @@ export default function POS({ session, selectedDepotId }) {
                       {item.discount ? `${item.discount.value}${item.discount.type}` : '+'}
                     </button>
                   </div>
-                  <div className="col-span-3 text-right font-black text-[9px]">{calculateItemTotal(item).toLocaleString()} Ar</div>
+                  <div className="col-span-3 text-right font-black text-[9px]">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</div>
                   <div className="col-span-2 text-center">
                     <button onClick={(e) => { e.stopPropagation(); removeItem(item.item_id, item.item_id); }} className="text-red-400 hover:text-red-600"><Trash2 size={12} /></button>
                   </div>
