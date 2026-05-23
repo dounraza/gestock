@@ -509,7 +509,7 @@ export default function POS({ session, selectedDepotId }) {
   }, [invoiceItems, globalDiscountAmount]);
 
   return (
-    <div className="flex flex-col gap-2 h-full p-2">
+    <div className="flex flex-col gap-2 h-full p-2 pb-16">
       <div className="bg-white rounded-xl p-2 shadow-sm border border-emerald-100 flex items-center justify-between">
         <div className="text-xs font-black">Facture: {activeInvoice?.number || '...'}</div>
         <div className="text-2xl font-black text-emerald-600">{netTotal.toLocaleString()} Ar</div>
@@ -586,16 +586,18 @@ export default function POS({ session, selectedDepotId }) {
 
              {paymentMode === 'credit' && (
                 <div className="grid grid-cols-1 gap-2 bg-emerald-900/30 p-2 rounded-lg border border-white/10 mt-2">
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[7px] font-black text-emerald-400 uppercase">Échéance</span>
-                        <input type="date" className="bg-emerald-950 border border-white/10 rounded p-1.5 text-[10px] font-black outline-none w-full text-white" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[7px] font-black text-emerald-400 uppercase">Type d'échéance</span>
-                        <select className="bg-emerald-950 border border-white/10 rounded p-1.5 text-[10px] font-black outline-none w-full text-white" value={creditType} onChange={e => setCreditType(e.target.value)}>
-                            <option value="mensuel">Mensuel</option>
-                            <option value="journalier">Journalier</option>
-                        </select>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div className="flex flex-col gap-1">
+                            <span className="text-[7px] font-black text-emerald-400 uppercase">Échéance</span>
+                            <input type="date" className="bg-emerald-950 border border-white/10 rounded p-1.5 text-[10px] font-black outline-none w-full text-white" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <span className="text-[7px] font-black text-emerald-400 uppercase">Type</span>
+                            <select className="bg-emerald-950 border border-white/10 rounded p-1.5 text-[10px] font-black outline-none w-full text-white" value={creditType} onChange={e => setCreditType(e.target.value)}>
+                                <option value="mensuel">Mensuel</option>
+                                <option value="journalier">Journalier</option>
+                            </select>
+                        </div>
                     </div>
                     <div className="flex flex-col gap-1">
                         <span className="text-[7px] font-black text-emerald-400 uppercase">Avance</span>
@@ -603,14 +605,14 @@ export default function POS({ session, selectedDepotId }) {
                     </div>
                 </div>
              )}
-             <button onClick={handleFinalize} disabled={isProcessing} className="w-full mt-4 py-1.5 bg-emerald-600 text-white font-black rounded-lg text-[9px] uppercase tracking-wider flex items-center justify-center gap-2">
+             <button onClick={handleFinalize} disabled={isProcessing} className="w-full mt-4 py-1 bg-emerald-600 text-white font-black rounded-lg text-[9px] uppercase tracking-wider flex items-center justify-center gap-2">
                 {isProcessing ? <Loader2 className="animate-spin" size={14} /> : 'FINALISER'}
              </button>
           </div>
         </div>
 
         {/* PRODUCTS LIST */}
-        <div className="mt-4 bg-white rounded-xl p-2 shadow-sm border border-emerald-100">
+        <div className="mt-8 bg-white rounded-xl p-2 shadow-sm border border-emerald-100">
            <input type="text" placeholder="Chercher produit..." className="w-full bg-emerald-50 p-2 rounded-lg text-xs font-bold" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
            <div className="mt-2 h-64 overflow-y-auto">
              <table className="w-full text-left">
