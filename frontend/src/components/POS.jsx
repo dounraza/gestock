@@ -522,13 +522,15 @@ export default function POS({ session, selectedDepotId }) {
                     {formatQuantity(item.quantity, item)}
                   </div>
                   <div className="col-span-2 text-center">
-                    <button onClick={(e) => { e.stopPropagation(); openDiscountModalForItem(item); }} className="text-[9px] font-bold text-orange-600">
-                      {item.discount ? `${item.discount.value}${item.discount.type}` : '+'}
+                    <button onClick={(e) => { e.stopPropagation(); openDiscountModalForItem(item); }} className="px-2 py-1 text-[11px] font-black text-orange-600 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors">
+                      {item.discount ? `${item.discount.value}${item.discount.type}` : '+ Remise'}
                     </button>
                   </div>
                   <div className="col-span-3 text-right font-black text-[9px]">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</div>
                   <div className="col-span-2 text-center">
-                    <button onClick={(e) => { e.stopPropagation(); removeItem(item.item_id, item.item_id); }} className="text-red-400 hover:text-red-600"><Trash2 size={12} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); removeItem(item.item_id, item.item_id); }} className="p-1.5 text-red-500 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors">
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
               ))}
