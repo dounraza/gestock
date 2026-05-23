@@ -124,6 +124,8 @@ export default function POS({ session, selectedDepotId }) {
                                       <tr className="border-b border-gray-200 text-gray-500 text-[10px] uppercase">
                                           <th className="py-2">Désignation</th>
                                           <th className="py-2 text-center">Qté</th>
+                                          <th className="py-2 text-center">Remise</th>
+
                                           <th className="py-2 text-right">P.U / Sup</th>
                                       </tr>
                                   </thead>
@@ -132,6 +134,9 @@ export default function POS({ session, selectedDepotId }) {
                                           <tr key={item.item_id} className="border-b border-gray-50">
                                               <td className="py-2 font-bold">{item.name}</td>
                                               <td className="py-2 text-center text-xs">({formatQuantity(item.quantity, item)})</td>
+                                              <td className="py-2 text-center text-xs">
+                                                  {item.discount ? `${item.discount.value}${item.discount.type}` : '-'}
+                                              </td>
                                               <td className="py-2 text-right text-xs">
                                                 {item.unit_price.toLocaleString()} Ar
                                                 {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
@@ -165,6 +170,8 @@ export default function POS({ session, selectedDepotId }) {
                                       <tr className="border-b border-gray-200 text-gray-500 text-[10px] uppercase">
                                           <th className="py-2">Désignation</th>
                                           <th className="py-2 text-center">Qté</th>
+                                          <th className="py-2 text-center">Remise</th>
+
                                           <th className="py-2 text-right">P.U / Sup</th>
                                       </tr>
                                   </thead>
@@ -173,8 +180,12 @@ export default function POS({ session, selectedDepotId }) {
                                           <tr key={item.item_id} className="border-b border-gray-50">
                                               <td className="py-2 font-bold">{item.name}</td>
                                               <td className="py-2 text-center text-xs">({formatQuantity(item.quantity, item)})</td>
+                                                <td className="py-2 text-center text-orange-600 font-bold">
+                                            {item.discount ? `${item.discount.value}${item.discount.type}` : '-'}
+                                        </td>
+
                                               <td className="py-2 text-right text-xs">
-                                                {item.unit_price.toLocaleString()} Ar
+                                                {item.unit_price.toLocaleString()} Ar                                                
                                                 {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
                                               </td>
                                           </tr>
@@ -469,6 +480,16 @@ export default function POS({ session, selectedDepotId }) {
     else setDiscountModal({ itemId: item.item_id, name: item.name, isGlobal: false, value: item.discount?.value || 0, type: item.discount?.type || '%' });
   };
 
+  const totalDiscount = useMemo(() => {
+    return invoiceItems.reduce((acc, item) => {
+        if (!item.discount) return acc;
+        const baseTotal = item.quantity * item.unit_price;
+        const disc = parseFloat(item.discount.value);
+        const discountAmount = item.discount.type === '%' ? (baseTotal * (disc / 100)) : disc;
+        return acc + discountAmount;
+    }, 0) + globalDiscountAmount;
+  }, [invoiceItems, globalDiscountAmount]);
+
   return (
     <div className="flex flex-col gap-2 h-full p-2">
       <div className="bg-white rounded-xl p-2 shadow-sm border border-emerald-100 flex items-center justify-between">
@@ -744,6 +765,7 @@ export default function POS({ session, selectedDepotId }) {
                                           <th className="py-2">Désignation</th>
                                           <th className="py-2 text-center">Qté</th>
                                           <th className="py-2 text-right">P.U / Sup</th>
+                                          <th className="py-2 text-center">Remise</th>
                                           <th className="py-2 text-right">Total</th>
                                       </tr>
                                   </thead>
@@ -756,12 +778,15 @@ export default function POS({ session, selectedDepotId }) {
                                                 {item.unit_price.toLocaleString()} Ar
                                                 {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
                                               </td>
+                                              <td className="py-2 text-center text-orange-600 font-bold">{item.discount ? `${item.discount.value}${item.discount.type}` : '-'}</td>
                                               <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</td>
                                           </tr>
                                       ))}
                                   </tbody>
                               </table>
                           </div>
+                          <div className="mt-4 font-black text-sm text-right">Total Remise: {totalDiscount.toLocaleString()} Ar</div>
+                          <div className="mt-1 font-black text-lg text-right text-emerald-800">Total: {parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</div>
                           <div className="mt-10 pt-6 border-t border-gray-100 text-center text-[10px] text-gray-500 font-bold">
                             123 Rue Principale, Antananarivo
                           </div>
@@ -791,6 +816,7 @@ export default function POS({ session, selectedDepotId }) {
                                           <th className="py-2">Désignation</th>
                                           <th className="py-2 text-center">Qté</th>
                                           <th className="py-2 text-right">P.U / Sup</th>
+                                          <th className="py-2 text-center">Remise</th>
                                           <th className="py-2 text-right">Total</th>
                                       </tr>
                                   </thead>
@@ -803,12 +829,15 @@ export default function POS({ session, selectedDepotId }) {
                                                 {item.unit_price.toLocaleString()} Ar
                                                 {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
                                               </td>
+                                              <td className="py-2 text-center text-orange-600 font-bold">{item.discount ? `${item.discount.value}${item.discount.type}` : '-'}</td>
                                               <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</td>
                                           </tr>
                                       ))}
                                   </tbody>
                               </table>
                           </div>
+                          <div className="mt-4 font-black text-sm text-right">Total Remise: {totalDiscount.toLocaleString()} Ar</div>
+                          <div className="mt-1 font-black text-lg text-right text-emerald-800">Total: {parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</div>
                           <div className="mt-10 pt-6 border-t border-gray-100 text-center text-[10px] text-gray-500 font-bold">
                             123 Rue Principale, Antananarivo
                           </div>
