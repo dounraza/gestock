@@ -16,7 +16,6 @@ export default function CalculatorKeypad({ activeItem, onResult, onOpenDiscount,
     
     // Formule: total = (qté * (facteur/facteur)) * price_final
     const total = (qty * (factor / factor)) * price;
-    alert(`Calcul pour ${qty} ${type}: (${qty} * (${factor}/${factor})) * ${price} = ${total}`);
     
     return total;
   };

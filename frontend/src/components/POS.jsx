@@ -88,15 +88,15 @@ export default function POS({ session, selectedDepotId }) {
                                 {invoiceItems.map(item => (
                                     <tr key={item.item_id} className="border-b border-gray-50">
                                         <td className="py-2 font-bold">{item.name}</td>
-                                        <td className="py-2 text-center">{formatQuantity(item.quantity, item)}</td>
-                                        <td className="py-2 text-right">
-                                            {item.unit_price.toLocaleString()}
-                                            {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()}</div>}
+                                        <td className="py-2 text-center text-xs">({formatQuantity(item.quantity, item)})</td>
+                                        <td className="py-2 text-right text-xs">
+                                            {item.unit_price.toLocaleString()} Ar
+                                            {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
                                         </td>
                                         <td className="py-2 text-center text-orange-600 font-bold">
                                             {item.discount ? `${item.discount.value}${item.discount.type}` : '-'}
                                         </td>
-                                        <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()}</td>
+                                        <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -106,6 +106,88 @@ export default function POS({ session, selectedDepotId }) {
                             <span>{parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</span>
                         </div>
                     </div>
+
+                    {isWithdrawal && (
+                      <div className="mt-10 break-before-page">
+                          <div className="flex justify-between items-start mb-6">
+                            <div>
+                                <h2 className="text-2xl font-black text-emerald-800">Bon d'enlèvement</h2>
+                                <p className="text-sm font-bold text-gray-600">N° BE-{previewInvoice.number.split('-')[1] || previewInvoice.number}</p>
+                            </div>
+                            <div className="text-right text-[10px] font-bold">
+                                <p>Client: {clientName || '---'}</p>
+                            </div>
+                          </div>
+                          <div className="border border-gray-200 rounded-lg p-4">
+                              <table className="w-full text-left text-sm border-collapse">
+                                  <thead>
+                                      <tr className="border-b border-gray-200 text-gray-500 text-[10px] uppercase">
+                                          <th className="py-2">Désignation</th>
+                                          <th className="py-2 text-center">Qté</th>
+                                          <th className="py-2 text-right">P.U / Sup</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      {invoiceItems.map(item => (
+                                          <tr key={item.item_id} className="border-b border-gray-50">
+                                              <td className="py-2 font-bold">{item.name}</td>
+                                              <td className="py-2 text-center text-xs">({formatQuantity(item.quantity, item)})</td>
+                                              <td className="py-2 text-right text-xs">
+                                                {item.unit_price.toLocaleString()} Ar
+                                                {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
+                                              </td>
+                                          </tr>
+                                      ))}
+                                  </tbody>
+                              </table>
+                          </div>
+                          <div className="mt-10 grid grid-cols-2 gap-20 text-center text-[10px] font-bold">
+                            <div>Magasinier<br/><br/><br/>____________________</div>
+                            <div>Client<br/><br/><br/>____________________</div>
+                          </div>
+                      </div>
+                    )}
+
+                    {isOther && (
+                      <div className="mt-10 break-before-page">
+                          <div className="flex justify-between items-start mb-6">
+                            <div>
+                                <h2 className="text-2xl font-black text-emerald-800">Bon de livraison</h2>
+                                <p className="text-sm font-bold text-gray-600">N° BL-{previewInvoice.number.split('-')[1] || previewInvoice.number}</p>
+                            </div>
+                            <div className="text-right text-[10px] font-bold">
+                                <p>Client: {clientName || '---'}</p>
+                            </div>
+                          </div>
+                          <div className="border border-gray-200 rounded-lg p-4">
+                              <table className="w-full text-left text-sm border-collapse">
+                                  <thead>
+                                      <tr className="border-b border-gray-200 text-gray-500 text-[10px] uppercase">
+                                          <th className="py-2">Désignation</th>
+                                          <th className="py-2 text-center">Qté</th>
+                                          <th className="py-2 text-right">P.U / Sup</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      {invoiceItems.map(item => (
+                                          <tr key={item.item_id} className="border-b border-gray-50">
+                                              <td className="py-2 font-bold">{item.name}</td>
+                                              <td className="py-2 text-center text-xs">({formatQuantity(item.quantity, item)})</td>
+                                              <td className="py-2 text-right text-xs">
+                                                {item.unit_price.toLocaleString()} Ar
+                                                {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
+                                              </td>
+                                          </tr>
+                                      ))}
+                                  </tbody>
+                              </table>
+                          </div>
+                          <div className="mt-10 grid grid-cols-2 gap-20 text-center text-[10px] font-bold">
+                            <div>Livreur<br/><br/><br/>____________________</div>
+                            <div>Client<br/><br/><br/>____________________</div>
+                          </div>
+                      </div>
+                    )}
                 </div>
             </div>
           </div>
@@ -450,14 +532,15 @@ export default function POS({ session, selectedDepotId }) {
                   <input type="checkbox" checked={printInvoice} onChange={() => setPrintInvoice(!printInvoice)} className="accent-emerald-500" /> 
                   IMPRIMER LA FACTURE
                 </label>
+                <label className="flex items-center gap-2 text-[8px] font-bold cursor-pointer hover:text-emerald-400 transition-colors mt-2">
+                  <input type="checkbox" checked={isWithdrawal} onChange={() => setIsWithdrawal(!isWithdrawal)} className="accent-emerald-500" /> 
+                  BON D'ENLÈVEMENT
+                </label>
+                <label className="flex items-center gap-2 text-[8px] font-bold cursor-pointer hover:text-emerald-400 transition-colors mt-2">
+                  <input type="checkbox" checked={isOther} onChange={() => setIsOther(!isOther)} className="accent-emerald-500" /> 
+                  BON DE LIVRAISON
+                </label>
              </div>
-
-             {paymentMode === 'cash' && (
-                <div className="grid grid-cols-1 gap-1 p-2 bg-emerald-900/30 rounded-lg">
-                    <label className="flex items-center gap-2 text-[8px] font-bold"><input type="checkbox" checked={isWithdrawal} onChange={() => setIsWithdrawal(!isWithdrawal)} /> Prélèvement</label>
-                    <label className="flex items-center gap-2 text-[8px] font-bold"><input type="checkbox" checked={isOther} onChange={() => setIsOther(!isOther)} /> Autre</label>
-                </div>
-             )}
 
 
              {paymentMode === 'credit' && (
@@ -593,11 +676,10 @@ export default function POS({ session, selectedDepotId }) {
             </div>
             <div className="p-10 overflow-y-auto flex-1 print:p-0">
                 <div id="printable-invoice" className="text-gray-800">
-                    <div className="flex justify-between items-start mb-6">
+                    <div className="flex justify-between items-start mb-6 pb-6 border-b border-gray-100">
                         <div>
-                            <h1 className="text-3xl font-black text-emerald-800">Facture</h1>
+                            <h1 className="text-3xl font-black text-emerald-800">GESTOCK SARL</h1>
                             <div className="text-xs font-bold text-gray-500 mt-2">
-                                <p>GESTOCK SARL</p>
                                 <p>123 Rue Principale, Antananarivo</p>
                                 <p>Tél: +261 34 00 000 00</p>
                             </div>
@@ -607,16 +689,8 @@ export default function POS({ session, selectedDepotId }) {
                             <p className="text-sm font-bold">Tél: {clientPhone || '---'}</p>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 mb-8">
-                        <div>
-                            <p className="text-xs uppercase font-bold text-gray-400">Facture #</p>
-                            <p className="font-bold">{previewInvoice.number}</p>
-                        </div>
-                        <div>
-                            <p className="text-xs uppercase font-bold text-gray-400">Date</p>
-                            <p className="font-bold">{new Date(previewInvoice.created_at).toLocaleDateString()}</p>
-                        </div>
-                    </div>
+                    
+                    <h2 className="text-xl font-black text-gray-800 mb-4">Facture # {previewInvoice.number}</h2>
                     <div className="border-t border-b border-gray-200 py-4 mb-4">
                         <table className="w-full text-left text-sm border-collapse">
                             <thead>
@@ -632,15 +706,15 @@ export default function POS({ session, selectedDepotId }) {
                                 {invoiceItems.map(item => (
                                     <tr key={item.item_id} className="border-b border-gray-50">
                                         <td className="py-2 font-bold">{item.name}</td>
-                                        <td className="py-2 text-center">{formatQuantity(item.quantity, item)}</td>
-                                        <td className="py-2 text-right">
-                                            {item.unit_price.toLocaleString()}
-                                            {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()}</div>}
+                                        <td className="py-2 text-center text-xs">({formatQuantity(item.quantity, item)})</td>
+                                        <td className="py-2 text-right text-xs">
+                                            {item.unit_price.toLocaleString()} Ar
+                                            {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
                                         </td>
                                         <td className="py-2 text-center text-orange-600 font-bold">
                                             {item.discount ? `${item.discount.value}${item.discount.type}` : '-'}
                                         </td>
-                                        <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()}</td>
+                                        <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -650,6 +724,100 @@ export default function POS({ session, selectedDepotId }) {
                             <span>{parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</span>
                         </div>
                     </div>
+
+                    {isWithdrawal && (
+                      <div className="mt-10 break-before-page">
+                          <div className="flex justify-between items-start mb-6">
+                            <div>
+                                <h2 className="text-2xl font-black text-emerald-800">Bon d'enlèvement</h2>
+                                  {/* <p>Tél: +261 34 00 000 00</p> */}
+                                <p className="text-sm font-bold text-gray-600">N° BE-{previewInvoice.number.split('-')[1] || previewInvoice.number}</p>
+                            </div>
+                            <div className="text-right text-[10px] font-bold">
+                                <p>Client: {clientName || '---'}</p>
+                            </div>
+                          </div>
+                          <div className="border border-gray-200 rounded-lg p-4">
+                              <table className="w-full text-left text-sm border-collapse">
+                                  <thead>
+                                      <tr className="border-b border-gray-200 text-gray-500 text-[10px] uppercase">
+                                          <th className="py-2">Désignation</th>
+                                          <th className="py-2 text-center">Qté</th>
+                                          <th className="py-2 text-right">P.U / Sup</th>
+                                          <th className="py-2 text-right">Total</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      {invoiceItems.map(item => (
+                                          <tr key={item.item_id} className="border-b border-gray-50">
+                                              <td className="py-2 font-bold">{item.name}</td>
+                                              <td className="py-2 text-center text-xs">({formatQuantity(item.quantity, item)})</td>
+                                              <td className="py-2 text-right text-xs">
+                                                {item.unit_price.toLocaleString()} Ar
+                                                {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
+                                              </td>
+                                              <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</td>
+                                          </tr>
+                                      ))}
+                                  </tbody>
+                              </table>
+                          </div>
+                          <div className="mt-10 pt-6 border-t border-gray-100 text-center text-[10px] text-gray-500 font-bold">
+                            123 Rue Principale, Antananarivo
+                          </div>
+                          <div className="mt-6 grid grid-cols-2 gap-20 text-center text-[10px] font-bold">
+                            <div>Magasinier<br/><br/><br/>____________________</div>
+                            <div>Client<br/><br/><br/>____________________</div>
+                          </div>
+                      </div>
+                    )}
+
+                    {isOther && (
+                      <div className="mt-10 break-before-page">
+                          <div className="flex justify-between items-start mb-6">
+                            <div>
+                                <h2 className="text-2xl font-black text-emerald-800">Bon de livraison</h2>
+                                  <p>Tél: +261 34 00 000 00</p>
+                                <p className="text-sm font-bold text-gray-600">N° BL-{previewInvoice.number.split('-')[1] || previewInvoice.number}</p>
+                            </div>
+                            <div className="text-right text-[10px] font-bold">
+                                <p>Client: {clientName || '---'}</p>
+                            </div>
+                          </div>
+                          <div className="border border-gray-200 rounded-lg p-4">
+                              <table className="w-full text-left text-sm border-collapse">
+                                  <thead>
+                                      <tr className="border-b border-gray-200 text-gray-500 text-[10px] uppercase">
+                                          <th className="py-2">Désignation</th>
+                                          <th className="py-2 text-center">Qté</th>
+                                          <th className="py-2 text-right">P.U / Sup</th>
+                                          <th className="py-2 text-right">Total</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      {invoiceItems.map(item => (
+                                          <tr key={item.item_id} className="border-b border-gray-50">
+                                              <td className="py-2 font-bold">{item.name}</td>
+                                              <td className="py-2 text-center text-xs">({formatQuantity(item.quantity, item)})</td>
+                                              <td className="py-2 text-right text-xs">
+                                                {item.unit_price.toLocaleString()} Ar
+                                                {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
+                                              </td>
+                                              <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</td>
+                                          </tr>
+                                      ))}
+                                  </tbody>
+                              </table>
+                          </div>
+                          <div className="mt-10 pt-6 border-t border-gray-100 text-center text-[10px] text-gray-500 font-bold">
+                            123 Rue Principale, Antananarivo
+                          </div>
+                          <div className="mt-6 grid grid-cols-2 gap-20 text-center text-[10px] font-bold">
+                            <div>Livreur<br/><br/><br/>____________________</div>
+                            <div>Client<br/><br/><br/>____________________</div>
+                          </div>
+                      </div>
+                    )}
                 </div>
             </div>
           </div>
