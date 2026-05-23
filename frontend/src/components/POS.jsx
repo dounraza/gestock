@@ -235,31 +235,31 @@ export default function POS({ session, selectedDepotId }) {
   }, [isDragging]);
 
   const handleCalculatorResult = (quantity, addedTotal) => {
+    console.log("POS - handleCalculatorResult received:", { quantity, addedTotal });
     if (activeItemId) {
         updateItem(activeItemId, quantity, addedTotal);
         setIsCalculatorOpen(false);
     }
   };
 
-  const updateItem = async (itemId, quantity, addedTotal) => {
+  const updateItem = async (itemId, quantity, totalAmount) => {
+    alert("Débogage - Mise à jour Qte: " + quantity);
+    console.log("POS - updateItem called:", { itemId, quantity, totalAmount });
     if (quantity < 0) quantity = 0;
-    setInvoiceItems(prevItems =>
-        prevItems.map(item =>
+    
+    setInvoiceItems(prevItems => {
+        const updatedItems = prevItems.map(item =>
             item.item_id === itemId ? { 
                 ...item, 
                 quantity: quantity, 
-                total: (item.total || 0) + addedTotal 
+                total: totalAmount
             } : item
-        )
-    );
-    // On doit récupérer le nouveau total après la mise à jour pour la requête Supabase
-    setInvoiceItems(prevItems => {
-        const updatedItem = prevItems.find(i => i.item_id === itemId);
-        if (updatedItem) {
-            supabase.from('facture_items').update({ quantity: updatedItem.quantity, total: updatedItem.total }).eq('id', itemId);
-        }
-        return prevItems;
+        );
+        console.log("POS - Updated invoiceItems:", updatedItems);
+        return updatedItems;
     });
+
+    await supabase.from('facture_items').update({ quantity: quantity, total: totalAmount }).eq('id', itemId);
   };
 
   const handleReset = async () => {
@@ -309,6 +309,7 @@ export default function POS({ session, selectedDepotId }) {
             .select()
             .single();
         if (data) {
+            console.log("POS - Item added to invoiceItems:", { ...product, item_id: data.id, quantity: 0, unit_price: product.price });
             setInvoiceItems(prev => [...prev, { ...product, item_id: data.id, quantity: 0, unit_price: product.price, discount: null }]);
             setActiveItemId(data.id);
             setIsCalculatorOpen(true);
@@ -379,6 +380,23 @@ export default function POS({ session, selectedDepotId }) {
         }
       }
       
+      // Mise à jour explicite et forcée de chaque item dans facture_items
+      console.log("Finalize - Syncing items:", invoiceItems);
+      for (const item of invoiceItems) {
+        const { error: updateItemError } = await supabase
+          .from('facture_items')
+          .update({ 
+            quantity: Number(item.quantity), 
+            total: Number(item.total || calculateItemTotal(item)) 
+          })
+          .eq('id', item.item_id);
+          
+        if (updateItemError) {
+            console.error(`Error syncing item ${item.item_id}:`, updateItemError);
+            throw updateItemError;
+        }
+      }
+
       // Mise à jour du stock
       for (const item of invoiceItems) {
         // Update depot-specific stock

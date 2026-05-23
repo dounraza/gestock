@@ -214,6 +214,8 @@ const handleCancelInvoice = async (invoice) => {
                     <button onClick={() => setSelectedInvoice(null)} className="text-slate-400 hover:text-slate-800">Fermer</button>
                 </div>
                 <div className="overflow-x-auto">
+                    {console.log("Selected Invoice:", selectedInvoice)}
+                    {console.log("Facture Items:", selectedInvoice?.facture_items)}
                     <table className="w-full text-left text-xs">
                         <thead className="text-slate-400 uppercase font-black border-b border-slate-100">
                             <tr>
@@ -229,19 +231,19 @@ const handleCancelInvoice = async (invoice) => {
                             {selectedInvoice.facture_items?.map(item => (
                                 <tr key={item.id} className="text-slate-800 font-bold">
                                     <td className="p-2 uppercase">{item.produits?.name}</td>
-                                    <td className="p-2 text-center">{item.quantity}</td>
+                                    <td className="p-2 text-center">{item.quantity || 0}</td>
                                     <td className="p-2 text-center text-[9px] text-slate-500 italic">
                                         {item.produits && item.produits.quantite_par_unite > 1 ? 
-                                            `${Math.floor(item.quantity / item.produits.quantite_par_unite)} ${item.produits.unite_superieure || 'Ctn'} + ${item.quantity % item.produits.quantite_par_unite} ${item.produits.unite_base || 'Pce'}` 
-                                            : `${item.quantity} ${item.produits?.unite_base || 'Pce'}`
+                                            `${Math.floor((item.quantity || 0) / item.produits.quantite_par_unite)} ${item.produits.unite_superieure || 'Ctn'} + ${(item.quantity || 0) % item.produits.quantite_par_unite} ${item.produits.unite_base || 'Pce'}` 
+                                            : `${item.quantity || 0} ${item.produits?.unite_base || 'Pce'}`
                                         }
                                     </td>
                                     <td className="p-2 text-center text-orange-600">
                                         {item.discount_value ? `${item.discount_value}${item.discount_type || ''}` : '-'}
                                     </td>
-                                    <td className="p-2 text-right">{item.unit_price?.toLocaleString()} Ar</td>
+                                    <td className="p-2 text-right">{(item.unit_price || 0).toLocaleString()} Ar</td>
                                     <td className="p-2 text-right font-black">
-                                        {((item.quantity * item.unit_price) - (item.discount_value ? (item.discount_type === '%' ? (item.quantity * item.unit_price) * (item.discount_value/100) : item.discount_value) : 0)).toLocaleString()} Ar
+                                        {(( (item.quantity || 0) * (item.unit_price || 0) ) - (item.discount_value ? (item.discount_type === '%' ? ((item.quantity || 0) * (item.unit_price || 0)) * (item.discount_value/100) : item.discount_value) : 0)).toLocaleString()} Ar
                                     </td>
                                 </tr>
                             ))}

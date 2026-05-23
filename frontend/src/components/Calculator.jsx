@@ -29,6 +29,8 @@ export default function CalculatorKeypad({ activeItem, onResult, onOpenDiscount,
     const newQty = (activeItem?.quantity || 0) + increment;
     const addedTotal = calculateTotal(val === 0 ? 1 : val, type);
     
+    console.log("Calculator - addQuantityByUnit:", { val, unitQty, increment, newQty, addedTotal });
+    
     // On transmet la nouvelle quantité totale et le montant à ajouter
     onResult(newQty, addedTotal);
     setDisplay('0');
