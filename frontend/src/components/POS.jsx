@@ -243,7 +243,7 @@ export default function POS({ session, selectedDepotId }) {
   };
 
   const updateItem = async (itemId, quantity, totalAmount) => {
-    alert("Débogage - Mise à jour Qte: " + quantity);
+    
     console.log("POS - updateItem called:", { itemId, quantity, totalAmount });
     if (quantity < 0) quantity = 0;
     
