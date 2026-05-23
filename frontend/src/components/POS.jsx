@@ -568,18 +568,18 @@ export default function POS({ session, selectedDepotId }) {
                 <button onClick={() => setPaymentMode('credit')} className={`py-1.5 rounded text-[8px] font-black ${paymentMode === 'credit' ? 'bg-orange-500 text-white' : 'text-emerald-400'}`}>CRÉDIT</button>
              </div>
 
-             <div className="p-2 bg-emerald-900/30 rounded-lg mb-2">
-                <label className="flex items-center gap-2 text-[8px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
+             <div className="p-2 bg-emerald-900/30 rounded-lg mb-2 flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-1.5 text-[8px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
                   <input type="checkbox" checked={printInvoice} onChange={() => setPrintInvoice(!printInvoice)} className="accent-emerald-500" /> 
-                  IMPRIMER LA FACTURE
+                  FACTURE
                 </label>
-                <label className="flex items-center gap-2 text-[8px] font-bold cursor-pointer hover:text-emerald-400 transition-colors mt-2">
+                <label className="flex items-center gap-1.5 text-[8px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
                   <input type="checkbox" checked={isWithdrawal} onChange={() => setIsWithdrawal(!isWithdrawal)} className="accent-emerald-500" /> 
-                  BON D'ENLÈVEMENT
+                  B. ENLÈVEMENT
                 </label>
-                <label className="flex items-center gap-2 text-[8px] font-bold cursor-pointer hover:text-emerald-400 transition-colors mt-2">
+                <label className="flex items-center gap-1.5 text-[8px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
                   <input type="checkbox" checked={isOther} onChange={() => setIsOther(!isOther)} className="accent-emerald-500" /> 
-                  BON DE LIVRAISON
+                  B. LIVRAISON
                 </label>
              </div>
 
