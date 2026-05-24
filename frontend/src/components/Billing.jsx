@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { Plus, Search, FileText, Trash2, Edit2, Calendar, User, DollarSign, Loader2, CheckCircle, Clock, XCircle, Download } from 'lucide-react';
+import { Plus, Search, FileText, Trash2, Edit2, Calendar, User, DollarSign, Loader2, CheckCircle, Clock, XCircle, Eye, Download } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -15,7 +15,18 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
+  const [viewingInvoice, setViewingInvoice] = useState(null);
+  const [viewingItems, setViewingItems] = useState([]);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
+  const openViewModal = async (inv) => {
+    setViewingInvoice(inv);
+    const { data: items } = await supabase
+        .from('facture_items')
+        .select('*, produits(name, price, price_superior, unite_base, unite_superieure, quantite_par_unite)')
+        .eq('facture_id', inv.id);
+    setViewingItems(items || []);
+  };
 
   useEffect(() => {
     if (initialSearchTerm) {
@@ -25,6 +36,8 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
   
   const [formData, setFormData] = useState({
     client_id: '',
+    guest_name: '',
+    guest_contact: '',
     number: '',
     total_amount: '',
     status: 'draft',
@@ -58,7 +71,8 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
       const matchesSearch = inv.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (inv.clients?.name || inv.guest_name || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesUser = selectedUser === 'all' || inv.user_id === selectedUser;
-      return matchesSearch && matchesUser;
+      const isNotDraft = inv.status !== 'draft';
+      return matchesSearch && matchesUser && isNotDraft;
     });
     setFilteredInvoices(filtered);
   }, [searchTerm, invoices, selectedUser]);
@@ -68,40 +82,62 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
     setIsSubmitting(true);
 
     if (editingInvoice) {
-      const { error } = await supabase
-        .from('factures')
-        .update({
-          client_id: formData.client_id,
-          number: formData.number,
-          total_amount: parseFloat(formData.total_amount),
-          status: formData.status,
-          due_date: formData.due_date
-        })
-        .eq('id', editingInvoice.id);
-      
-      if (error) alert(error.message);
-      else {
-        resetForm();
-        fetchData();
-      }
+        // ... (existing code for updating)
+        const newTotal = viewingItems.reduce((acc, i) => {
+            const q = i.quantity || 0;
+            const qpu = Number(i.produits?.quantite_par_unite) || 1;
+            const superior = Math.floor(q / qpu);
+            const base = q % qpu;
+            const priceSup = Number(i.produits?.price_superior) || 0;
+            const priceBase = Number(i.unit_price) || 0;
+            const totalLine = (superior * priceSup) + (base * priceBase);
+            const discountVal = i.discount ? (i.discount.type === '%' ? (totalLine * parseFloat(i.discount.value) / 100) : parseFloat(i.discount.value)) : 0;
+            return acc + (totalLine - discountVal);
+        }, 0);
+
+        if (formData.status === 'cancelled' && editingInvoice.status !== 'cancelled') {
+            await cancelInvoice(editingInvoice);
+        }
+
+        const { error } = await supabase
+            .from('factures')
+            .update({
+            client_id: formData.client_id || null,
+            guest_name: formData.guest_name || null,
+            guest_contact: formData.guest_contact || null,
+            number: formData.number,
+            total_amount: newTotal,
+            status: formData.status,
+            due_date: formData.due_date
+            })
+            .eq('id', editingInvoice.id);
+        
+        if (error) alert(error.message);
+        else {
+            resetForm();
+            fetchData();
+        }
     } else {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from('factures').insert([{
-        ...formData,
-        total_amount: parseFloat(formData.total_amount),
-        user_id: user.id
-      }]);
-      
-      if (error) alert(error.message);
-      else {
-        resetForm();
-        fetchData();
-      }
+        const { data: { user } } = await supabase.auth.getUser();
+        const { error } = await supabase.from('factures').insert([{
+            ...formData,
+            client_id: formData.client_id || null,
+            guest_name: formData.guest_name || null,
+            guest_contact: formData.guest_contact || null,
+            total_amount: parseFloat(formData.total_amount),
+            user_id: user.id
+        }]);
+        
+        if (error) alert(error.message);
+        else {
+            resetForm();
+            fetchData();
+        }
     }
     setIsSubmitting(false);
   };
 
-  const handleEdit = (invoice) => {
+  const handleEdit = async (invoice) => {
     setEditingInvoice(invoice);
     setFormData({
       client_id: invoice.client_id || '',
@@ -110,13 +146,132 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
       status: invoice.status,
       due_date: invoice.due_date || new Date().toISOString().split('T')[0]
     });
+    
+    // Fetch items
+    const { data: items } = await supabase
+        .from('facture_items')
+        .select('*, produits(name)')
+        .eq('facture_id', invoice.id);
+    setViewingItems(items || []);
+    
     setShowModal(true);
   };
 
-  const deleteInvoice = async (id) => {
-    if (confirm('Supprimer cette facture ?')) {
-      await supabase.from('factures').delete().eq('id', id);
+  const deleteItem = async (item) => {
+    if (!confirm('Supprimer cet article de la facture et réintégrer le stock ?')) return;
+
+    try {
+        const { produit_id, quantity, facture_id } = item;
+        const depotId = editingInvoice.depot_id;
+
+        // 1. Reintegrate stock
+        if (depotId) {
+            const { data: depotStock } = await supabase
+                .from('stocks')
+                .select('id, quantity')
+                .eq('product_id', produit_id)
+                .eq('depot_id', depotId)
+                .maybeSingle();
+
+            if (depotStock) {
+                await supabase.from('stocks')
+                .update({ quantity: Number(depotStock.quantity) + Number(quantity) })
+                .eq('id', depotStock.id);
+            } else {
+                await supabase.from('stocks').insert({
+                    product_id: produit_id,
+                    depot_id: depotId,
+                    quantity: quantity
+                });
+            }
+        }
+
+        // 2. Delete item
+        await supabase.from('facture_items').delete().eq('id', item.id);
+
+        // 3. Recalculate and update invoice total
+        const remainingItems = viewingItems.filter(i => i.id !== item.id);
+        const newTotal = remainingItems.reduce((acc, i) => {
+            const q = i.quantity || 0;
+            // Fetch product info if missing (in case of incomplete join)
+            const p = i.produits || {}; 
+            const qpu = Number(p.quantite_par_unite) || 1;
+            const superior = Math.floor(q / qpu);
+            const base = q % qpu;
+            const priceSup = Number(p.price_superior) || 0;
+            const priceBase = Number(i.unit_price) || 0;
+            
+            const totalBeforeDiscount = (superior * priceSup) + (base * priceBase);
+            const discountVal = i.discount ? (i.discount.type === '%' ? (totalBeforeDiscount * parseFloat(i.discount.value) / 100) : parseFloat(i.discount.value)) : 0;
+            return acc + (totalBeforeDiscount - discountVal);
+        }, 0);
+
+        await supabase.from('factures').update({ total_amount: newTotal }).eq('id', facture_id);
+
+        setViewingItems(remainingItems);
+        setFormData(prev => ({...prev, total_amount: newTotal}));
+        fetchData();
+        alert('Article supprimé, stock réintégré et total mis à jour.');
+    } catch (error) {
+        console.error('Erreur suppression article:', error);
+        alert('Erreur : ' + error.message);
+    }
+  };
+
+  const deleteInvoice = async (invoice) => {
+    if (!confirm('Supprimer cette facture et réintégrer les stocks ?')) return;
+
+    try {
+      // 1. Get items and the depot_id of the invoice
+      const { data: invoiceData, error: invError } = await supabase
+        .from('factures')
+        .select('depot_id')
+        .eq('id', invoice.id)
+        .single();
+        
+      if (invError) throw invError;
+      const depotId = invoiceData.depot_id;
+
+      const { data: items, error: itemsError } = await supabase
+        .from('facture_items')
+        .select('produit_id, quantity')
+        .eq('facture_id', invoice.id);
+
+      if (itemsError) throw itemsError;
+
+      // 2. Reintegrate stock in the specific depot
+      if (depotId) {
+        for (const item of items) {
+          const { data: depotStock } = await supabase
+            .from('stocks')
+            .select('id, quantity')
+            .eq('product_id', item.produit_id)
+            .eq('depot_id', depotId)
+            .maybeSingle();
+
+          if (depotStock) {
+            await supabase.from('stocks')
+              .update({ quantity: Number(depotStock.quantity) + Number(item.quantity) })
+              .eq('id', depotStock.id);
+          } else {
+            await supabase.from('stocks').insert({
+                product_id: item.produit_id,
+                depot_id: depotId,
+                quantity: item.quantity
+            });
+          }
+        }
+      }
+
+      // 3. Delete invoice and items
+      await supabase.from('facture_items').delete().eq('facture_id', invoice.id);
+      await supabase.from('factures').delete().eq('id', invoice.id);
+
+      alert('Facture supprimée et stocks réintégrés !');
       fetchData();
+    } catch (error) {
+      console.error('Erreur suppression:', error);
+      alert('Erreur lors de la suppression : ' + error.message);
     }
   };
 
@@ -279,22 +434,14 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
         <p style="margin: 5px 0; font-size: 18px; font-weight: 900; color: #111827;">${inv.clients.name}</p>
         ${inv.clients.address ? `<p style="margin: 2px 0;">${inv.clients.address}</p>` : ''}
         ${inv.clients.phone ? `<p style="margin: 2px 0;">Tél : ${inv.clients.phone}</p>` : ''}
-        <div style="display: flex; gap: 20px; margin-top: 10px;">
-          ${inv.clients.nif ? `<p style="margin: 0; font-size: 11px;"><strong>NIF:</strong> ${inv.clients.nif}</p>` : ''}
-          ${inv.clients.stat ? `<p style="margin: 0; font-size: 11px;"><strong>STAT:</strong> ${inv.clients.stat}</p>` : ''}
-        </div>
       </div>
     ` : inv.guest_name ? `
       <div style="flex: 1; border: 1px solid #eee; padding: 20px; border-radius: 15px;">
         <p style="margin: 0; font-weight: 900; text-transform: uppercase; color: #6b7280; font-size: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 10px;">Facturé à :</p>
         <p style="margin: 5px 0; font-size: 18px; font-weight: 900; color: #111827;">${inv.guest_name}</p>
         ${inv.guest_contact ? `<p style="margin: 2px 0;">Contact : ${inv.guest_contact}</p>` : ''}
-        <div style="display: flex; gap: 20px; margin-top: 10px;">
-          ${inv.guest_nif ? `<p style="margin: 0; font-size: 11px;"><strong>NIF:</strong> ${inv.guest_nif}</p>` : ''}
-          ${inv.guest_stat ? `<p style="margin: 0; font-size: 11px;"><strong>STAT:</strong> ${inv.guest_stat}</p>` : ''}
-        </div>
       </div>
-    ` : '';
+    ` : '<div style="flex: 1; border: 1px solid #eee; padding: 20px; border-radius: 15px;"><p style="margin: 0; font-weight: 900; text-transform: uppercase; color: #6b7280; font-size: 10px;">Facturé à :</p><p style="margin: 5px 0; font-size: 18px; font-weight: 900; color: #111827;">Client Direct</p></div>';
 
     const isCredit = inv.status !== 'paid';
 
@@ -415,14 +562,14 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
       </div>
 
       {/* Invoice List - Desktop Table */}
-      <div className="hidden md:block bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl overflow-hidden shadow-sm">
+      <div className="hidden md:block bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl overflow-hidden shadow-sm min-h-[600px] max-h-[600px] overflow-y-auto">
         <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-emerald-50/50">
+          <thead className="sticky top-0 bg-emerald-50/95 z-10">
+            <tr>
               <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">N° Facture</th>
+              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Date & Heure</th>
               <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Vendeur</th>
               <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Client</th>
-              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Montant</th>
               <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Statut</th>
               <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest text-right">Actions</th>
             </tr>
@@ -435,6 +582,9 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                 <tr key={inv.id} className="hover:bg-emerald-50/20 transition-colors group">
                   <td className="p-5 font-bold text-gray-800 flex items-center gap-2">
                     <FileText size={16} className="text-emerald-500" /> {inv.number}
+                  </td>
+                  <td className="p-5 text-[11px] font-bold text-gray-600">
+                    {new Date(inv.created_at).toLocaleDateString('fr-FR')} {new Date(inv.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}
                   </td>
                   <td className="p-5">
                     <div className="flex items-center gap-2">
@@ -449,34 +599,27 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                   <td className="p-5 text-gray-600 font-medium">
                     {inv.clients?.name || inv.guest_name || 'Client Direct'}
                   </td>
-                  <td className="p-5 font-black text-gray-800 text-sm">
-                    {inv.total_amount.toLocaleString('fr-MG')} Ar
-                  </td>
                   <td className="p-5">
                     <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase border flex items-center gap-1.5 w-fit tracking-widest ${getStatusStyle(inv.status)}`}>
                       {getStatusIcon(inv.status)} {inv.status}
                     </span>
                   </td>
                   <td className="p-5 text-right">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex justify-center gap-3">
                       <button 
-                        onClick={() => downloadPDF(inv)} 
-                        disabled={isGeneratingPDF}
-                        className="p-2 text-gray-400 hover:text-blue-600 transition-colors" 
-                        title="Télécharger PDF"
+                        onClick={() => openViewModal(inv)}
+                        className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors" 
+                        title="Voir détails"
                       >
-                        <Download size={16} />
+                        <Eye size={18} />
                       </button>
                       {inv.status === 'paid' && (
-                        <button onClick={() => cancelInvoice(inv)} className="p-2 text-gray-400 hover:text-orange-600 transition-colors" title="Annuler">
-                          <XCircle size={16} />
+                        <button onClick={() => cancelInvoice(inv)} className="p-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-colors" title="Annuler">
+                          <XCircle size={18} />
                         </button>
                       )}
-                      <button onClick={() => handleEdit(inv)} className="p-2 text-gray-400 hover:text-emerald-600 transition-colors">
-                        <Edit2 size={16} />
-                      </button>
-                      <button onClick={() => deleteInvoice(inv.id)} className="p-2 text-gray-400 hover:text-red-600 transition-colors">
-                        <Trash2 size={16} />
+                      <button onClick={() => handleEdit(inv)} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors" title="Éditer">
+                        <Edit2 size={18} />
                       </button>
                     </div>
                   </td>
@@ -532,7 +675,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                   <button onClick={() => handleEdit(inv)} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
                     <Edit2 size={16} />
                   </button>
-                  <button onClick={() => deleteInvoice(inv.id)} className="p-2 bg-red-50 text-red-600 rounded-lg">
+                  <button onClick={() => deleteInvoice(inv)} className="p-2 bg-red-50 text-red-600 rounded-lg">
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -572,7 +715,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                   <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Client</label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <select required className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none" value={formData.client_id} onChange={e => setFormData({...formData, client_id: e.target.value})}>
+                    <select className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none" value={formData.client_id} onChange={e => setFormData({...formData, client_id: e.target.value})}>
                       <option value="">Choisir...</option>
                       {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
@@ -582,17 +725,26 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Montant Total</label>
+                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Nom Invité</label>
+                  <input className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none" value={formData.guest_name} onChange={e => setFormData({...formData, guest_name: e.target.value})} placeholder="Si pas de client" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Contact Invité</label>
+                  <input className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none" value={formData.guest_contact} onChange={e => setFormData({...formData, guest_contact: e.target.value})} placeholder="Numéro..." />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Montant Total (MGA)</label>
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <input required type="number" step="0.01" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.total_amount} onChange={e => setFormData({...formData, total_amount: e.target.value})} />
+                    <input required type="number" step="0.01" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.total_amount} onChange={e => setFormData({...formData, total_amount: e.target.value})} />
                   </div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Échéance</label>
                   <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <input required type="date" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.due_date} onChange={e => setFormData({...formData, due_date: e.target.value})} />
+                    <input required type="date" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.due_date} onChange={e => setFormData({...formData, due_date: e.target.value})} />
                   </div>
                 </div>
               </div>
@@ -617,6 +769,38 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                 </div>
               </div>
 
+              <div className="space-y-4">
+                <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Articles</label>
+                <div className="border border-emerald-100 rounded-xl overflow-hidden max-h-60 overflow-y-auto">
+                    <table className="w-full text-xs">
+                        <tbody className="divide-y divide-emerald-50">
+                            {viewingItems.map(item => (
+                                <tr key={item.id}>
+                                    <td className="p-2 font-bold">{item.produits?.name || 'Inconnu'}</td>
+                                    <td className="p-2 text-right text-[9px] text-slate-500 italic">
+                                        {(() => {
+                                            const q = item.quantity || 0;
+                                            const p = item.produits || {};
+                                            const qpu = Number(p.quantite_par_unite) || 1;
+                                            const superior = Math.floor(q / qpu);
+                                            const base = q % qpu;
+                                            return p && qpu > 1 
+                                                ? `${superior > 0 ? `${superior} ${p.unite_superieure || 'Ctn'} ` : ''}${base > 0 ? `+ ${base} ${p.unite_base || 'Pce'}` : ''}`
+                                                : `${q} ${p.unite_base || 'Pce'}`;
+                                        })()}
+                                    </td>
+                                    <td className="p-2 text-right">
+                                        <button onClick={() => deleteItem(item)} className="text-red-500 hover:text-red-700">
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+              </div>
+
               <button 
                 type="submit" 
                 disabled={isSubmitting}
@@ -625,6 +809,117 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                 {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : (editingInvoice ? "Mettre à jour" : "Créer la facture")}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+      {viewingInvoice && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-900/20 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <h3 className="text-lg font-bold text-gray-800">Détails Facture {viewingInvoice.number}</h3>
+              <button onClick={() => setViewingInvoice(null)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+               <div className="text-sm text-gray-600 mb-6">
+               <p><strong>Client:</strong> {viewingInvoice.clients?.name || viewingInvoice.guest_name || 'Client Direct'}</p>
+               <p><strong>Total:</strong> {viewingInvoice.total_amount.toLocaleString('fr-MG')} Ar</p>
+               <p><strong>Date & Heure:</strong> {new Date(viewingInvoice.created_at).toLocaleDateString('fr-FR')} {new Date(viewingInvoice.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</p>
+               </div>               <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                    <thead className="text-slate-400 uppercase font-black border-b border-slate-100">
+                        <tr>
+                            <th className="p-2">Désignation</th>
+                            <th className="p-2 text-center">Qté</th>
+                            <th className="p-2 text-center">Unités</th>
+                            <th className="p-2 text-center">Remise</th>
+                            <th className="p-2 text-right">P.U</th>
+                            <th className="p-2 text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {viewingItems.map(item => {
+                            const q = item.quantity || 0;
+                            const qpu = Number(item.produits?.quantite_par_unite) || 1;
+                            const superior = Math.floor(q / qpu);
+                            const base = q % qpu;
+                            const qDisplay = item.produits && qpu > 1 
+                                ? `${superior > 0 ? `${superior} ${item.produits.unite_superieure || 'Ctn'} ` : ''}${base > 0 ? `+ ${base} ${item.produits.unite_base || 'Pce'}` : ''}`
+                                : `${q} ${item.produits?.unite_base || 'Pce'}`;
+                            
+                            return (
+                                <tr key={item.id} className="text-slate-800 font-bold">
+                                    <td className="p-2 uppercase">{item.produits?.name || 'Inconnu'}</td>
+                                    <td className="p-2 text-center">{q}</td>
+                                    <td className="p-2 text-center text-[9px] text-slate-500 italic">
+                                        {qDisplay}
+                                    </td>
+                                    <td className="p-2 text-center text-orange-600">
+                                        {item.discount ? `${item.discount.value || 0}${item.discount.type || ''}` : '-'}
+                                    </td>
+                                    <td className="p-2 text-right text-[10px]">
+                                        <div>{ (item.unit_price || 0).toLocaleString() } Ar</div>
+                                        {item.produits?.price_superior > 0 && (
+                                            <div className="text-[9px] text-slate-400">Sup: {Number(item.produits.price_superior).toLocaleString()} Ar</div>
+                                        )}
+                                    </td>
+                                    <td className="p-2 text-right font-black">
+                                        {(() => {
+                                            const q = item.quantity || 0;
+                                            const qpu = Number(item.produits?.quantite_par_unite) || 1;
+                                            const superior = Math.floor(q / qpu);
+                                            const base = q % qpu;
+                                            const priceSup = Number(item.produits?.price_superior) || 0;
+                                            const priceBase = Number(item.unit_price) || 0;
+                                            
+                                            const totalBeforeDiscount = (superior * priceSup) + (base * priceBase);
+                                            const discountVal = item.discount ? (item.discount.type === '%' ? (totalBeforeDiscount * parseFloat(item.discount.value) / 100) : parseFloat(item.discount.value)) : 0;
+                                            return (totalBeforeDiscount - discountVal).toLocaleString();
+                                        })()} Ar
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                    <tfoot className="border-t-2 border-slate-200">
+                        <tr className="text-slate-800 font-black">
+                            <td colSpan="3" className="p-2 text-right uppercase">Totaux</td>
+                            <td className="p-2 text-center text-orange-600">
+                                {viewingItems.reduce((acc, item) => {
+                                    const q = item.quantity || 0;
+                                    const qpu = Number(item.produits?.quantite_par_unite) || 1;
+                                    const superior = Math.floor(q / qpu);
+                                    const base = q % qpu;
+                                    const priceSup = Number(item.produits?.price_superior) || 0;
+                                    const priceBase = Number(item.unit_price) || 0;
+                                    const totalLine = (superior * priceSup) + (base * priceBase);
+                                    const discountVal = item.discount ? (item.discount.type === '%' ? (totalLine * parseFloat(item.discount.value) / 100) : parseFloat(item.discount.value)) : 0;
+                                    return acc + discountVal;
+                                }, 0).toLocaleString()} Ar
+                            </td>
+                            <td></td>
+                            <td className="p-2 text-right">
+                                {viewingItems.reduce((acc, item) => {
+                                    const q = item.quantity || 0;
+                                    const qpu = Number(item.produits?.quantite_par_unite) || 1;
+                                    const superior = Math.floor(q / qpu);
+                                    const base = q % qpu;
+                                    const priceSup = Number(item.produits?.price_superior) || 0;
+                                    const priceBase = Number(item.unit_price) || 0;
+                                    const totalLine = (superior * priceSup) + (base * priceBase);
+                                    const discountVal = item.discount ? (item.discount.type === '%' ? (totalLine * parseFloat(item.discount.value) / 100) : parseFloat(item.discount.value)) : 0;
+                                    return acc + (totalLine - discountVal);
+                                }, 0).toLocaleString()} Ar
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+               </div>
+            </div>
+            <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+                <button onClick={() => downloadPDF(viewingInvoice)} className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-blue-700 transition-all flex items-center gap-2">
+                    <Download size={18} /> Imprimer / PDF
+                </button>
+            </div>
           </div>
         </div>
       )}

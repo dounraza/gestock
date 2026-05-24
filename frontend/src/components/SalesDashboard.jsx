@@ -154,11 +154,12 @@ const handleCancelInvoice = async (invoice) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden min-h-[600px] max-h-[600px] overflow-y-auto">
         <table className="w-full text-left">
-            <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-black">
+            <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-black sticky top-0 z-10">
                 <tr>
                     <th className="p-4">Facture</th>
+                    <th className="p-4">Date</th>
                     <th className="p-4">Client</th>
                     <th className="p-4">Détails</th>
                     <th className="p-4">Type</th>
@@ -169,7 +170,10 @@ const handleCancelInvoice = async (invoice) => {
                 {paginatedSales.map(sale => (
                     <tr key={sale.id} className="text-[12px] font-bold text-slate-700">
                         <td className="p-4">{sale.number}</td>
-                        <td className="p-4">{sale.clients?.name || 'Anonyme'}</td>
+                        <td className="p-4 text-[10px]">
+                          {new Date(sale.created_at).toLocaleDateString('fr-FR')} {new Date(sale.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}
+                        </td>
+                        <td className="p-4">{sale.clients?.name || sale.guest_name || 'Anonyme'}</td>
                         <td className="p-4">
                             <button 
                                 onClick={() => setSelectedInvoice(sale)}

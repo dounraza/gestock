@@ -62,15 +62,14 @@ export default function POS({ session, selectedDepotId }) {
             </div>
             <div className="p-10 overflow-y-auto flex-1 print:p-0">
                 <div id="printable-invoice" className="text-gray-800">
-                    <h1 className="text-3xl font-black text-emerald-800 mb-6">Facture de Vente</h1>
                     <div className="grid grid-cols-2 gap-4 mb-8">
                         <div>
                             <p className="text-xs uppercase font-bold text-gray-400">Facture #</p>
                             <p className="font-bold">{previewInvoice.id.slice(0,8).toUpperCase()}</p>
                         </div>
                         <div>
-                            <p className="text-xs uppercase font-bold text-gray-400">Date</p>
-                            <p className="font-bold">{new Date(previewInvoice.created_at).toLocaleDateString()}</p>
+                            <p className="text-xs uppercase font-bold text-gray-400">Date :</p>
+                            <p className="font-bold">{new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                         </div>
                     </div>
                     <div className="border-t border-b border-gray-200 py-4 mb-4">
@@ -94,7 +93,7 @@ export default function POS({ session, selectedDepotId }) {
                                             {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
                                         </td>
                                         <td className="py-2 text-center text-orange-600 font-bold">
-                                            {item.discount ? `${item.discount.value}${item.discount.type}` : '-'}
+                                            {item.discount ? `${item.discount.value}` : '-'}
                                         </td>
                                         <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</td>
                                     </tr>
@@ -181,7 +180,7 @@ export default function POS({ session, selectedDepotId }) {
                                               <td className="py-2 font-bold">{item.name}</td>
                                               <td className="py-2 text-center text-xs">({formatQuantity(item.quantity, item)})</td>
                                                 <td className="py-2 text-center text-orange-600 font-bold">
-                                            {item.discount ? `${item.discount.value}${item.discount.type}` : '-'}
+                                            {item.discount ? `${item.discount.value}` : '-'}
                                         </td>
 
                                               <td className="py-2 text-right text-xs">
@@ -243,25 +242,28 @@ export default function POS({ session, selectedDepotId }) {
   };
 
   const updateItem = async (itemId, quantity, totalAmount) => {
-    
+
     console.log("POS - updateItem called:", { itemId, quantity, totalAmount });
     if (quantity < 0) quantity = 0;
-    
+
     setInvoiceItems(prevItems => {
         const updatedItems = prevItems.map(item =>
-            item.item_id === itemId ? { 
-                ...item, 
-                quantity: quantity, 
-                total: totalAmount
+            item.item_id === itemId ? {
+                ...item,
+                quantity: quantity,
+                total: (item.total || 0) + totalAmount
             } : item
         );
         console.log("POS - Updated invoiceItems:", updatedItems);
         return updatedItems;
     });
 
-    await supabase.from('facture_items').update({ quantity: quantity, total: totalAmount }).eq('id', itemId);
-  };
+    // We also need the current total to update Supabase correctly if we are accumulating
+    const { data: currentItem } = await supabase.from('facture_items').select('total').eq('id', itemId).single();
+    const newTotal = (currentItem?.total || 0) + totalAmount;
 
+    await supabase.from('facture_items').update({ quantity: quantity, total: newTotal }).eq('id', itemId);
+  };
   const handleReset = async () => {
     if (!activeInvoice || invoiceItems.length === 0) return;
     if (!window.confirm("Êtes-vous sûr de vouloir réinitialiser cette commande ?")) return;
@@ -363,7 +365,9 @@ export default function POS({ session, selectedDepotId }) {
         due_date: paymentMode === 'credit' ? dueDate : new Date().toISOString().split('T')[0],
         advance_amount: advance,
         status: 'paid',
-        depot_id: selectedDepotId // Store which depot the sale was made from
+        depot_id: selectedDepotId,
+        guest_name: clientName,
+        guest_contact: clientPhone
       }).eq('id', activeInvoice.id).select().single();
 
       if (updateError) {
@@ -495,7 +499,7 @@ export default function POS({ session, selectedDepotId }) {
 
   const openDiscountModalForItem = (item) => {
     if (!item || item.isGlobal) setDiscountModal({ itemId: 'global', name: 'Globale', isGlobal: true, value: globalDiscount.value, type: globalDiscount.type });
-    else setDiscountModal({ itemId: item.item_id, name: item.name, isGlobal: false, value: item.discount?.value || 0, type: item.discount?.type || '%' });
+    else setDiscountModal({ itemId: item.item_id, name: item.name, isGlobal: false, value: item.discount?.value || 0, type: item.discount?.type || 'Ar' });
   };
 
   const totalDiscount = useMemo(() => {
@@ -540,8 +544,8 @@ export default function POS({ session, selectedDepotId }) {
                     {formatQuantity(item.quantity, item)}
                   </div>
                   <div className="col-span-2 text-center">
-                    <button onClick={(e) => { e.stopPropagation(); openDiscountModalForItem(item); }} className="px-2 py-1 text-[11px] font-black text-orange-600 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors">
-                      {item.discount ? `${item.discount.value}${item.discount.type}` : '+ Remise'}
+                    <button onClick={(e) => { e.stopPropagation(); openDiscountModalForItem(item); }} className="px-2 py-1 text-xs font-black text-orange-600 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors">
+                      {item.discount ? `${item.discount.value}` : '+ Remise'}
                     </button>
                   </div>
                   <div className="col-span-3 text-right font-black text-[9px]">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</div>
@@ -555,73 +559,76 @@ export default function POS({ session, selectedDepotId }) {
             </div>
           </div>
           {/* VALIDATION */}
-          <div className="col-span-12 lg:col-span-4 bg-emerald-950 text-white rounded-xl p-3 shadow-xl">
-             <div className="flex justify-between items-center mb-2">
-                <h3 className="font-black text-[9px] uppercase">Paiement</h3>
-                {globalDiscountAmount > 0 && (
-                    <span className="text-[9px] font-black text-orange-400">Remise: -{globalDiscountAmount.toLocaleString()} Ar</span>
-                )}
-             </div>
+          <div className="col-span-12 lg:col-span-4 bg-emerald-950 text-white rounded-xl p-2 shadow-xl flex flex-col gap-1.5">
+            <div className="flex justify-between items-center">
+               <h3 className="font-black text-[8px] uppercase">Paiement</h3>
+               {globalDiscountAmount > 0 && (
+                   <span className="text-[8px] font-black text-orange-400">Remise: -{globalDiscountAmount.toLocaleString()} Ar</span>
+               )}
+            </div>
 
-             <div className="grid grid-cols-2 gap-1.5 p-1 bg-emerald-900/50 rounded-lg border border-white/10 mb-2">
-                <button onClick={() => setPaymentMode('cash')} className={`py-1.5 rounded text-[8px] font-black ${paymentMode === 'cash' ? 'bg-emerald-500 text-white' : 'text-emerald-400'}`}>COMPTANT</button>
-                <button onClick={() => setPaymentMode('credit')} className={`py-1.5 rounded text-[8px] font-black ${paymentMode === 'credit' ? 'bg-orange-500 text-white' : 'text-emerald-400'}`}>CRÉDIT</button>
-             </div>
+            <div className="grid grid-cols-2 gap-1 p-0.5 bg-emerald-900/50 rounded-lg border border-white/10">
+               <button onClick={() => setPaymentMode('cash')} className={`py-1 rounded text-[8px] font-black ${paymentMode === 'cash' ? 'bg-emerald-500 text-white' : 'text-emerald-400'}`}>COMPTANT</button>
+               <button onClick={() => setPaymentMode('credit')} className={`py-1 rounded text-[8px] font-black ${paymentMode === 'credit' ? 'bg-orange-500 text-white' : 'text-emerald-400'}`}>CRÉDIT</button>
+            </div>
 
-             <div className="p-2 bg-emerald-900/30 rounded-lg mb-2 flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-1.5 text-[8px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
-                  <input type="checkbox" checked={printInvoice} onChange={() => setPrintInvoice(!printInvoice)} className="accent-emerald-500" /> 
-                  FACTURE
-                </label>
-                <label className="flex items-center gap-1.5 text-[8px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
-                  <input type="checkbox" checked={isWithdrawal} onChange={() => setIsWithdrawal(!isWithdrawal)} className="accent-emerald-500" /> 
-                  B. ENLÈVEMENT
-                </label>
-                <label className="flex items-center gap-1.5 text-[8px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
-                  <input type="checkbox" checked={isOther} onChange={() => setIsOther(!isOther)} className="accent-emerald-500" /> 
-                  B. LIVRAISON
-                </label>
-             </div>
+            <div className="p-1.5 bg-emerald-900/30 rounded-lg flex flex-wrap items-center gap-2">
+               <label className="flex items-center gap-1 text-[7px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
+                 <input type="checkbox" checked={printInvoice} onChange={() => setPrintInvoice(!printInvoice)} className="accent-emerald-500 scale-75" /> 
+                 FACTURE
+               </label>
+               <label className="flex items-center gap-1 text-[7px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
+                 <input type="checkbox" checked={isWithdrawal} onChange={() => setIsWithdrawal(!isWithdrawal)} className="accent-emerald-500 scale-75" /> 
+                 B. ENLÈVEMENT
+               </label>
+               <label className="flex items-center gap-1 text-[7px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
+                 <input type="checkbox" checked={isOther} onChange={() => setIsOther(!isOther)} className="accent-emerald-500 scale-75" /> 
+                 B. LIVRAISON
+               </label>
+            </div>
 
+            {/* Client Info */}
+            <div className="grid grid-cols-2 gap-1.5 bg-emerald-900/30 p-1.5 rounded-lg border border-white/10">
+               <input type="text" className="bg-emerald-950 border border-white/10 rounded p-1 text-[9px] font-black outline-none w-full text-white placeholder-emerald-400" placeholder="Nom Client" value={clientName} onChange={e => setClientName(e.target.value)} />
+               <input type="text" className="bg-emerald-950 border border-white/10 rounded p-1 text-[9px] font-black outline-none w-full text-white placeholder-emerald-400" placeholder="Téléphone" value={clientPhone} onChange={e => setClientPhone(e.target.value)} />
+            </div>
 
-             {paymentMode === 'credit' && (
-                <div className="grid grid-cols-1 gap-2 bg-emerald-900/30 p-2 rounded-lg border border-white/10 mt-2">
-                    <div className="grid grid-cols-2 gap-2">
-                        <div className="flex flex-col gap-1">
-                            <span className="text-[7px] font-black text-emerald-400 uppercase">Échéance</span>
-                            <input type="date" className="bg-emerald-950 border border-white/10 rounded p-1.5 text-[10px] font-black outline-none w-full text-white" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                            <span className="text-[7px] font-black text-emerald-400 uppercase">Type</span>
-                            <select className="bg-emerald-950 border border-white/10 rounded p-1.5 text-[10px] font-black outline-none w-full text-white" value={creditType} onChange={e => setCreditType(e.target.value)}>
-                                <option value="mensuel">Mensuel</option>
-                                <option value="journalier">Journalier</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[7px] font-black text-emerald-400 uppercase">Avance</span>
-                        <input type="number" className="bg-emerald-950 border border-white/10 rounded p-1.5 text-[10px] font-black outline-none w-full text-orange-400" placeholder="0" value={advanceAmount || ''} onChange={e => setAdvanceAmount(e.target.value)} />
-                    </div>
-                </div>
-             )}
-             <button onClick={handleFinalize} disabled={isProcessing} className="w-full mt-4 py-1 bg-emerald-600 text-white font-black rounded-lg text-[9px] uppercase tracking-wider flex items-center justify-center gap-2">
-                {isProcessing ? <Loader2 className="animate-spin" size={14} /> : 'FINALISER'}
-             </button>
-          </div>
-        </div>
+            {paymentMode === 'credit' && (
+               <div className="grid grid-cols-1 gap-1.5 bg-emerald-900/30 p-1.5 rounded-lg border border-white/10">
+                   <div className="grid grid-cols-2 gap-1.5">
+                       <div className="flex flex-col gap-0.5">
+                           <span className="text-[6px] font-black text-emerald-400 uppercase">Échéance</span>
+                           <input type="date" className="bg-emerald-950 border border-white/10 rounded p-1 text-[9px] font-black outline-none w-full text-white" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+                       </div>
+                       <div className="flex flex-col gap-0.5">
+                           <span className="text-[6px] font-black text-emerald-400 uppercase">Type</span>
+                           <select className="bg-emerald-950 border border-white/10 rounded p-1 text-[9px] font-black outline-none w-full text-white" value={creditType} onChange={e => setCreditType(e.target.value)}>
+                               <option value="mensuel">Mensuel</option>
+                               <option value="journalier">Journalier</option>
+                           </select>
+                       </div>
+                   </div>
+                   <div className="flex flex-col gap-0.5">
+                       <span className="text-[6px] font-black text-emerald-400 uppercase">Avance</span>
+                       <input type="number" className="bg-emerald-950 border border-white/10 rounded p-1 text-[9px] font-black outline-none w-full text-orange-400" placeholder="0" value={advanceAmount || ''} onChange={e => setAdvanceAmount(e.target.value)} />
+                   </div>
+               </div>
+            )}
+            <button onClick={handleFinalize} disabled={isProcessing} className="w-full mt-auto py-1.5 bg-emerald-600 text-white font-black rounded-lg text-[9px] uppercase tracking-wider flex items-center justify-center gap-1">
+               {isProcessing ? <Loader2 className="animate-spin" size={12} /> : 'FINALISER'}
+            </button>          </div>        </div>
 
         {/* PRODUCTS LIST */}
-        <div className="mt-4 bg-white rounded-xl p-2 shadow-sm border border-emerald-100" style={{ marginTop: '7%!important' }}>
+        <div className="mt-16 bg-white rounded-xl p-2 shadow-sm border border-emerald-100">
            <input type="text" placeholder="Chercher produit..." className="w-full bg-emerald-50 p-2 rounded-lg text-xs font-bold" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-           <div className="mt-2 h-64 overflow-y-auto">
+           <div className="mt-4 h-64 overflow-y-auto">
              <table className="w-full text-left">
                 <tbody className="divide-y divide-emerald-50">
                   {paginatedProducts.map(p => (
                     <tr key={p.id} onClick={() => Number(p.stock_quantity) > 0 && addToInvoice(p)} className="border-b border-gray-100 cursor-pointer hover:bg-emerald-50">
                       <td className="p-2">
                         <div className="font-black text-xs uppercase">{p.name}</div>
-                        <div className="text-[9px] text-gray-400 font-bold italic">
+                        <div className="text-xs text-gray-600 font-black">
                             {p.quantite_par_unite > 1 ? `${Math.floor(p.stock_quantity / p.quantite_par_unite)} ${p.unite_superieure || 'Sac'} + ${p.stock_quantity % p.quantite_par_unite} ${p.unite_base || 'Kg'}` : `${p.stock_quantity} ${p.unite_base || 'Pce'}`}
                         </div>
                       </td>
@@ -646,7 +653,7 @@ export default function POS({ session, selectedDepotId }) {
       {isCalculatorOpen && (
         <div 
           className="fixed z-[300] w-full max-w-xs animate-in fade-in duration-200"
-          style={{ top: '10%', left: '10%', transform: `translate(${calculatorPos.x}px, ${calculatorPos.y}px)` }}
+          style={{ top: '10%', left: '48%', transform: `translate(${calculatorPos.x}px, ${calculatorPos.y}px)` }}
         >
           <div className="drag-handle cursor-move bg-slate-800 text-white text-[8px] font-black uppercase text-center py-1 rounded-t-xl opacity-80 hover:opacity-100 transition-opacity" onMouseDown={handleMouseDown}>Déplacer</div>
           <Calculator key={activeItemId} activeItem={invoiceItems.find(i => i.item_id === activeItemId)} onResult={handleCalculatorResult} onOpenDiscount={openDiscountModalForItem} onClose={() => setIsCalculatorOpen(false)} />
@@ -659,7 +666,7 @@ export default function POS({ session, selectedDepotId }) {
             <div className="space-y-4">
               <div className="flex bg-gray-100 p-1 rounded-xl">
                 <button onClick={() => setDiscountModal({...discountModal, type: 'Ar'})} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${discountModal.type === 'Ar' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}>Ar</button>
-                <button onClick={() => setDiscountModal({...discountModal, type: '%'})} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${discountModal.type === '%' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}>%</button>
+              {/* <button class="flex-1 py-2 rounded-lg text-xs font-black transition-all bg-white text-emerald-600 shadow-sm">%</button>  <button onClick={() => setDiscountModal({...discountModal, type: '%'})} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${discountModal.type === '%' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}>%</button> */}
               </div>
               <input autoFocus type="number" className="w-full bg-emerald-50 border-2 border-emerald-100 rounded-xl py-4 px-6 text-xl font-black outline-none" value={discountModal.value || ''} onChange={(e) => setDiscountModal({...discountModal, value: e.target.value})} />
               <div className="grid grid-cols-2 gap-3">
@@ -755,7 +762,7 @@ export default function POS({ session, selectedDepotId }) {
                                             {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
                                         </td>
                                         <td className="py-2 text-center text-orange-600 font-bold">
-                                            {item.discount ? `${item.discount.value}${item.discount.type}` : '-'}
+                                            {item.discount ? `${item.discount.value}` : '-'}
                                         </td>
                                         <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</td>
                                     </tr>
@@ -800,7 +807,7 @@ export default function POS({ session, selectedDepotId }) {
                                                 {item.unit_price.toLocaleString()} Ar
                                                 {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
                                               </td>
-                                              <td className="py-2 text-center text-orange-600 font-bold">{item.discount ? `${item.discount.value}${item.discount.type}` : '-'}</td>
+                                              <td className="py-2 text-center text-orange-600 font-bold">{item.discount ? `${item.discount.value}` : '-'}</td>
                                               <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</td>
                                           </tr>
                                       ))}
@@ -851,7 +858,7 @@ export default function POS({ session, selectedDepotId }) {
                                                 {item.unit_price.toLocaleString()} Ar
                                                 {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
                                               </td>
-                                              <td className="py-2 text-center text-orange-600 font-bold">{item.discount ? `${item.discount.value}${item.discount.type}` : '-'}</td>
+                                              <td className="py-2 text-center text-orange-600 font-bold">{item.discount ? `${item.discount.value}` : '-'}</td>
                                               <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</td>
                                           </tr>
                                       ))}
