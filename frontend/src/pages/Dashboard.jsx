@@ -110,18 +110,34 @@ export default function Dashboard({ session }) {
       .from('factures')
       .select('total_amount, status');
     
-    const paidInvoices = invoices?.filter(inv => inv.status === 'paid') || [];
-    const pendingInvoices = invoices?.filter(inv => ['sent', 'unpaid', 'pending'].includes(inv.status)) || [];
-    
-    const totalSales = paidInvoices.reduce((acc, inv) => acc + (inv.total_amount || 0), 0) || 0;
+    // Total Credits Clients (Solde restant)
+    console.log("Invoices retrieved:", invoices);
+    const clientCredits = invoices?.filter(inv => {
+        const isCredit = ['sent', 'unpaid', 'pending', 'CRÉDIT', 'credit', 'Credit'].includes(inv.status) || inv.type === 'CRÉDIT';
+        console.log("Invoice status check:", inv.status, inv.type, isCredit);
+        return isCredit;
+    }) || [];
+    const totalClientCredits = clientCredits.reduce((acc, inv) => acc + (parseFloat(inv.total_amount) || 0), 0);
+    console.log("Total Client Credits:", totalClientCredits);
 
-    // 2. Get stock alerts (quantity < 10)
+    const paidInvoices = invoices?.filter(inv => inv.status === 'paid' || inv.status === 'COMPTANT') || [];
+    const totalSales = paidInvoices.reduce((acc, inv) => acc + (parseFloat(inv.total_amount) || 0), 0) || 0;
+
+    // 2. Get total supplier credits (remaining balance)
+    const { data: supplierNotes } = await supabase
+      .from('delivery_notes')
+      .select('total_amount')
+      .neq('payment_type', 'paid');
+    
+    const totalSupplierCredits = supplierNotes?.reduce((acc, note) => acc + (parseFloat(note.total_amount) || 0), 0) || 0;
+
+    // 3. Get stock alerts
     const { count: stockAlerts } = await supabase
       .from('produits')
       .select('*', { count: 'exact', head: true })
       .lt('stock_quantity', 10);
 
-    // 3. Get overdue credits
+    // 4. Get overdue credits
     const today = new Date().toISOString().split('T')[0];
     const { data: overdues } = await supabase
       .from('echeances_details')
@@ -133,9 +149,11 @@ export default function Dashboard({ session }) {
 
     setStats({
       totalSales,
+      totalClientCredits,
+      totalSupplierCredits,
       stockAlerts: stockAlerts || 0,
       paidInvoices: paidInvoices.length,
-      pendingInvoices: pendingInvoices.length,
+      pendingInvoices: clientCredits.length,
       overdueCredits: overdues?.length || 0
     });
     setLoading(false);
@@ -404,7 +422,7 @@ export default function Dashboard({ session }) {
       </aside>
 
       {/* Main Content Area */}
-      <main className="relative z-10 flex-1 flex flex-col h-screen overflow-hidden">
+      <main className="relative z-10 flex-1 flex flex-col min-h-screen">
         {/* Header */}
         <header className="h-20 bg-white/20 backdrop-blur-md border-b border-emerald-50 px-4 md:px-8 flex justify-between items-center shrink-0 z-50">
           <div className="flex items-center gap-4">
@@ -516,23 +534,46 @@ export default function Dashboard({ session }) {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                   <StatCard 
                     title="Ventes de Produits PPN" 
-                    value={`${stats.totalSales.toLocaleString('fr-MG')} MGA`} 
+                    value={`${(stats?.totalSales || 0).toLocaleString('fr-MG')} MGA`} 
                     trend="+ Actuel" 
                     icon={<TrendingUp className="text-emerald-600" size={24} />} 
                   />
                   <StatCard 
-                    title="Alertes Stock PPN" 
-                    value={`${stats.stockAlerts} articles`} 
-                    trend={stats.stockAlerts > 0 ? "Réapprovisionner" : "Correct"} 
-                    negative={stats.stockAlerts > 0} 
-                    icon={<AlertCircle className={stats.stockAlerts > 0 ? "text-orange-500" : "text-emerald-500"} size={24} />} 
+                    title="Crédits Clients (Restant)" 
+                    value={`${(stats?.totalClientCredits || 0).toLocaleString('fr-MG')} MGA`} 
+                    trend="À encaisser" 
+                    negative={true}
+                    icon={<ArrowRightLeft className="text-orange-500" size={24} />} 
                   />
                   <StatCard 
-                    title={stats.overdueCredits > 0 ? "Crédits en retard" : (stats.pendingInvoices > 0 ? "Échéances en attente" : "Factures payées")} 
-                    value={stats.overdueCredits > 0 ? stats.overdueCredits.toString() : (stats.pendingInvoices > 0 ? stats.pendingInvoices.toString() : stats.paidInvoices.toString())} 
-                    trend={stats.overdueCredits > 0 ? "Urgent" : (stats.pendingInvoices > 0 ? "À encaisser" : "Historique")} 
-                    negative={stats.overdueCredits > 0 || stats.pendingInvoices > 0}
-                    icon={stats.overdueCredits > 0 ? <Clock className="text-red-500" size={24} /> : (stats.pendingInvoices > 0 ? <AlertCircle className="text-orange-500" size={24} /> : <CheckCircle2 className="text-emerald-600" size={24} />)} 
+                    title="Crédits Fournisseurs" 
+                    value={`${(stats?.totalSupplierCredits || 0).toLocaleString('fr-MG')} MGA`} 
+                    trend="À payer" 
+                    negative={true}
+                    icon={<Truck className="text-red-500" size={24} />} 
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                  <StatCard 
+                    title="Alertes Stock PPN" 
+                    value={`${stats?.stockAlerts || 0} articles`} 
+                    trend={(stats?.stockAlerts || 0) > 0 ? "Réapprovisionner" : "Correct"} 
+                    negative={(stats?.stockAlerts || 0) > 0} 
+                    icon={<AlertCircle className={(stats?.stockAlerts || 0) > 0 ? "text-orange-500" : "text-emerald-500"} size={24} />} 
+                  />
+                  <StatCard 
+                    title="Factures payées" 
+                    value={`${stats?.paidInvoices || 0}`} 
+                    trend="Historique" 
+                    icon={<CheckCircle2 className="text-emerald-600" size={24} />} 
+                  />
+                   <StatCard 
+                    title="Crédits en retard" 
+                    value={`${stats?.overdueCredits || 0}`} 
+                    trend="Urgent" 
+                    negative={true}
+                    icon={<Clock className="text-red-500" size={24} />} 
                   />
                 </div>
 
@@ -632,19 +673,19 @@ function NavItem({ icon, label, active = false, onClick, badge }) {
 
 function StatCard({ title, value, trend, icon, negative = false }) {
   return (
-    <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all">
-      <div className="flex justify-between items-start mb-4">
-        <div className="w-12 h-12 bg-white/80 rounded-2xl flex items-center justify-center shadow-sm">
+    <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
+      <div className="flex justify-between items-start mb-2">
+        <div className="w-10 h-10 bg-white/80 rounded-xl flex items-center justify-center shadow-sm">
           {icon}
         </div>
-        <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-lg ${
+        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md ${
           negative ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'
         }`}>
           {trend}
         </span>
       </div>
-      <p className="text-sm font-medium text-gray-500">{title}</p>
-      <p className="text-2xl font-black text-gray-800 mt-1">{value}</p>
+      <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">{title}</p>
+      <p className="text-lg font-black text-gray-800 mt-0.5">{value}</p>
     </div>
   );
 }

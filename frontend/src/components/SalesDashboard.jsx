@@ -161,7 +161,8 @@ const handleCancelInvoice = async (invoice) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col flex-1 overflow-auto">
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-4 overflow-y-auto max-h-[70vh]">
+        <div className="min-w-[700px]">
         <table className="w-full text-left">
             <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-black">
                 <tr>
@@ -201,6 +202,7 @@ const handleCancelInvoice = async (invoice) => {
                 ))}
             </tbody>
         </table>
+        </div>
         
         {/* Pagination Controls */}
         {totalPages > 1 && (
@@ -225,8 +227,6 @@ const handleCancelInvoice = async (invoice) => {
                     <button onClick={() => setSelectedInvoice(null)} className="text-slate-400 hover:text-slate-800">Fermer</button>
                 </div>
                 <div className="overflow-x-auto">
-                    {console.log("Selected Invoice:", selectedInvoice)}
-                    {console.log("Facture Items:", selectedInvoice?.facture_items)}
                     <table className="w-full text-left text-xs">
                         <thead className="text-slate-400 uppercase font-black border-b border-slate-100">
                             <tr>
