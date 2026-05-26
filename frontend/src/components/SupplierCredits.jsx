@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { Truck, Search, Loader2, Banknote, ChevronDown, ChevronUp } from 'lucide-react';
 import { logAction } from '../utils/audit';
@@ -98,8 +98,40 @@ export default function SupplierCredits() {
     (c.fournisseurs?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const totals = useMemo(() => {
+    // Calcul strict du total initial des BL
+    const totalCredit = filteredCredits.reduce((acc, c) => {
+        const montant = parseFloat(c.total_initial) || parseFloat(c.total_amount) || 0;
+        return acc + montant;
+    }, 0);
+
+    // Calcul du solde restant (montant actuel)
+    const totalRemaining = filteredCredits.reduce((acc, c) => acc + (parseFloat(c.total_amount) || 0), 0);
+
+    // Total Payé
+    const totalPaid = filteredCredits.reduce((acc, c) => {
+        const paid = (c.paiements || []).reduce((pAcc, p) => pAcc + (parseFloat(p.montant) || 0), 0);
+        return acc + paid;
+    }, 0);
+    return { totalCredit, totalRemaining, totalPaid };
+  }, [filteredCredits]);
   return (
     <div className="p-6 space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white p-4 rounded-2xl border border-emerald-100 flex justify-between items-center shadow-sm">
+            <span className="text-[10px] font-black uppercase text-gray-400">Total Initial</span>
+            <span className="text-lg font-black text-emerald-800">{totals.totalCredit.toLocaleString()} Ar</span>
+        </div>
+        <div className="bg-white p-4 rounded-2xl border border-emerald-100 flex justify-between items-center shadow-sm">
+            <span className="text-[10px] font-black uppercase text-gray-400">Total Payé</span>
+            <span className="text-lg font-black text-emerald-600">{totals.totalPaid.toLocaleString()} Ar</span>
+        </div>
+        <div className="bg-white p-4 rounded-2xl border border-emerald-100 flex justify-between items-center shadow-sm">
+            <span className="text-[10px] font-black uppercase text-gray-400">Solde Restant</span>
+            <span className="text-lg font-black text-orange-600">{totals.totalRemaining.toLocaleString()} Ar</span>
+        </div>
+      </div>
+
       <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
         <h2 className="text-xl font-black text-emerald-800 flex items-center gap-2">
             <Truck className="text-emerald-600" /> Suivi des Crédits Fournisseurs
@@ -123,7 +155,8 @@ export default function SupplierCredits() {
                         <th className="p-4">BL</th>
                         <th className="p-4">Fournisseur</th>
                         <th className="p-4">Échéance</th>
-                        <th className="p-4 text-right">Montant</th>
+                        <th className="p-4 text-right">Montant Initial</th>
+                        <th className="p-4 text-right">Reste à Payer</th>
                         <th className="p-4 text-center">Action</th>
                     </tr>
                 </thead>
@@ -141,7 +174,8 @@ export default function SupplierCredits() {
                                 <td className={`p-4 font-bold ${isOverdue ? 'text-red-600' : ''}`}>
                                     {new Date(c.due_date).toLocaleDateString()}
                                 </td>
-                                <td className="p-4 font-black text-right">{c.total_amount.toLocaleString()} Ar</td>
+                                <td className="p-4 font-bold text-right text-gray-600">{parseFloat(c.total_initial || c.total_amount).toLocaleString()} Ar</td>
+                                <td className="p-4 font-black text-right text-emerald-800">{parseFloat(c.total_amount).toLocaleString()} Ar</td>
                                 <td className="p-4 text-center">
                                     <div className="flex gap-2 justify-center">
                                         <button onClick={(e) => { e.stopPropagation(); setHistoryModal(c); }} className="bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-bold text-xs uppercase flex items-center gap-1">
@@ -160,17 +194,20 @@ export default function SupplierCredits() {
                                             <div className="bg-white p-3 rounded-lg border">
                                                 <h4 className="text-[10px] uppercase font-black text-gray-400 mb-2">Produits</h4>
                                                 <table className="w-full text-xs">
+                                                    <tbody>
                                                     {(c.delivery_note_items || []).map((item, idx) => (
                                                         <tr key={idx} className="border-t">
                                                             <td className="p-1 font-medium">{item.produits?.name || 'Inconnu'}</td>
                                                             <td className="p-1 text-right font-bold">{item.quantity}</td>
                                                         </tr>
                                                     ))}
+                                                    </tbody>
                                                 </table>
                                             </div>
                                             <div className="bg-white p-3 rounded-lg border">
                                                 <h4 className="text-[10px] uppercase font-black text-gray-400 mb-2">Historique Paiements</h4>
                                                 <table className="w-full text-xs">
+                                                    <tbody>
                                                     {(c.paiements || []).map((p, idx) => (
                                                         <tr key={idx} className="border-t">
                                                             <td className="p-1 text-[9px] font-bold text-gray-500">{new Date(p.date_paiement).toLocaleDateString()}</td>
@@ -179,6 +216,7 @@ export default function SupplierCredits() {
                                                         </tr>
                                                     ))}
                                                     {(c.paiements || []).length === 0 && <tr className="text-gray-400 italic"><td>Aucun paiement</td></tr>}
+                                                    </tbody>
                                                 </table>
                                             </div>
                                         </div>
@@ -188,6 +226,13 @@ export default function SupplierCredits() {
                         </>
                     )})}
                 </tbody>
+                <tfoot className="bg-emerald-50">
+                    <tr>
+                        <td colSpan="3" className="p-4 font-black text-emerald-800 uppercase text-xs text-right">Total Général (Initial)</td>
+                        <td className="p-4 font-black text-emerald-800 text-right">{totals.totalCredit.toLocaleString()} Ar</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
             </table>
         )}
       </div>

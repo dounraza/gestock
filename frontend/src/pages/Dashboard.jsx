@@ -295,12 +295,12 @@ export default function Dashboard({ session }) {
                     >
                       Liste Fournisseurs
                     </button>
-                    <button 
+                    {/* <button 
                       onClick={() => { navigate('/dashboard/supplier-history'); closeSidebar(); }}
                       className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'supplier-history' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                     >
                       Historique
-                    </button>
+                    </button> */}
                     <button 
                       onClick={() => { navigate('/dashboard/supplier_credits'); closeSidebar(); }}
                       className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'supplier_credits' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}

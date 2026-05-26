@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { Clock, CheckCircle2, AlertCircle, Search, FileText, ChevronDown, ChevronUp, Printer, X } from 'lucide-react';
 
@@ -51,8 +51,28 @@ export default function CreditHistory() {
     return true;
   });
 
+  const totals = useMemo(() => {
+    const totalCredit = filtered.reduce((acc, h) => acc + (parseFloat(h.total_amount) || 0), 0);
+    const totalPaid = filtered.reduce((acc, h) => {
+        const paid = (h.paiements || []).reduce((pAcc, p) => pAcc + (parseFloat(p.montant) || 0), 0);
+        return acc + paid;
+    }, 0);
+    return { totalCredit, totalPaid };
+  }, [filtered]);
+
   return (
     <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
+        <div className="bg-white p-4 rounded-2xl border border-emerald-100 flex justify-between items-center shadow-sm">
+            <span className="text-[10px] font-black uppercase text-gray-400">Montant Global Crédits</span>
+            <span className="text-lg font-black text-emerald-800">{totals.totalCredit.toLocaleString()} Ar</span>
+        </div>
+        <div className="bg-white p-4 rounded-2xl border border-emerald-100 flex justify-between items-center shadow-sm">
+            <span className="text-[10px] font-black uppercase text-gray-400">Total Payé</span>
+            <span className="text-lg font-black text-emerald-600">{totals.totalPaid.toLocaleString()} Ar</span>
+        </div>
+      </div>
+
       <style>{`
         @media print {
           .no-print { display: none !important; }
