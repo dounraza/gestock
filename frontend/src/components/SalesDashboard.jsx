@@ -161,9 +161,9 @@ const handleCancelInvoice = async (invoice) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden min-h-[600px] max-h-[600px] overflow-y-auto">
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col flex-1 overflow-auto">
         <table className="w-full text-left">
-            <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-black sticky top-0 z-10">
+            <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-black">
                 <tr>
                     <th className="p-4">Facture</th>
                     <th className="p-4">Date</th>

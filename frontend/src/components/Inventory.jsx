@@ -86,6 +86,7 @@ export default function Inventory({ selectedDepotId }) {
   const [showDeliveryNoteModal, setShowDeliveryNoteModal] = useState(false);
   const [deliveryNoteFormData, setDeliveryNoteFormData] = useState({
     supplier_id: '',
+    bl_number: `BL-${Date.now().toString().slice(-6)}`,
     bl_date: new Date().toISOString().split('T')[0],
     total_amount: 0,
     payment_type: 'direct_sale',
@@ -562,6 +563,7 @@ export default function Inventory({ selectedDepotId }) {
         .from('delivery_notes')
         .insert([{
           supplier_id: deliveryNoteFormData.supplier_id,
+          bl_number: deliveryNoteFormData.bl_number,
           bl_date: deliveryNoteFormData.bl_date,
           total_amount: deliveryNoteFormData.total_amount,
           payment_type: deliveryNoteFormData.payment_type,
@@ -1298,22 +1300,48 @@ export default function Inventory({ selectedDepotId }) {
 
       {/* Delivery Note Modal */}
       {showDeliveryNoteModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-emerald-900/40 backdrop-blur-md p-4">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-emerald-100">
-            <div className="p-8 border-b border-emerald-50 flex justify-between items-center bg-emerald-50/30">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/20 backdrop-blur-[2px] p-2 md:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-hidden animate-in zoom-in-95 duration-200 border border-emerald-50/50 flex flex-col">
+            <div className="p-6 md:p-8 border-b border-emerald-50 bg-emerald-50/20 flex justify-between items-center shrink-0">
               <div>
-                <h3 className="text-2xl font-black text-gray-800 tracking-tight">Nouveau Bon de Livraison</h3>
-                <p className="text-xs text-emerald-600 font-bold uppercase tracking-widest mt-1">Enregistrement des achats</p>
+                <h3 className="text-lg font-bold text-emerald-900 uppercase tracking-widest">Nouveau Bon de Livraison</h3>
+                <p className="text-[10px] font-medium text-emerald-600/80 uppercase tracking-widest mt-1">Enregistrement des achats fournisseur</p>
               </div>
-              <button onClick={() => {setShowDeliveryNoteModal(false); setDeliveryNoteFormData({ supplier_id: '', bl_date: new Date().toISOString().split('T')[0], total_amount: 0, payment_type: 'direct_sale', credit_frequency: '', advance_amount: 0 }); setDeliveryNoteItems([]);}} className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-sm text-gray-400 hover:text-red-500 transition-all text-2xl">&times;</button>
+              <button 
+                onClick={() => {
+                  setShowDeliveryNoteModal(false); 
+                  setDeliveryNoteFormData({ 
+                    supplier_id: '', 
+                    bl_number: `BL-${Date.now().toString().slice(-6)}`,
+                    bl_date: new Date().toISOString().split('T')[0], 
+                    total_amount: 0, 
+                    payment_type: 'direct_sale', 
+                    credit_frequency: '', 
+                    advance_amount: 0 
+                  }); 
+                  setDeliveryNoteItems([]);
+                }} 
+                className="w-8 h-8 flex items-center justify-center rounded-xl bg-white text-gray-400 hover:text-red-500 shadow-sm transition-all hover:rotate-90"
+              >
+                <X size={18} />
+              </button>
             </div>
             
-            <form onSubmit={handleSaveDeliveryNote} className="p-8 space-y-6 max-h-[80vh] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Fournisseur</label>
+            <form onSubmit={handleSaveDeliveryNote} className="p-6 md:p-8 space-y-6 overflow-y-auto custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2 space-y-1">
+                  <label className="text-[9px] font-bold text-emerald-600 uppercase ml-1 tracking-widest">N° Bon de Livraison (Auto)</label>
+                  <input 
+                    type="text" 
+                    readOnly
+                    className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-2.5 outline-none text-xs font-bold text-emerald-900 cursor-not-allowed" 
+                    value={deliveryNoteFormData.bl_number}
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-1">
+                  <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Fournisseur</label>
                   <select 
-                    className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-sm font-bold"
+                    className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 transition-all text-xs font-bold text-gray-700"
                     value={deliveryNoteFormData.supplier_id}
                     onChange={e => setDeliveryNoteFormData({...deliveryNoteFormData, supplier_id: e.target.value})}
                   >
@@ -1321,19 +1349,19 @@ export default function Inventory({ selectedDepotId }) {
                     {suppliers.map(sup => <option key={sup.id} value={sup.id}>{sup.name}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Date du BL</label>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Date du BL</label>
                   <input 
                     type="date" 
-                    className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-sm font-bold" 
+                    className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 transition-all text-xs font-bold text-gray-700" 
                     value={deliveryNoteFormData.bl_date}
                     onChange={e => setDeliveryNoteFormData({...deliveryNoteFormData, bl_date: e.target.value})}
                   />
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Type de Paiement</label>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Type de Paiement</label>
                   <select 
-                    className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-sm font-bold"
+                    className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 transition-all text-xs font-bold text-gray-700"
                     value={deliveryNoteFormData.payment_type}
                     onChange={e => setDeliveryNoteFormData({...deliveryNoteFormData, payment_type: e.target.value})}
                   >
@@ -1343,10 +1371,10 @@ export default function Inventory({ selectedDepotId }) {
                 </div>
                 {deliveryNoteFormData.payment_type === 'credit' && (
                   <>
-                    <div>
-                      <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Échéance</label>
+                    <div className="space-y-1 animate-in slide-in-from-top-2 duration-200">
+                      <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Échéance</label>
                       <select 
-                        className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-sm font-bold"
+                        className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 transition-all text-xs font-bold text-gray-700"
                         value={deliveryNoteFormData.credit_frequency || ''}
                         onChange={e => setDeliveryNoteFormData({...deliveryNoteFormData, credit_frequency: e.target.value})}
                       >
@@ -1355,12 +1383,12 @@ export default function Inventory({ selectedDepotId }) {
                         <option value="monthly">Mensuel</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Avance</label>
+                    <div className="space-y-1 animate-in slide-in-from-top-2 duration-200">
+                      <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Avance</label>
                       <input 
                         type="number" 
                         placeholder="Montant avance" 
-                        className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-sm" 
+                        className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 transition-all text-xs font-bold text-gray-700" 
                         value={deliveryNoteFormData.advance_amount} 
                         onChange={e => setDeliveryNoteFormData({...deliveryNoteFormData, advance_amount: e.target.value})} 
                       />
@@ -1369,13 +1397,13 @@ export default function Inventory({ selectedDepotId }) {
                 )}
               </div>
 
-              <div className="pt-4 border-t border-emerald-50">
-                <h4 className="text-xl font-black text-gray-800 mb-6">Ajouter un produit</h4>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-[11px] font-black uppercase text-emerald-600 mb-1 block">Produit</label>
+              <div className="pt-6 border-t border-emerald-50/50">
+                <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-widest mb-4">Ajouter un produit</h4>
+                <div className="space-y-4 bg-emerald-50/20 p-4 rounded-2xl border border-emerald-50/50">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">Produit</label>
                     <select 
-                      className="w-full bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-4 outline-none transition-all font-bold"
+                      className="w-full bg-white border border-emerald-100 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 transition-all text-xs font-bold text-gray-700"
                       value={newItemFormData.product_id}
                       onChange={e => {
                         const selectedProduct = products.find(p => p.id === e.target.value);
@@ -1387,78 +1415,80 @@ export default function Inventory({ selectedDepotId }) {
                         });
                       }}
                     >
-                      <option value="">Sélectionner un produit...</option>
+                      <option value="">Rechercher un produit...</option>
                       {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </div>
                   
-                  <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                          <label className="text-[11px] font-black uppercase text-emerald-600 mb-1 block">Quantité</label>
-                          <input type="number" placeholder="0" className="w-full bg-white border border-emerald-100 rounded-2xl px-4 py-3" value={newItemFormData.quantity} onChange={e => setNewItemFormData({...newItemFormData, quantity: e.target.value})} />
-                      </div>
-                      <div>
-                          <label className="text-[11px] font-black uppercase text-emerald-600 mb-1 block">Unité</label>
-                          <select 
-                              className="w-full bg-white border border-emerald-100 rounded-2xl px-4 py-3 font-bold" 
-                              value={newItemFormData.unit} 
-                              onChange={e => setNewItemFormData({...newItemFormData, unit: e.target.value})}
-                          >
-                              <option value="base">{products.find(p => p.id === newItemFormData.product_id)?.unite_base || 'Unité base'}</option>
-                              {products.find(p => p.id === newItemFormData.product_id)?.unite_superieure && (
-                                  <option value="superieure">{products.find(p => p.id === newItemFormData.product_id)?.unite_superieure}</option>
-                              )}
-                          </select>
-                      </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">Quantité</label>
+                        <input type="number" placeholder="0" className="w-full bg-white border border-emerald-100 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 outline-none" value={newItemFormData.quantity} onChange={e => setNewItemFormData({...newItemFormData, quantity: e.target.value})} />
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                          <label className="text-[11px] font-black uppercase text-emerald-600 mb-1 block">Prix Achat</label>
-                          <input type="number" placeholder="0 MGA" className="w-full bg-white border border-emerald-100 rounded-2xl px-4 py-3" value={newItemFormData.purchase_price_per_unit} onChange={e => setNewItemFormData({...newItemFormData, purchase_price_per_unit: e.target.value})} />
-                      </div>
-                      <div>
-                          <label className="text-[11px] font-black uppercase text-emerald-600 mb-1 block">Prix Vente</label>
-                          <input type="number" placeholder="0 MGA" className="w-full bg-white border border-emerald-100 rounded-2xl px-4 py-3" value={newItemFormData.selling_price_per_unit} onChange={e => setNewItemFormData({...newItemFormData, selling_price_per_unit: e.target.value})} />
-                      </div>
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">Unité</label>
+                        <select 
+                            className="w-full bg-white border border-emerald-100 rounded-xl px-2 py-2 text-[10px] font-bold text-gray-700 outline-none" 
+                            value={newItemFormData.unit} 
+                            onChange={e => setNewItemFormData({...newItemFormData, unit: e.target.value})}
+                        >
+                            <option value="base">{products.find(p => p.id === newItemFormData.product_id)?.unite_base || 'Unité base'}</option>
+                            {products.find(p => p.id === newItemFormData.product_id)?.unite_superieure && (
+                                <option value="superieure">{products.find(p => p.id === newItemFormData.product_id)?.unite_superieure}</option>
+                            )}
+                        </select>
                     </div>
-                    
-                    <button type="button" onClick={addNewItem} className="w-full bg-emerald-600 text-white font-black py-3 rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200">
-                      Ajouter cette ligne
-                    </button>
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">P. Achat</label>
+                        <input type="number" placeholder="0" className="w-full bg-white border border-emerald-100 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 outline-none" value={newItemFormData.purchase_price_per_unit} onChange={e => setNewItemFormData({...newItemFormData, purchase_price_per_unit: e.target.value})} />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">P. Vente</label>
+                        <input type="number" placeholder="0" className="w-full bg-white border border-emerald-100 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 outline-none" value={newItemFormData.selling_price_per_unit} onChange={e => setNewItemFormData({...newItemFormData, selling_price_per_unit: e.target.value})} />
+                    </div>
                   </div>
+                  
+                  <button type="button" onClick={addNewItem} className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100/50 text-[10px] uppercase tracking-widest">
+                    Ajouter cette ligne
+                  </button>
                 </div>
                 
                 {deliveryNoteItems.length > 0 && (
-                  <div className="mt-8">
-                    <h4 className="text-[10px] font-black uppercase text-gray-400 mb-3 tracking-widest">Articles ajoutés</h4>
-                    <ul className="space-y-3">
+                  <div className="mt-6 space-y-3">
+                    <p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest ml-1">Articles ajoutés ({deliveryNoteItems.length})</p>
+                    <div className="max-h-[200px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                       {deliveryNoteItems.map((item, index) => (
-                        <li key={index} className="bg-white p-4 rounded-2xl border border-emerald-50 flex items-center justify-between shadow-sm">
+                        <div key={index} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between shadow-sm hover:border-emerald-100 transition-colors group">
                           <div>
-                            <p className="font-black text-gray-800">{item.productName}</p>
-                            <p className="text-xs text-gray-500 font-bold">{item.quantity} {item.unit} • Achat: {item.purchase_price_per_unit} MGA</p>
+                            <p className="text-xs font-bold text-gray-700">{item.productName}</p>
+                            <p className="text-[9px] text-gray-400 font-medium uppercase mt-0.5">{item.quantity} {item.unit} • Achat: {item.purchase_price_per_unit.toLocaleString()} Ar</p>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <span className="font-black text-emerald-600">{item.total_purchase.toLocaleString()} MGA</span>
-                            <button onClick={() => removeItem(index)} className="text-gray-300 hover:text-red-500 p-2"><Trash2 size={18} /></button>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-emerald-600">{item.total_purchase.toLocaleString()} Ar</span>
+                            <button onClick={() => removeItem(index)} className="text-gray-300 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50">
+                              <Trash2 size={14} />
+                            </button>
                           </div>
-                        </li>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 )}
               </div>
 
-              <div className="pt-6 border-t border-emerald-50 flex justify-between items-center">
-                <span className="text-sm font-bold text-gray-600">Total Brut:</span>
-                <span className="text-lg font-black text-gray-800">{deliveryNoteFormData.total_amount.toLocaleString('fr-MG')} MGA</span>
+              <div className="pt-4 border-t border-emerald-50/50 flex justify-between items-center shrink-0 pb-2">
+                <div>
+                  <p className="text-[8px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-0.5">Total Brut du Bon</p>
+                  <p className="text-xl font-bold text-gray-800">{deliveryNoteFormData.total_amount.toLocaleString()} Ar</p>
+                </div>
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting || deliveryNoteItems.length === 0} 
+                  className="bg-emerald-600 text-white font-bold px-8 py-3 rounded-xl shadow-lg shadow-emerald-100/50 active:scale-95 transition-all text-xs uppercase tracking-widest disabled:bg-gray-200"
+                >
+                  {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : "Confirmer le BL"}
+                </button>
               </div>
-
-              <button type="submit" disabled={isSubmitting} className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg mt-4 active:scale-[0.98] transition-all">
-                {isSubmitting ? <Loader2 className="animate-spin mx-auto" size={20} /> : "Enregistrer le Bon de Livraison"}
-              </button>
             </form>
           </div>
         </div>

@@ -29,7 +29,8 @@ export default function POS({ session, selectedDepotId }) {
   const [previewInvoice, setPreviewInvoice] = useState(null);
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
-  const [tokens, setTokens] = useState([]); 
+  const [tokens, setTokens] = useState([]);
+  const [currentDepotInfo, setCurrentDepotInfo] = useState(null); 
   const itemsPerPage = 15;
 
   const formatQuantity = (quantity, product) => {
@@ -377,10 +378,30 @@ export default function POS({ session, selectedDepotId }) {
       console.log("Invoice updated.");
 
       if (paymentMode === 'credit') {
-        const { error: echeanceError } = await supabase.from('echeances_details').insert([{ facture_id: activeInvoice.id, date_echeance: dueDate, montant: total - advance, statut: 'non_paye' }]);
+        // Enregistrer l'échéance principale
+        const { error: echeanceError } = await supabase.from('echeances_details').insert([{ 
+            facture_id: activeInvoice.id, 
+            date_echeance: dueDate, 
+            montant: total - advance, 
+            statut: 'non_paye' 
+        }]);
         if (echeanceError) {
             console.error("Echeance error:", echeanceError);
             throw echeanceError;
+        }
+
+        // Si une avance est versée, enregistrer le paiement d'avance
+        if (advance > 0) {
+            const { error: paiementError } = await supabase.from('paiements').insert([{
+                facture_id: activeInvoice.id,
+                montant: advance,
+                type_paiement: 'avance',
+                date_paiement: new Date().toISOString()
+            }]);
+            if (paiementError) {
+                console.error("Paiement avance error:", paiementError);
+                throw paiementError;
+            }
         }
       }
       
@@ -454,6 +475,12 @@ export default function POS({ session, selectedDepotId }) {
   };
 
   useEffect(() => {
+    const fetchDepot = async () => {
+        if (!selectedDepotId) return;
+        const { data, error } = await supabase.from('depots').select('*').eq('id', selectedDepotId).single();
+        if (data) setCurrentDepotInfo(data);
+    };
+    
     const fetchData = async () => {
       // Fetch products and join with stocks table for the selected depot
       let query = supabase
@@ -482,7 +509,11 @@ export default function POS({ session, selectedDepotId }) {
         setFilteredProducts(formattedData);
       }
     };
-    if (selectedDepotId) fetchData();
+
+    if (selectedDepotId) {
+      fetchDepot();
+      fetchData();
+    }
   }, [selectedDepotId]);
 
   useEffect(() => {
@@ -728,10 +759,10 @@ export default function POS({ session, selectedDepotId }) {
                 <div id="printable-invoice" className="text-gray-800">
                     <div className="flex justify-between items-start mb-6 pb-6 border-b border-gray-100">
                         <div>
-                            <h1 className="text-3xl font-black text-emerald-800">GESTOCK SARL</h1>
+                            <h1 className="text-3xl font-black text-emerald-800">{currentDepotInfo?.name || 'GESTOCK SARL'}</h1>
                             <div className="text-xs font-bold text-gray-500 mt-2">
-                                <p>123 Rue Principale, Antananarivo</p>
-                                <p>Tél: +261 34 00 000 00</p>
+                                <p>{currentDepotInfo?.address || '123 Rue Principale, Antananarivo'}</p>
+                                <p>Tél: {currentDepotInfo?.phone || '+261 34 00 000 00'}</p>
                             </div>
                         </div>
                         <div className="text-right">
@@ -828,7 +859,7 @@ export default function POS({ session, selectedDepotId }) {
                           <div className="mt-4 font-black text-sm text-right">Total Remise: {totalDiscount.toLocaleString()} Ar</div>
                           <div className="mt-1 font-black text-lg text-right text-emerald-800">Total: {parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</div>
                           <div className="mt-10 pt-6 border-t border-gray-100 text-center text-[10px] text-gray-500 font-bold">
-                            123 Rue Principale, Antananarivo
+                            {currentDepotInfo?.address || '123 Rue Principale, Antananarivo'}
                           </div>
                           <div className="mt-6 grid grid-cols-2 gap-20 text-center text-[10px] font-bold">
                             <div>Magasinier<br/><br/><br/>____________________</div>
@@ -879,7 +910,7 @@ export default function POS({ session, selectedDepotId }) {
                           <div className="mt-4 font-black text-sm text-right">Total Remise: {totalDiscount.toLocaleString()} Ar</div>
                           <div className="mt-1 font-black text-lg text-right text-emerald-800">Total: {parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</div>
                           <div className="mt-10 pt-6 border-t border-gray-100 text-center text-[10px] text-gray-500 font-bold">
-                            123 Rue Principale, Antananarivo
+                            {currentDepotInfo?.address || '123 Rue Principale, Antananarivo'}
                           </div>
                           <div className="mt-6 grid grid-cols-2 gap-20 text-center text-[10px] font-bold">
                             <div>Livreur<br/><br/><br/>____________________</div>
