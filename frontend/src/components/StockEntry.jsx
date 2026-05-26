@@ -249,8 +249,8 @@ export default function StockEntry() {
           bl_date: blFormData.bl_date,
           total_amount: blFormData.total_amount,
           payment_type: blFormData.payment_type,
+          due_date: (blFormData.payment_type === 'credit' && blFormData.first_due_date) ? blFormData.first_due_date : null,
           credit_type: blFormData.payment_type === 'credit' ? blFormData.credit_type : null,
-          first_due_date: (blFormData.payment_type === 'credit' && blFormData.first_due_date && blFormData.first_due_date.trim() !== '') ? blFormData.first_due_date : null,
           user_id: user.id
         }])
         .select()

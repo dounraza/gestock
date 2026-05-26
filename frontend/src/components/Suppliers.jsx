@@ -27,7 +27,9 @@ export default function Suppliers() {
         delivery_note_items (
           quantity,
           produits (name)
-        )
+        ),
+        paiements (*),
+        fournisseurs!delivery_notes_supplier_id_fkey (*)
       `)
       .eq('supplier_id', supplierId)
       .eq('payment_type', 'credit');
@@ -228,10 +230,7 @@ export default function Suppliers() {
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-emerald-50 flex gap-2">
-                  <button className="flex-1 py-2 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-[9px] uppercase tracking-wider hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1.5">
-                    <History size={14} /> Historique
-                  </button>
-                  <button className="flex-1 py-2 bg-emerald-600 text-white rounded-xl font-bold text-[9px] uppercase tracking-wider hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-100">
+                  <button onClick={() => { setCreditModal(s); fetchSupplierCredits(s.id); }} className="flex-1 py-2 bg-emerald-600 text-white rounded-xl font-bold text-[9px] uppercase tracking-wider hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-100">
                     <Banknote size={14} /> Payer
                   </button>
                 </div>
@@ -312,24 +311,40 @@ export default function Suppliers() {
             </div>
             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
                 {supplierCredits.length > 0 ? supplierCredits.map(c => (
-                    <div key={c.id} className="border border-emerald-100 rounded-2xl overflow-hidden">
+                    <div key={c.id} className="border border-emerald-100 rounded-2xl overflow-hidden mb-4">
                         <div className="bg-emerald-50 p-3 flex justify-between items-center font-black text-emerald-800 text-xs uppercase tracking-widest">
                             <span>BL: {c.bl_number}</span>
                             <span>{c.total_amount.toLocaleString()} Ar</span>
                         </div>
-                        <table className="w-full text-xs">
-                          <thead className="bg-gray-50 text-gray-400">
-                            <tr><th className="p-2">Produit</th><th className="p-2 text-right">Qté</th></tr>
-                          </thead>
-                          <tbody>
-                            {c.delivery_note_items.map((item, idx) => (
-                              <tr key={idx} className="border-t">
-                                <td className="p-2">{item.produits?.name || 'Inconnu'}</td>
-                                <td className="p-2 text-right font-bold">{item.quantity}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                        <div className="p-3 grid grid-cols-2 gap-4">
+                            <div>
+                                <h4 className="text-[10px] uppercase font-black text-gray-400 mb-2">Produits</h4>
+                                <table className="w-full text-xs">
+                                    <tbody>
+                                        {c.delivery_note_items.map((item, idx) => (
+                                            <tr key={idx} className="border-t">
+                                                <td className="p-1">{item.produits?.name || 'Inconnu'}</td>
+                                                <td className="p-1 text-right font-bold">{item.quantity}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div>
+                                <h4 className="text-[10px] uppercase font-black text-gray-400 mb-2">Historique Paiements</h4>
+                                <table className="w-full text-xs">
+                                    <tbody>
+                                        {(c.paiements || []).map((p, idx) => (
+                                            <tr key={idx} className="border-t">
+                                                <td className="p-1 text-[9px] font-bold text-gray-500">{new Date(p.date_paiement).toLocaleDateString()}</td>
+                                                <td className="p-1 font-bold">{p.montant.toLocaleString()} Ar</td>
+                                            </tr>
+                                        ))}
+                                        {(c.paiements || []).length === 0 && <tr className="text-gray-400 italic"><td>Aucun paiement</td></tr>}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 )) : <p className="text-gray-400 text-center py-4 text-xs font-black uppercase">Aucun crédit en cours</p>}
             </div>

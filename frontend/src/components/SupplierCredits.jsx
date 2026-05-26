@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { Truck, Search, Loader2, Banknote, ChevronDown, ChevronUp } from 'lucide-react';
+import { logAction } from '../utils/audit';
 
 export default function SupplierCredits() {
   const [credits, setCredits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedRows, setExpandedRows] = useState({});
+  const [paymentModal, setPaymentModal] = useState(null);
+  const [historyModal, setHistoryModal] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState('espece');
+  const [paymentRef, setPaymentRef] = useState('');
 
   useEffect(() => {
     fetchCredits();
@@ -21,16 +27,16 @@ export default function SupplierCredits() {
       .order('due_date', { ascending: true });
     
     if (notes) {
-        // Débogage : on ajoute l'erreur dans la console
-        const { data: items, error: itemsError } = await supabase.from('delivery_note_items').select('*, produits(name)');
+        const { data: items } = await supabase.from('delivery_note_items').select('*, produits(name)');
+        const { data: payments } = await supabase.from('paiements').select('*').not('delivery_note_id', 'is', null);
         
-        console.log("Notes récupérées:", notes);
-        console.log("Items récupérés:", items);
-        console.log("Erreur Items:", itemsError);
+        console.log("All items:", items);
+        console.log("All payments:", payments);
         
         const enrichedCredits = notes.map(n => ({
             ...n,
-            delivery_note_items: items?.filter(i => i.delivery_note_id === n.id) || []
+            delivery_note_items: items?.filter(i => String(i.delivery_note_id) === String(n.id)) || [],
+            paiements: payments?.filter(p => String(p.delivery_note_id) === String(n.id)) || []
         }));
         setCredits(enrichedCredits);
     }
@@ -39,14 +45,48 @@ export default function SupplierCredits() {
     setLoading(false);
   };
 
-  const handlePay = async (blId) => {
-    if(!confirm("Confirmer le paiement de ce crédit ?")) return;
-    const { error } = await supabase
+  const processPayment = async () => {
+    if(!paymentModal) return;
+    const amountToPay = parseFloat(paymentAmount);
+    if(isNaN(amountToPay) || amountToPay <= 0) return alert("Montant invalide");
+    if(amountToPay > paymentModal.total_amount) return alert("Montant supérieur au reste à payer");
+
+    const newTotal = paymentModal.total_amount - amountToPay;
+    
+    // 1. Update the delivery note
+    const { error: updateError } = await supabase
         .from('delivery_notes')
-        .update({ payment_type: 'paid' })
-        .eq('id', blId);
-    if (!error) fetchCredits();
-    else alert("Erreur lors du paiement");
+        .update({ 
+            total_amount: newTotal,
+            payment_type: newTotal <= 0 ? 'paid' : 'credit'
+        })
+        .eq('id', paymentModal.id);
+
+    if (!updateError) {
+        // 2. Log the payment record
+        await supabase.from('paiements').insert([{
+            facture_id: null,
+            delivery_note_id: paymentModal.id,
+            montant: amountToPay,
+            type_paiement: paymentMethod,
+            reference: paymentRef,
+            date_paiement: new Date().toISOString()
+        }]);
+
+        // 3. Log to history
+        await logAction('Paiement Crédit Fournisseur', 'SupplierCredits', paymentModal.id, { 
+            bl_number: paymentModal.bl_number,
+            montant: amountToPay,
+            methode: paymentMethod,
+            reference: paymentRef
+        });
+
+        setPaymentModal(null);
+        setPaymentAmount(0);
+        setPaymentRef('');
+        setPaymentMethod('espece');
+        fetchCredits();
+    } else alert("Erreur lors du paiement");
   };
 
   const toggleRow = (id) => {
@@ -103,27 +143,45 @@ export default function SupplierCredits() {
                                 </td>
                                 <td className="p-4 font-black text-right">{c.total_amount.toLocaleString()} Ar</td>
                                 <td className="p-4 text-center">
-                                    <button onClick={(e) => { e.stopPropagation(); handlePay(c.id); }} className="bg-emerald-600 text-white px-3 py-1 rounded-lg font-bold text-xs uppercase flex items-center gap-1 mx-auto">
-                                        <Banknote size={14} /> Payer
-                                    </button>
+                                    <div className="flex gap-2 justify-center">
+                                        <button onClick={(e) => { e.stopPropagation(); setHistoryModal(c); }} className="bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-bold text-xs uppercase flex items-center gap-1">
+                                            Historique
+                                        </button>
+                                        <button onClick={(e) => { e.stopPropagation(); setPaymentModal(c); }} className="bg-emerald-600 text-white px-3 py-1 rounded-lg font-bold text-xs uppercase flex items-center gap-1">
+                                            <Banknote size={14} /> Payer
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             {expandedRows[c.id] && (
                                 <tr className="bg-gray-50">
-                                    <td colSpan="5" className="p-4">
-                                        <table className="w-full text-xs">
-                                            <thead>
-                                                <tr className="text-gray-400"><th className="p-2">Produit</th><th className="p-2 text-right">Quantité</th></tr>
-                                            </thead>
-                                            <tbody>
-                                                {(c.delivery_note_items || []).map((item, idx) => (
-                                                    <tr key={idx} className="border-t">
-                                                        <td className="p-2 font-medium">{item.produits?.name || 'Inconnu'}</td>
-                                                        <td className="p-2 text-right font-bold">{item.quantity}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                    <td colSpan="5" className="p-4 space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="bg-white p-3 rounded-lg border">
+                                                <h4 className="text-[10px] uppercase font-black text-gray-400 mb-2">Produits</h4>
+                                                <table className="w-full text-xs">
+                                                    {(c.delivery_note_items || []).map((item, idx) => (
+                                                        <tr key={idx} className="border-t">
+                                                            <td className="p-1 font-medium">{item.produits?.name || 'Inconnu'}</td>
+                                                            <td className="p-1 text-right font-bold">{item.quantity}</td>
+                                                        </tr>
+                                                    ))}
+                                                </table>
+                                            </div>
+                                            <div className="bg-white p-3 rounded-lg border">
+                                                <h4 className="text-[10px] uppercase font-black text-gray-400 mb-2">Historique Paiements</h4>
+                                                <table className="w-full text-xs">
+                                                    {(c.paiements || []).map((p, idx) => (
+                                                        <tr key={idx} className="border-t">
+                                                            <td className="p-1 text-[9px] font-bold text-gray-500">{new Date(p.date_paiement).toLocaleDateString()}</td>
+                                                            <td className="p-1 font-bold">{p.montant.toLocaleString()} Ar</td>
+                                                            <td className="p-1 text-right uppercase text-[9px]">{p.type_paiement}</td>
+                                                        </tr>
+                                                    ))}
+                                                    {(c.paiements || []).length === 0 && <tr className="text-gray-400 italic"><td>Aucun paiement</td></tr>}
+                                                </table>
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
                             )}
@@ -133,6 +191,62 @@ export default function SupplierCredits() {
             </table>
         )}
       </div>
+      {historyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl">
+                <h3 className="font-black text-emerald-800 text-lg mb-4">Historique des paiements - {historyModal.bl_number}</h3>
+                <div className="max-h-[60vh] overflow-y-auto">
+                    <table className="w-full text-xs">
+                        <thead className="bg-gray-50 text-gray-400 uppercase">
+                            <tr><th className="p-2 text-left">Date</th><th className="p-2 text-right">Montant</th><th className="p-2 text-right">Méthode</th></tr>
+                        </thead>
+                        <tbody>
+                            {(historyModal.paiements || []).map((p, idx) => (
+                                <tr key={idx} className="border-t">
+                                    <td className="p-2">{new Date(p.date_paiement).toLocaleDateString()}</td>
+                                    <td className="p-2 text-right font-bold">{p.montant.toLocaleString()} Ar</td>
+                                    <td className="p-2 text-right uppercase">{p.type_paiement}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                <button onClick={() => setHistoryModal(null)} className="w-full py-3 mt-4 bg-gray-600 text-white rounded-xl font-black text-sm">Fermer</button>
+            </div>
+        </div>
+      )}
+      {paymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="font-black text-emerald-800 text-lg mb-4">Paiement du crédit</h3>
+            <p className="text-xs font-bold text-gray-500 mb-6">Reste à payer : {paymentModal.total_amount.toLocaleString()} Ar</p>
+            <input 
+              type="number" 
+              className="w-full p-3 border-2 border-emerald-100 rounded-xl mb-3 font-black"
+              placeholder="Montant à payer"
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(e.target.value)}
+            />
+            <select className="w-full p-3 border-2 border-emerald-100 rounded-xl mb-3 font-bold text-sm" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+                <option value="espece">Espèce</option>
+                <option value="virement">Virement</option>
+                <option value="cheque">Chèque</option>
+                <option value="mobile_money">Mobile Money</option>
+            </select>
+            <input 
+              type="text" 
+              className="w-full p-3 border-2 border-emerald-100 rounded-xl mb-4 font-bold text-sm"
+              placeholder="Référence (Optionnel)"
+              value={paymentRef}
+              onChange={(e) => setPaymentRef(e.target.value)}
+            />
+            <div className="flex gap-3">
+                <button onClick={() => setPaymentModal(null)} className="flex-1 py-3 text-sm font-bold text-gray-500">Annuler</button>
+                <button onClick={processPayment} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-black text-sm">Confirmer</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

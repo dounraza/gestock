@@ -252,19 +252,18 @@ export default function Dashboard({ session }) {
                     >
                       Liste
                     </button>
-                    <button 
-                      onClick={() => { navigate('/dashboard/credit_history'); closeSidebar(); }}
-                      className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'credit_history' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                    <button
+                     onClick={() => { navigate('/dashboard/credit_history'); closeSidebar(); }}
+                     className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'credit_history' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                     >
-                      Historique client
+                     Historique client
                     </button>
-                    <button 
-                      onClick={() => { navigate('/dashboard/deadlines'); closeSidebar(); }}
-                      className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'deadlines' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                    <button
+                     onClick={() => { navigate('/dashboard/deadlines'); closeSidebar(); }}
+                     className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'deadlines' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                     >
-                      Echéancier
-                    </button>
-                  </div>
+                     Echéancier
+                    </button>                  </div>
                 )}
               </div>
             </div>

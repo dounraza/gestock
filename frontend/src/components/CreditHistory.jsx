@@ -21,21 +21,15 @@ export default function CreditHistory() {
         .from('factures')
         .select(`
           *,
-          clients (name, phone),
+          clients!factures_client_id_fkey (name, phone),
           paiements(*),
           echeances_details(*)
         `)
-        // Retiré temporairement le filtre pour déboguer
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      console.log("Données brutes factures:", data);
-      
-      // On filtre en JS pour voir si le type existe
       const creditFactures = data?.filter(f => f.type === 'CRÉDIT' || f.type === 'CREDIT');
-      console.log("Factures filtrées:", creditFactures);
-      
       setHistory(creditFactures || []);
     } catch (err) {
       console.error("Erreur chargement historique:", err);
