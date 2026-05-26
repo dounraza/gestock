@@ -13,6 +13,7 @@ export default function SupplierCredits() {
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('espece');
   const [paymentRef, setPaymentRef] = useState('');
+  const [isPaying, setIsPaying] = useState(false);
 
   useEffect(() => {
     fetchCredits();
@@ -306,7 +307,9 @@ export default function SupplierCredits() {
             />
             <div className="flex gap-3">
                 <button onClick={() => setPaymentModal(null)} className="flex-1 py-3 text-sm font-bold text-gray-500">Annuler</button>
-                <button onClick={processPayment} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-black text-sm">Confirmer</button>
+                <button onClick={processPayment} disabled={isPaying} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2">
+                    {isPaying ? <Loader2 size={16} className="animate-spin" /> : "Confirmer"}
+                </button>
             </div>
           </div>
         </div>

@@ -352,6 +352,22 @@ export default function POS({ session, selectedDepotId }) {
         console.warn("No invoice or items");
         return;
     }
+    
+    // Check stock for all items first
+    for (const item of invoiceItems) {
+        const { data: stockData } = await supabase
+            .from('stocks')
+            .select('quantity')
+            .eq('product_id', item.id)
+            .eq('depot_id', selectedDepotId)
+            .maybeSingle();
+            
+        if (!stockData || stockData.quantity < item.quantity) {
+            alert(`Stock insuffisant pour : ${item.name}. Disponible: ${stockData?.quantity || 0}`);
+            return;
+        }
+    }
+
     setIsProcessing(true);
     try {
       console.log("Processing payment...");
