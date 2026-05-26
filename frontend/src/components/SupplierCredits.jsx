@@ -27,15 +27,22 @@ export default function SupplierCredits() {
       .order('due_date', { ascending: true });
     
     if (notes) {
-        const { data: items } = await supabase.from('delivery_note_items').select('*, produits(name)');
+        // 1. Fetch items
+        const { data: items } = await supabase.from('delivery_note_items').select('*');
+        // 2. Fetch all products
+        const { data: produits } = await supabase.from('produits').select('*');
+        // 3. Fetch payments
         const { data: payments } = await supabase.from('paiements').select('*').not('delivery_note_id', 'is', null);
         
-        console.log("All items:", items);
-        console.log("All payments:", payments);
+        // Join items with their respective products manually
+        const itemsWithProducts = items?.map(item => ({
+            ...item,
+            produits: produits?.find(p => p.id === item.product_id)
+        })) || [];
         
         const enrichedCredits = notes.map(n => ({
             ...n,
-            delivery_note_items: items?.filter(i => String(i.delivery_note_id) === String(n.id)) || [],
+            delivery_note_items: itemsWithProducts.filter(i => String(i.delivery_note_id) === String(n.id)) || [],
             paiements: payments?.filter(p => String(p.delivery_note_id) === String(n.id)) || []
         }));
         setCredits(enrichedCredits);
@@ -194,11 +201,23 @@ export default function SupplierCredits() {
                                             <div className="bg-white p-3 rounded-lg border">
                                                 <h4 className="text-[10px] uppercase font-black text-gray-400 mb-2">Produits</h4>
                                                 <table className="w-full text-xs">
+                                                    <thead>
+                                                        <tr className="text-gray-400">
+                                                            <th className="p-1 text-left">Produit</th>
+                                                            <th className="p-1 text-center">Qté</th>
+                                                            <th className="p-1 text-center">Unité</th>
+                                                            <th className="p-1 text-right">P.A</th>
+                                                            <th className="p-1 text-right">Total</th>
+                                                        </tr>
+                                                    </thead>
                                                     <tbody>
                                                     {(c.delivery_note_items || []).map((item, idx) => (
                                                         <tr key={idx} className="border-t">
                                                             <td className="p-1 font-medium">{item.produits?.name || 'Inconnu'}</td>
-                                                            <td className="p-1 text-right font-bold">{item.quantity}</td>
+                                                            <td className="p-1 text-center font-bold">{item.quantity}</td>
+                                                            <td className="p-1 text-center text-[10px] uppercase font-bold text-emerald-600">{item.unit === 'superior' ? (item.superior_unit_name || 'Ctn') : (item.produits?.unite_base || 'Pce')}</td>
+                                                            <td className="p-1 text-right">{parseFloat(item.purchase_price_per_unit).toLocaleString()} Ar</td>
+                                                            <td className="p-1 text-right font-black">{parseFloat(item.line_total_purchase).toLocaleString()} Ar</td>
                                                         </tr>
                                                     ))}
                                                     </tbody>
