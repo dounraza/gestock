@@ -360,7 +360,7 @@ export default function POS({ session, selectedDepotId }) {
       const { data: updatedInvoice, error: updateError } = await supabase.from('factures').update({
         total_amount: total,
         paid_amount: total - advance,
-        type: paymentMode === 'credit' ? 'CREDIT' : 'COMPTANT',
+        type: paymentMode === 'credit' ? 'CRÉDIT' : 'COMPTANT',
         frequency: paymentMode === 'credit' ? creditType : null,
         due_date: paymentMode === 'credit' ? dueDate : new Date().toISOString().split('T')[0],
         advance_amount: advance,

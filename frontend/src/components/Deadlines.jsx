@@ -33,7 +33,8 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
           factures (
             number,
             guest_name,
-            clients (name, phone)
+            clients (name, phone),
+            paiements(*)
           )
         `)
         .order('date_echeance', { ascending: true });
@@ -41,7 +42,14 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
       if (error) {
         console.error("Error fetching deadlines:", error);
       }
-      if (data) setDeadlines(data);
+      if (data) {
+        // Calculer les totaux pour chaque échéance/facture
+        const enriched = data.map(d => {
+            const totalPaid = d.factures?.paiements?.reduce((sum, p) => sum + Number(p.montant), 0) || 0;
+            return { ...d, totalPaid };
+        });
+        setDeadlines(enriched);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -53,22 +61,52 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
     fetchDeadlines();
   }, []);
 
+  const [paymentAmount, setPaymentAmount] = useState(0);
+
   const handleMarkAsPaid = async () => {
     if (!paymentModal || !paymentModal.echeance) return;
     const { echeance } = paymentModal;
     
+    // Calcul du montant réel à payer (input utilisateur vs dû)
+    const amountToPay = Number(paymentAmount) > 0 ? Number(paymentAmount) : echeance.montant;
+
+    // Validation : le montant ne doit pas dépasser le montant dû
+    if (amountToPay > echeance.montant) {
+      alert("Le montant saisi dépasse le montant dû de cette échéance.");
+      return;
+    }
+    
     setIsProcessing(true);
     try {
-      const { error } = await supabase
-        .from('echeances_details')
-        .update({ 
-          statut: 'paye'
-        })
-        .eq('id', echeance.id);
+      // 1. Enregistrer le paiement
+      const { error: paiementError } = await supabase
+        .from('paiements')
+        .insert([{
+          facture_id: echeance.facture_id,
+          montant: amountToPay,
+          type_paiement: 'versement',
+          date_paiement: new Date().toISOString()
+        }]);
       
-      if (error) throw error;
+      if (paiementError) throw paiementError;
 
-      // Vérifier si toutes les échéances de cette facture sont payées
+      // 2. Mettre à jour l'échéance
+      const nouveauReste = echeance.montant - amountToPay;
+      if (nouveauReste <= 0) {
+        await supabase
+          .from('echeances_details')
+          .update({ statut: 'paye', montant: 0 })
+          .eq('id', echeance.id);
+      } else {
+        // Optionnel : soit on réduit le montant de l'échéance actuelle, soit on crée une nouvelle ligne.
+        // Ici on réduit le montant dû de l'échéance.
+        await supabase
+          .from('echeances_details')
+          .update({ montant: nouveauReste })
+          .eq('id', echeance.id);
+      }
+      
+      // 3. Vérifier si toutes les échéances de cette facture sont payées
       const { data: remaining } = await supabase
         .from('echeances_details')
         .select('id')
@@ -80,6 +118,7 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
       }
       
       setPaymentModal(null);
+      setPaymentAmount(0);
       setPaymentInfo({ method: 'espece', reference: '' });
       fetchDeadlines();
       alert("Paiement enregistré avec succès !");
@@ -254,6 +293,9 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
                               {new Date(inst.date_echeance).toLocaleDateString()}
                             </p>
                             <p className="text-[10px] font-bold text-gray-400 uppercase">{inst.montant.toLocaleString()} Ar</p>
+                            {inst.totalPaid > 0 && (
+                                <p className="text-[9px] font-black text-emerald-600 uppercase">Avances: {inst.totalPaid.toLocaleString()} Ar</p>
+                            )}
                           </div>
                         </div>
                         <button 
@@ -277,7 +319,8 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
                   <th className="p-6 text-[10px] font-black text-emerald-700 uppercase tracking-widest">Facture</th>
                   <th className="p-6 text-[10px] font-black text-emerald-700 uppercase tracking-widest">Client</th>
                   <th className="p-6 text-[10px] font-black text-emerald-700 uppercase tracking-widest">Date Échéance</th>
-                  <th className="p-6 text-[10px] font-black text-emerald-700 uppercase tracking-widest text-right">Montant</th>
+                  <th className="p-6 text-[10px] font-black text-emerald-700 uppercase tracking-widest text-right">Avances</th>
+                  <th className="p-6 text-[10px] font-black text-emerald-700 uppercase tracking-widest text-right">Montant Dû</th>
                   <th className="p-6 text-[10px] font-black text-emerald-700 uppercase tracking-widest text-center">Action</th>
                 </tr>
               </thead>
@@ -293,7 +336,8 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
                           {new Date(d.date_echeance).toLocaleDateString()}
                         </span>
                       </td>
-                      <td className="p-6 font-black text-emerald-700 text-right">{d.montant.toLocaleString()} Ar</td>
+                      <td className="p-6 font-black text-emerald-600 text-right">{d.totalPaid.toLocaleString()} Ar</td>
+                      <td className="p-6 font-black text-gray-800 text-right">{d.montant.toLocaleString()} Ar</td>
                       <td className="p-6 text-center">
                         <button 
                           onClick={() => setPaymentModal({ echeance: d })}
@@ -350,61 +394,62 @@ export default function Deadlines({ initialSearchTerm, onSearchReset }) {
 
       {/* Payment Modal */}
       {paymentModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-emerald-950/40 backdrop-blur-md p-4 animate-in fade-in duration-300">
-          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-8 border-b border-emerald-50 flex justify-between items-center bg-emerald-50/30">
-              <h3 className="text-xl font-black text-emerald-900 uppercase tracking-widest">Enregistrer Paiement</h3>
-              <button onClick={() => setPaymentModal(null)} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={24} /></button>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <h3 className="text-sm font-black text-gray-800 uppercase tracking-widest">Encaisser</h3>
+              <button onClick={() => setPaymentModal(null)} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={20} /></button>
             </div>
-            <div className="p-10 space-y-8">
-              <div className="bg-emerald-50/50 p-6 rounded-[2rem] border border-emerald-50">
-                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Montant à régler</p>
-                <p className="text-4xl font-black text-emerald-900">{paymentModal.echeance.montant.toLocaleString()} <span className="text-lg">Ar</span></p>
-                <div className="mt-4 pt-4 border-t border-emerald-100 flex items-center gap-3">
-                  <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                    <FileText size={14} className="text-emerald-500" />
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black text-gray-800 uppercase">{paymentModal.echeance.factures?.number}</p>
-                    <p className="text-[9px] font-bold text-gray-400 uppercase">{paymentModal.echeance.factures?.clients?.name || paymentModal.echeance.factures?.guest_name}</p>
-                  </div>
-                </div>
+            <div className="p-6 space-y-5">
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Reste à payer</p>
+                <p className="text-2xl font-black text-emerald-700">{paymentModal.echeance.montant.toLocaleString()} Ar</p>
+                <p className="text-[10px] font-bold text-gray-500 uppercase mt-2">{paymentModal.echeance.factures?.number}</p>
               </div>
 
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-emerald-700 uppercase ml-2 tracking-widest">Méthode de Paiement</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {['espece', 'mobile_money', 'virement', 'cheque'].map(m => (
-                      <button 
-                        key={m}
-                        onClick={() => setPaymentInfo({...paymentInfo, method: m})}
-                        className={`py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all ${paymentInfo.method === m ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-200' : 'bg-white border-emerald-50 text-gray-400 hover:border-emerald-200'}`}
-                      >
-                        {m.replace('_', ' ')}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-emerald-700 uppercase ml-2 tracking-widest">Référence (Optionnel)</label>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-gray-500 uppercase ml-1 tracking-widest">Montant à encaisser</label>
                   <input 
-                    type="text" 
-                    placeholder="N° de transaction, chèque..."
-                    className="w-full bg-emerald-50/30 border-2 border-emerald-50 rounded-2xl px-6 py-4 text-sm outline-none focus:border-emerald-500/20 transition-all"
-                    value={paymentInfo.reference}
-                    onChange={e => setPaymentInfo({...paymentInfo, reference: e.target.value})}
+                    type="number" 
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-500 transition-all font-black text-emerald-900"
+                    value={paymentAmount || ''}
+                    onChange={e => setPaymentAmount(e.target.value)}
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-gray-500 uppercase ml-1 tracking-widest">Méthode</label>
+                    <div className="grid grid-cols-4 gap-1">
+                      {['esp', 'mm', 'vir', 'cheq'].map(m => (
+                        <button 
+                          key={m}
+                          onClick={() => setPaymentInfo({...paymentInfo, method: m})}
+                          className={`py-2 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${paymentInfo.method === m ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-400'}`}
+                        >
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-gray-500 uppercase ml-1 tracking-widest">Référence</label>
+                    <input 
+                      type="text" 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-emerald-500 transition-all font-bold text-gray-700"
+                      value={paymentInfo.reference}
+                      onChange={e => setPaymentInfo({...paymentInfo, reference: e.target.value})}
+                    />
+                  </div>
                 </div>
               </div>
 
               <button 
                 onClick={handleMarkAsPaid}
                 disabled={isProcessing}
-                className="w-full bg-emerald-600 text-white font-black py-6 rounded-[2rem] shadow-xl shadow-emerald-200 active:scale-95 transition-all flex items-center justify-center gap-4 text-sm uppercase tracking-[0.2em] disabled:bg-gray-200 disabled:shadow-none"
+                className="w-full bg-emerald-600 text-white font-black py-4 rounded-xl shadow-lg shadow-emerald-100 active:scale-95 transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-widest disabled:bg-gray-200"
               >
-                {isProcessing ? <Loader2 className="animate-spin" /> : <><CheckCircle2 size={24} /> Confirmer le Règlement</>}
+                {isProcessing ? <Loader2 className="animate-spin" size={16} /> : <><CheckCircle2 size={16} /> Confirmer</>}
               </button>
             </div>
           </div>

@@ -45,7 +45,7 @@ export default function SalesDashboard() {
 
     let query = supabase
         .from('factures')
-        .select('*, clients(name), facture_items(*, produits(name, unite_base, unite_superieure, quantite_par_unite))')
+        .select('*, clients(name), facture_items(*, produits(name, unite_base, unite_superieure, quantite_par_unite)), paiements(*)')
         .gte('created_at', startOfDay.toISOString())
         .lte('created_at', endOfDay.toISOString())
         .neq('status', 'draft')
@@ -57,7 +57,14 @@ export default function SalesDashboard() {
     
     const { data, error } = await query.order('created_at', { ascending: false });
     if (error) console.error("Error fetching sales:", error);
-    if (data) setSales(data);
+    if (data) {
+        const enrichedSales = data.map(sale => {
+            const totalAvance = sale.paiements?.filter(p => p.type_paiement === 'avance').reduce((sum, p) => sum + Number(p.montant), 0) || 0;
+            const totalVersement = sale.paiements?.filter(p => p.type_paiement === 'versement').reduce((sum, p) => sum + Number(p.montant), 0) || 0;
+            return { ...sale, totalAvance, totalVersement };
+        });
+        setSales(enrichedSales);
+    }
   };
 
   const totals = useMemo(() => {
@@ -256,6 +263,14 @@ const handleCancelInvoice = async (invoice) => {
                 </div>
                 
                 <div className="mt-8 pt-6 border-t border-slate-100">
+                    <div className="flex justify-between items-center mb-4 text-sm font-bold text-slate-700 bg-slate-100 p-3 rounded-xl">
+                        <span>Avances totales:</span>
+                        <span className="font-black text-emerald-700">{selectedInvoice.totalAvance.toLocaleString()} Ar</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-4 text-sm font-bold text-slate-700 bg-slate-100 p-3 rounded-xl">
+                        <span>Versements totaux:</span>
+                        <span className="font-black text-blue-700">{selectedInvoice.totalVersement.toLocaleString()} Ar</span>
+                    </div>
                     <button 
                         onClick={() => handleCancelInvoice(selectedInvoice)}
                         className="w-full bg-red-600 hover:bg-red-700 text-white p-4 rounded-xl font-black text-sm uppercase shadow-md transition-all"
