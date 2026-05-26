@@ -775,6 +775,17 @@ export default function POS({ session, selectedDepotId }) {
                         </div>
                     </div>
 
+                    <div className="mt-12 grid grid-cols-2 gap-10 text-center">
+                        <div>
+                            <p className="text-[10px] font-black uppercase text-gray-400 mb-10">Signature Client</p>
+                            <div className="border-b border-gray-300 w-32 mx-auto"></div>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase text-gray-400 mb-10">Signature GESTOCK / Cachet</p>
+                            <div className="border-b border-gray-300 w-32 mx-auto"></div>
+                        </div>
+                    </div>
+
                     {isWithdrawal && (
                       <div className="mt-10 break-before-page">
                           <div className="flex justify-between items-start mb-6">

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { Clock, CheckCircle2, AlertCircle, Search, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, CheckCircle2, AlertCircle, Search, FileText, ChevronDown, ChevronUp, Printer, X } from 'lucide-react';
 
 export default function CreditHistory() {
   const [history, setHistory] = useState([]);
@@ -8,6 +8,11 @@ export default function CreditHistory() {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedInvoices, setExpandedInvoices] = useState({});
   const [statusFilter, setStatusFilter] = useState('all'); // all, pending, paid
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+
+  const toggleExpand = (id) => {
+    setExpandedInvoices(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const fetchHistory = async () => {
     setLoading(true);
@@ -54,36 +59,68 @@ export default function CreditHistory() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-center bg-white/60 backdrop-blur-md p-4 rounded-3xl border border-emerald-50 gap-4 shadow-sm">
-        <h3 className="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center gap-2">
-          <Clock className="text-emerald-600" size={20} /> Historique Crédits
-        </h3>
-        <input 
-          type="text" 
-          placeholder="Rechercher..." 
-          className="bg-white border border-emerald-100 rounded-2xl py-2.5 px-4 text-sm outline-none w-64"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: white !important; }
+        }
+      `}</style>
+
+      <div className="flex flex-col xl:flex-row justify-between items-stretch xl:items-center bg-white/60 backdrop-blur-md p-3 rounded-2xl border border-emerald-50/50 gap-4 shadow-sm no-print">
+        <div className="flex flex-col md:flex-row gap-3 flex-1">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400" size={16} />
+            <input 
+              type="text" 
+              placeholder="Rechercher par n° de facture ou client..." 
+              className="w-full bg-white border border-emerald-100/50 rounded-xl py-2 pl-10 pr-4 text-xs outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex bg-emerald-50/30 p-1 rounded-xl border border-emerald-100/50">
+            {[
+              { id: 'all', label: 'Tous' },
+              { id: 'pending', label: 'En cours' },
+              { id: 'paid', label: 'Soldés' }
+            ].map(tab => (
+              <button 
+                key={tab.id}
+                onClick={() => setStatusFilter(tab.id)}
+                className={`px-4 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${statusFilter === tab.id ? 'bg-emerald-600 text-white shadow-sm' : 'text-emerald-600/70 hover:bg-emerald-50'}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button 
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-emerald-100 text-emerald-600 rounded-xl text-[10px] font-bold uppercase hover:bg-emerald-50 transition-all shadow-sm no-print"
+        >
+            <Printer size={16} /> Imprimer la liste
+        </button>
       </div>
 
-      <div className="bg-white/80 backdrop-blur-md border border-emerald-50 rounded-[2.5rem] overflow-hidden shadow-sm">
+      <div className="bg-white/70 backdrop-blur-md border border-emerald-50/50 rounded-2xl overflow-hidden shadow-sm">
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-emerald-50/50 border-b border-emerald-100">
-              <th className="p-4 text-[9px] font-black text-emerald-700 uppercase tracking-widest">Facture</th>
-              <th className="p-4 text-[9px] font-black text-emerald-700 uppercase tracking-widest">Date</th>
-              <th className="p-4 text-[9px] font-black text-emerald-700 uppercase tracking-widest">Client</th>
-              <th className="p-4 text-[9px] font-black text-emerald-700 uppercase tracking-widest text-right">Crédit</th>
-              <th className="p-4 text-[9px] font-black text-emerald-700 uppercase tracking-widest text-right">Avances</th>
-              <th className="p-4 text-[9px] font-black text-emerald-700 uppercase tracking-widest text-center">Détails</th>
-              <th className="p-4 text-[9px] font-black text-emerald-700 uppercase tracking-widest text-right">Reste</th>
-              <th className="p-4 text-[9px] font-black text-emerald-700 uppercase tracking-widest text-center">Statut</th>
+            <tr className="bg-emerald-50/20 border-b border-emerald-50/50">
+              <th className="p-4 text-[9px] font-bold text-emerald-700 uppercase tracking-widest">Facture</th>
+              <th className="p-4 text-[9px] font-bold text-emerald-700 uppercase tracking-widest">Date</th>
+              <th className="p-4 text-[9px] font-bold text-emerald-700 uppercase tracking-widest">Client</th>
+              <th className="p-4 text-[9px] font-bold text-emerald-700 uppercase tracking-widest text-right">Crédit</th>
+              <th className="p-4 text-[9px] font-bold text-emerald-700 uppercase tracking-widest text-right">Avances</th>
+              <th className="p-4 text-[9px] font-bold text-emerald-700 uppercase tracking-widest text-center">Détails</th>
+              <th className="p-4 text-[9px] font-bold text-emerald-700 uppercase tracking-widest text-right">Reste</th>
+              <th className="p-4 text-[9px] font-bold text-emerald-700 uppercase tracking-widest text-center">Statut</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-emerald-50">
+          <tbody className="divide-y divide-emerald-50/30">
             {loading ? (
-                <tr><td colSpan="8" className="p-8 text-center text-[10px] font-black text-gray-400">Chargement...</td></tr>
+                <tr><td colSpan="8" className="p-8 text-center text-[10px] font-bold text-gray-400">Chargement...</td></tr>
             ) : filtered.length > 0 ? (
                 filtered.map((inv) => {
                     const totalPaid = inv.paiements?.reduce((sum, p) => sum + Number(p.montant), 0) || 0;
@@ -94,22 +131,27 @@ export default function CreditHistory() {
 
                     return (
                         <>
-                            <tr key={inv.id} className={`hover:bg-emerald-50/20 transition-colors cursor-pointer ${isExpanded ? 'bg-emerald-50/10' : ''}`} onClick={() => toggleExpand(inv.id)}>
-                                <td className="p-4 font-black text-gray-800 text-xs uppercase">{inv.number}</td>
-                                <td className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-tight">
+                            <tr key={inv.id} className={`hover:bg-emerald-50/10 transition-colors cursor-pointer ${isExpanded ? 'bg-emerald-50/5' : ''}`} onClick={() => toggleExpand(inv.id)}>
+                                <td className="p-4 font-bold text-gray-700 text-xs uppercase">{inv.number}</td>
+                                <td className="p-4 text-[10px] font-medium text-gray-400 uppercase tracking-tight">
                                     {new Date(inv.created_at).toLocaleDateString()}
                                 </td>
-                                <td className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-tight">{inv.clients?.name || inv.guest_name}</td>
-                                <td className="p-4 font-black text-gray-800 text-right text-xs">{totalDue.toLocaleString()} Ar</td>
-                                <td className="p-4 font-black text-emerald-600 text-right text-xs">{totalPaid.toLocaleString()} Ar</td>
+                                <td className="p-4 text-[10px] font-medium text-gray-400 uppercase tracking-tight">{inv.clients?.name || inv.guest_name}</td>
+                                <td className="p-4 font-bold text-gray-700 text-right text-xs">{totalDue.toLocaleString()} Ar</td>
+                                <td className="p-4 font-bold text-emerald-600 text-right text-xs">{totalPaid.toLocaleString()} Ar</td>
                                 <td className="p-4 text-center">
                                     {lastPayment && (
-                                        <span className="text-[8px] font-black uppercase bg-gray-100 px-2 py-1 rounded-md">{lastPayment.type_paiement}</span>
+                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); setSelectedInvoice(inv); }}
+                                          className="text-[8px] font-bold uppercase bg-gray-50 border border-gray-100 hover:bg-emerald-100 hover:text-emerald-700 transition-colors px-2 py-1 rounded-md"
+                                        >
+                                          {lastPayment.method || lastPayment.type_paiement}
+                                        </button>
                                     )}
                                 </td>
-                                <td className="p-4 font-black text-orange-600 text-right text-xs">{(totalDue - totalPaid).toLocaleString()} Ar</td>
+                                <td className="p-4 font-bold text-orange-600 text-right text-xs">{(totalDue - totalPaid).toLocaleString()} Ar</td>
                                 <td className="p-4 text-center">
-                                    <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase ${isFullyPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                                    <span className={`px-2 py-1 rounded-lg text-[8px] font-bold uppercase ${isFullyPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
                                         {isFullyPaid ? 'Soldé' : 'En cours'}
                                     </span>
                                 </td>
@@ -120,9 +162,9 @@ export default function CreditHistory() {
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                             {inv.paiements?.map((p, idx) => (
                                                 <div key={p.id} className="bg-white p-2.5 rounded-lg border border-gray-100 shadow-sm">
-                                                    <p className="text-[7px] font-black text-gray-400 uppercase">Paiement #{idx + 1} - {new Date(p.date_paiement).toLocaleDateString()}</p>
-                                                    <p className="text-[11px] font-black text-gray-800">{Number(p.montant).toLocaleString()} Ar</p>
-                                                    <span className="text-[7px] uppercase font-bold text-emerald-600">{p.type_paiement}</span>
+                                                    <p className="text-[7px] font-bold text-gray-400 uppercase">Paiement #{idx + 1} - {new Date(p.date_paiement).toLocaleDateString()}</p>
+                                                    <p className="text-[11px] font-bold text-gray-800">{Number(p.montant).toLocaleString()} Ar</p>
+                                                    <span className="text-[7px] uppercase font-bold text-emerald-600">{p.method || p.type_paiement}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -133,11 +175,84 @@ export default function CreditHistory() {
                     );
                 })
             ) : (
-                <tr><td colSpan="8" className="p-8 text-center text-[10px] font-black text-gray-400">Aucun historique trouvé.</td></tr>
+                <tr><td colSpan="8" className="p-8 text-center text-[10px] font-bold text-gray-400">Aucun historique trouvé.</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {/* Modal Détails Paiements */}
+      {selectedInvoice && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/20 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-emerald-50">
+            <div className="p-6 border-b border-emerald-50 bg-emerald-50/20 flex justify-between items-center">
+              <div>
+                <h3 className="text-xs font-bold text-emerald-900 uppercase tracking-widest">Détails des Avances</h3>
+                <p className="text-[9px] font-medium text-emerald-600/80 uppercase mt-1">{selectedInvoice.number}</p>
+              </div>
+              <button 
+                onClick={() => setSelectedInvoice(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-xl bg-white text-gray-400 hover:text-red-500 shadow-sm transition-all no-print"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-6 space-y-5">
+              <button 
+                onClick={() => window.print()}
+                className="w-full flex items-center justify-center gap-2 py-2 bg-slate-50 border border-slate-100 text-slate-600 rounded-xl text-[10px] font-bold uppercase hover:bg-slate-100 transition-all no-print"
+              >
+                <Printer size={14} /> Imprimer l'historique
+              </button>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-emerald-50/30 p-3 rounded-2xl border border-emerald-100/50">
+                  <p className="text-[7px] font-bold text-emerald-800 uppercase mb-1">Global</p>
+                  <p className="text-xs font-bold text-emerald-900">{Number(selectedInvoice.total_amount).toLocaleString()} Ar</p>
+                </div>
+                <div className="bg-emerald-600 p-3 rounded-2xl shadow-md shadow-emerald-100/50">
+                  <p className="text-[7px] font-bold text-emerald-100 uppercase mb-1">Payé</p>
+                  <p className="text-xs font-bold text-white">
+                    {selectedInvoice.paiements?.reduce((sum, p) => sum + Number(p.montant), 0).toLocaleString()} Ar
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1 custom-scrollbar">
+                {selectedInvoice.paiements?.length > 0 ? (
+                  selectedInvoice.paiements.map((p, idx) => (
+                    <div key={p.id} className="flex items-center justify-between p-3 bg-gray-50/50 rounded-xl border border-gray-100/50 hover:bg-white transition-all group">
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-[8px] font-bold text-gray-400 group-hover:text-emerald-600 group-hover:border-emerald-100 transition-all">
+                          {idx + 1}
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold text-gray-700">{Number(p.montant).toLocaleString()} Ar</p>
+                          <p className="text-[8px] font-medium text-gray-400 uppercase">{new Date(p.date_paiement).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[7px] font-bold uppercase px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md block mb-0.5">
+                          {p.method || p.type_paiement}
+                        </span>
+                        {p.reference && <p className="text-[6px] font-medium text-gray-400 uppercase truncate max-w-[50px]">{p.reference}</p>}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center py-10 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Aucun paiement enregistré</p>
+                )}
+              </div>
+              
+              <button 
+                onClick={() => setSelectedInvoice(null)}
+                className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-emerald-100/50 hover:bg-emerald-700 transition-all text-[10px] uppercase tracking-widest mt-2"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

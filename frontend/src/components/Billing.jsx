@@ -490,6 +490,17 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
           </tfoot>
         </table>
       </div>
+
+      <div style="display: flex; justify-content: space-between; margin-top: 60px; padding: 0 20px;">
+        <div style="text-align: center;">
+          <p style="font-size: 11px; font-weight: 900; text-transform: uppercase; color: #374151; margin-bottom: 50px;">Signature Client</p>
+          <div style="width: 150px; border-bottom: 1px solid #d1d5db;"></div>
+        </div>
+        <div style="text-align: center;">
+          <p style="font-size: 11px; font-weight: 900; text-transform: uppercase; color: #374151; margin-bottom: 50px;">Signature Fournisseur / Cachet</p>
+          <div style="width: 150px; border-bottom: 1px solid #d1d5db;"></div>
+        </div>
+      </div>
     `;
 
     document.body.appendChild(invoiceElement);
