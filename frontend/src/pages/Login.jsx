@@ -60,17 +60,17 @@ export default function Login() {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-500 rounded-2xl mb-4 shadow-lg shadow-emerald-200">
               <span className="text-white text-3xl font-bold">+</span>
             </div>
-            <h2 className="text-2xl font-bold text-gray-800 tracking-tight">
+            <h2 className="text-3xl font-bold text-gray-800 tracking-tight">
               {isSignUp ? 'Créer un compte' : 'Gestock PPN'}
             </h2>
-            <p className="mt-1 text-gray-500 text-sm">
+            <p className="mt-1 text-gray-500 text-lg">
               Logiciel de gestion de stock PPN
             </p>
           </div>
 
           <form onSubmit={handleAuth} className="space-y-4">
             <div className="space-y-1">
-              <label className="text-xs font-bold text-emerald-700 uppercase ml-1">Email</label>
+              <label className="text-base font-bold text-emerald-700 uppercase ml-1">Email</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-600/40" />
                 <input
@@ -85,7 +85,7 @@ export default function Login() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-bold text-emerald-700 uppercase ml-1">Mot de passe</label>
+              <label className="text-base font-bold text-emerald-700 uppercase ml-1">Mot de passe</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-600/40" />
                 <input
@@ -118,14 +118,14 @@ export default function Login() {
           <div className="mt-8 text-center">
             <button 
               onClick={() => setIsSignUp(!isSignUp)}
-              className="text-sm font-medium text-emerald-600 hover:text-emerald-800 transition-colors"
+              className="text-lg font-medium text-emerald-600 hover:text-emerald-800 transition-colors"
             >
               {isSignUp ? "Déjà inscrit ? Connexion" : "Nouveau gestionnaire ? Créer un profil"}
             </button>
           </div>
         </div>
         
-        <p className="mt-8 text-center text-xs text-gray-400 font-medium">
+        <p className="mt-8 text-center text-base text-gray-400 font-medium">
           © 2026 Gestock PPN — Système d'Inventaire PPN
         </p>
       </div>

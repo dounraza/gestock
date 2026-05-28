@@ -43,16 +43,16 @@ export default function Decaissement({ session }) {
 
   return (
     <div className="p-4 space-y-6">
-      <h2 className="text-xl font-black text-emerald-900 uppercase">Gestion des Décaissements</h2>
+      <h2 className="text-3xl font-black text-emerald-900 uppercase">Gestion des Décaissements</h2>
 
       {/* Formulaire */}
       <form onSubmit={addDecaissement} className="bg-white p-4 rounded-xl border border-emerald-100 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4">
-        <input placeholder="Motif" className="p-2 border rounded-lg text-xs" value={formData.motif} onChange={e => setFormData({...formData, motif: e.target.value})} />
-        <input type="number" placeholder="Montant" className="p-2 border rounded-lg text-xs" value={formData.montant} onChange={e => setFormData({...formData, montant: e.target.value})} />
-        <select className="p-2 border rounded-lg text-xs" value={formData.categorie} onChange={e => setFormData({...formData, categorie: e.target.value})}>
+        <input placeholder="Motif" className="p-2 border rounded-lg text-base" value={formData.motif} onChange={e => setFormData({...formData, motif: e.target.value})} />
+        <input type="number" placeholder="Montant" className="p-2 border rounded-lg text-base" value={formData.montant} onChange={e => setFormData({...formData, montant: e.target.value})} />
+        <select className="p-2 border rounded-lg text-base" value={formData.categorie} onChange={e => setFormData({...formData, categorie: e.target.value})}>
           <option>Loyer</option><option>Salaire</option><option>Fournisseur</option><option>Autre</option>
         </select>
-        <button className="bg-emerald-600 text-white p-2 rounded-lg font-black text-xs flex items-center justify-center gap-2">
+        <button className="bg-emerald-600 text-white p-2 rounded-lg font-black text-base flex items-center justify-center gap-2">
           <Plus size={16} /> AJOUTER
         </button>
       </form>
@@ -62,20 +62,20 @@ export default function Decaissement({ session }) {
         <table className="w-full text-left">
           <thead className="bg-emerald-50">
             <tr>
-              <th className="p-3 text-[10px] uppercase font-black">Date</th>
-              <th className="p-3 text-[10px] uppercase font-black">Motif</th>
-              <th className="p-3 text-[10px] uppercase font-black">Catégorie</th>
-              <th className="p-3 text-[10px] uppercase font-black text-right">Montant</th>
+              <th className="p-3 text-[16px] uppercase font-black">Date</th>
+              <th className="p-3 text-[16px] uppercase font-black">Motif</th>
+              <th className="p-3 text-[16px] uppercase font-black">Catégorie</th>
+              <th className="p-3 text-[16px] uppercase font-black text-right">Montant</th>
               <th className="p-3 text-center"></th>
             </tr>
           </thead>
           <tbody>
             {decaissements.map(d => (
               <tr key={d.id} className="border-b">
-                <td className="p-3 text-xs">{new Date(d.date_decaissement).toLocaleDateString()}</td>
-                <td className="p-3 text-xs font-bold">{d.motif}</td>
-                <td className="p-3 text-xs text-gray-500">{d.categorie}</td>
-                <td className="p-3 text-xs font-black text-right">{Number(d.montant).toLocaleString()} Ar</td>
+                <td className="p-3 text-base">{new Date(d.date_decaissement).toLocaleDateString()}</td>
+                <td className="p-3 text-base font-bold">{d.motif}</td>
+                <td className="p-3 text-base text-gray-500">{d.categorie}</td>
+                <td className="p-3 text-base font-black text-right">{Number(d.montant).toLocaleString()} Ar</td>
                 <td className="p-3 text-center">
                   <button onClick={() => deleteDecaissement(d.id)} className="text-red-500"><Trash2 size={16} /></button>
                 </td>

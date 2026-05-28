@@ -35,7 +35,7 @@ export default function Historique() {
   return (
     <div className="p-4 md:p-8 bg-slate-50 min-h-screen">
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-        <h1 className="text-2xl font-black text-slate-800 flex items-center gap-3">
+        <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
             <Shield className="text-emerald-600" /> Historique des Actions
         </h1>
         <div className="relative w-full md:w-64">
@@ -43,7 +43,7 @@ export default function Historique() {
             <input 
                 type="text" 
                 placeholder="Rechercher..." 
-                className="w-full p-3 pl-10 rounded-xl border border-slate-200 text-sm outline-none"
+                className="w-full p-3 pl-10 rounded-xl border border-slate-200 text-lg outline-none"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -55,7 +55,7 @@ export default function Historique() {
             <p className="text-center py-10 text-slate-400">Chargement...</p>
         ) : (
             <table className="w-full text-left">
-                <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-black">
+                <thead className="bg-slate-50 text-slate-400 uppercase text-[16px] font-black">
                     <tr>
                         <th className="p-4">Date</th>
                         <th className="p-4">Module</th>
@@ -65,11 +65,11 @@ export default function Historique() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                     {filteredLogs.map(log => (
-                        <tr key={log.id} className="text-[12px] text-slate-700 hover:bg-slate-50">
+                        <tr key={log.id} className="text-[15px] text-slate-700 hover:bg-slate-50">
                             <td className="p-4 font-bold whitespace-nowrap">
                                 {new Date(log.created_at).toLocaleString()}
                             </td>
-                            <td className="p-4 uppercase font-black text-[9px] text-emerald-600">{log.module}</td>
+                            <td className="p-4 uppercase font-black text-[15px] text-emerald-600">{log.module}</td>
                             <td className="p-4 font-bold">{log.action}</td>
                             <td className="p-4 text-slate-500">{log.profiles?.full_name || 'Système'}</td>
                         </tr>

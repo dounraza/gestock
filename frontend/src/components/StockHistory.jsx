@@ -75,11 +75,11 @@ export default function StockHistory() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="bg-white/60 backdrop-blur-md border border-emerald-50 rounded-[2.5rem] p-8 shadow-sm">
-        <h2 className="text-xl font-black text-gray-800 mb-6">Historique de stock</h2>
+        <h2 className="text-3xl font-black text-gray-800 mb-6">Historique de stock</h2>
         
         <div className="mb-6">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Sélectionner Dépôt / Magasin</label>
-          <select className="w-full md:w-64 bg-white border border-emerald-100 rounded-2xl py-3 px-4 text-sm font-bold mt-2" value={selectedDepot} onChange={(e) => setSelectedDepot(e.target.value)}>
+          <label className="text-[16px] font-black text-gray-400 uppercase tracking-widest ml-1">Sélectionner Dépôt / Magasin</label>
+          <select className="w-full md:w-64 bg-white border border-emerald-100 rounded-2xl py-3 px-4 text-lg font-bold mt-2" value={selectedDepot} onChange={(e) => setSelectedDepot(e.target.value)}>
             <option value="">Tous les dépôts...</option>
             {depots.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
@@ -90,9 +90,9 @@ export default function StockHistory() {
         ) : error ? (
           <p className="text-center py-10 font-bold text-red-500">{error}</p>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full text-lg">
             <thead>
-              <tr className="text-[10px] text-gray-400 uppercase text-left border-b border-emerald-50">
+              <tr className="text-[16px] text-gray-400 uppercase text-left border-b border-emerald-50">
                 <th className="pb-4">Date</th>
                 <th className="pb-4">Désignation</th>
                 <th className="pb-4">Quantité Détaillée</th>

@@ -127,27 +127,27 @@ export default function SupplierCredits() {
     <div className="p-6 space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-4 rounded-2xl border border-emerald-100 flex justify-between items-center shadow-sm">
-            <span className="text-[10px] font-black uppercase text-gray-400">Total Initial</span>
-            <span className="text-lg font-black text-emerald-800">{totals.totalCredit.toLocaleString()} Ar</span>
+            <span className="text-[16px] font-black uppercase text-gray-400">Total Initial</span>
+            <span className="text-2xl font-black text-emerald-800">{totals.totalCredit.toLocaleString()} Ar</span>
         </div>
         <div className="bg-white p-4 rounded-2xl border border-emerald-100 flex justify-between items-center shadow-sm">
-            <span className="text-[10px] font-black uppercase text-gray-400">Total Payé</span>
-            <span className="text-lg font-black text-emerald-600">{totals.totalPaid.toLocaleString()} Ar</span>
+            <span className="text-[16px] font-black uppercase text-gray-400">Total Payé</span>
+            <span className="text-2xl font-black text-emerald-600">{totals.totalPaid.toLocaleString()} Ar</span>
         </div>
         <div className="bg-white p-4 rounded-2xl border border-emerald-100 flex justify-between items-center shadow-sm">
-            <span className="text-[10px] font-black uppercase text-gray-400">Solde Restant</span>
-            <span className="text-lg font-black text-orange-600">{totals.totalRemaining.toLocaleString()} Ar</span>
+            <span className="text-[16px] font-black uppercase text-gray-400">Solde Restant</span>
+            <span className="text-2xl font-black text-orange-600">{totals.totalRemaining.toLocaleString()} Ar</span>
         </div>
       </div>
 
       <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
-        <h2 className="text-xl font-black text-emerald-800 flex items-center gap-2">
+        <h2 className="text-3xl font-black text-emerald-800 flex items-center gap-2">
             <Truck className="text-emerald-600" /> Suivi des Crédits Fournisseurs
         </h2>
         <input 
           type="text" 
           placeholder="Rechercher..." 
-          className="p-2 border rounded-xl w-64 text-sm"
+          className="p-2 border rounded-xl w-64 text-lg"
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
         />
@@ -157,8 +157,8 @@ export default function SupplierCredits() {
         {loading ? (
             <div className="flex justify-center py-20"><Loader2 className="animate-spin text-emerald-500" /></div>
         ) : (
-            <table className="w-full text-sm text-left">
-                <thead className="bg-emerald-50 text-emerald-800 uppercase text-[10px] font-black">
+            <table className="w-full text-lg text-left">
+                <thead className="bg-emerald-50 text-emerald-800 uppercase text-[16px] font-black">
                     <tr>
                         <th className="p-4">BL</th>
                         <th className="p-4">Fournisseur</th>
@@ -186,10 +186,10 @@ export default function SupplierCredits() {
                                 <td className="p-4 font-black text-right text-emerald-800">{parseFloat(c.total_amount).toLocaleString()} Ar</td>
                                 <td className="p-4 text-center">
                                     <div className="flex gap-2 justify-center">
-                                        <button onClick={(e) => { e.stopPropagation(); setHistoryModal(c); }} className="bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-bold text-xs uppercase flex items-center gap-1">
+                                        <button onClick={(e) => { e.stopPropagation(); setHistoryModal(c); }} className="bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-bold text-base uppercase flex items-center gap-1">
                                             Historique
                                         </button>
-                                        <button onClick={(e) => { e.stopPropagation(); setPaymentModal(c); }} className="bg-emerald-600 text-white px-3 py-1 rounded-lg font-bold text-xs uppercase flex items-center gap-1">
+                                        <button onClick={(e) => { e.stopPropagation(); setPaymentModal(c); }} className="bg-emerald-600 text-white px-3 py-1 rounded-lg font-bold text-base uppercase flex items-center gap-1">
                                             <Banknote size={14} /> Payer
                                         </button>
                                     </div>
@@ -200,8 +200,8 @@ export default function SupplierCredits() {
                                     <td colSpan="5" className="p-4 space-y-4">
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="bg-white p-3 rounded-lg border">
-                                                <h4 className="text-[10px] uppercase font-black text-gray-400 mb-2">Produits</h4>
-                                                <table className="w-full text-xs">
+                                                <h4 className="text-[16px] uppercase font-black text-gray-400 mb-2">Produits</h4>
+                                                <table className="w-full text-base">
                                                     <thead>
                                                         <tr className="text-gray-400">
                                                             <th className="p-1 text-left">Produit</th>
@@ -216,7 +216,7 @@ export default function SupplierCredits() {
                                                         <tr key={idx} className="border-t">
                                                             <td className="p-1 font-medium">{item.produits?.name || 'Inconnu'}</td>
                                                             <td className="p-1 text-center font-bold">{item.quantity}</td>
-                                                            <td className="p-1 text-center text-[10px] uppercase font-bold text-emerald-600">{item.unit === 'superior' ? (item.superior_unit_name || 'Ctn') : (item.produits?.unite_base || 'Pce')}</td>
+                                                            <td className="p-1 text-center text-[16px] uppercase font-bold text-emerald-600">{item.unit === 'superior' ? (item.superior_unit_name || 'Ctn') : (item.produits?.unite_base || 'Pce')}</td>
                                                             <td className="p-1 text-right">{parseFloat(item.purchase_price_per_unit).toLocaleString()} Ar</td>
                                                             <td className="p-1 text-right font-black">{parseFloat(item.line_total_purchase).toLocaleString()} Ar</td>
                                                         </tr>
@@ -225,14 +225,14 @@ export default function SupplierCredits() {
                                                 </table>
                                             </div>
                                             <div className="bg-white p-3 rounded-lg border">
-                                                <h4 className="text-[10px] uppercase font-black text-gray-400 mb-2">Historique Paiements</h4>
-                                                <table className="w-full text-xs">
+                                                <h4 className="text-[16px] uppercase font-black text-gray-400 mb-2">Historique Paiements</h4>
+                                                <table className="w-full text-base">
                                                     <tbody>
                                                     {(c.paiements || []).map((p, idx) => (
                                                         <tr key={idx} className="border-t">
-                                                            <td className="p-1 text-[9px] font-bold text-gray-500">{new Date(p.date_paiement).toLocaleDateString()}</td>
+                                                            <td className="p-1 text-[15px] font-bold text-gray-500">{new Date(p.date_paiement).toLocaleDateString()}</td>
                                                             <td className="p-1 font-bold">{p.montant.toLocaleString()} Ar</td>
-                                                            <td className="p-1 text-right uppercase text-[9px]">{p.type_paiement}</td>
+                                                            <td className="p-1 text-right uppercase text-[15px]">{p.type_paiement}</td>
                                                         </tr>
                                                     ))}
                                                     {(c.paiements || []).length === 0 && <tr className="text-gray-400 italic"><td>Aucun paiement</td></tr>}
@@ -248,7 +248,7 @@ export default function SupplierCredits() {
                 </tbody>
                 <tfoot className="bg-emerald-50">
                     <tr>
-                        <td colSpan="3" className="p-4 font-black text-emerald-800 uppercase text-xs text-right">Total Général (Initial)</td>
+                        <td colSpan="3" className="p-4 font-black text-emerald-800 uppercase text-base text-right">Total Général (Initial)</td>
                         <td className="p-4 font-black text-emerald-800 text-right">{totals.totalCredit.toLocaleString()} Ar</td>
                         <td></td>
                     </tr>
@@ -259,9 +259,9 @@ export default function SupplierCredits() {
       {historyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
             <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl">
-                <h3 className="font-black text-emerald-800 text-lg mb-4">Historique des paiements - {historyModal.bl_number}</h3>
+                <h3 className="font-black text-emerald-800 text-2xl mb-4">Historique des paiements - {historyModal.bl_number}</h3>
                 <div className="max-h-[60vh] overflow-y-auto">
-                    <table className="w-full text-xs">
+                    <table className="w-full text-base">
                         <thead className="bg-gray-50 text-gray-400 uppercase">
                             <tr><th className="p-2 text-left">Date</th><th className="p-2 text-right">Montant</th><th className="p-2 text-right">Méthode</th></tr>
                         </thead>
@@ -276,15 +276,15 @@ export default function SupplierCredits() {
                         </tbody>
                     </table>
                 </div>
-                <button onClick={() => setHistoryModal(null)} className="w-full py-3 mt-4 bg-gray-600 text-white rounded-xl font-black text-sm">Fermer</button>
+                <button onClick={() => setHistoryModal(null)} className="w-full py-3 mt-4 bg-gray-600 text-white rounded-xl font-black text-lg">Fermer</button>
             </div>
         </div>
       )}
       {paymentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
-            <h3 className="font-black text-emerald-800 text-lg mb-4">Paiement du crédit</h3>
-            <p className="text-xs font-bold text-gray-500 mb-6">Reste à payer : {paymentModal.total_amount.toLocaleString()} Ar</p>
+            <h3 className="font-black text-emerald-800 text-2xl mb-4">Paiement du crédit</h3>
+            <p className="text-base font-bold text-gray-500 mb-6">Reste à payer : {paymentModal.total_amount.toLocaleString()} Ar</p>
             <input 
               type="number" 
               className="w-full p-3 border-2 border-emerald-100 rounded-xl mb-3 font-black"
@@ -292,7 +292,7 @@ export default function SupplierCredits() {
               value={paymentAmount}
               onChange={(e) => setPaymentAmount(e.target.value)}
             />
-            <select className="w-full p-3 border-2 border-emerald-100 rounded-xl mb-3 font-bold text-sm" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+            <select className="w-full p-3 border-2 border-emerald-100 rounded-xl mb-3 font-bold text-lg" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
                 <option value="espece">Espèce</option>
                 <option value="virement">Virement</option>
                 <option value="cheque">Chèque</option>
@@ -300,14 +300,14 @@ export default function SupplierCredits() {
             </select>
             <input 
               type="text" 
-              className="w-full p-3 border-2 border-emerald-100 rounded-xl mb-4 font-bold text-sm"
+              className="w-full p-3 border-2 border-emerald-100 rounded-xl mb-4 font-bold text-lg"
               placeholder="Référence (Optionnel)"
               value={paymentRef}
               onChange={(e) => setPaymentRef(e.target.value)}
             />
             <div className="flex gap-3">
-                <button onClick={() => setPaymentModal(null)} className="flex-1 py-3 text-sm font-bold text-gray-500">Annuler</button>
-                <button onClick={processPayment} disabled={isPaying} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2">
+                <button onClick={() => setPaymentModal(null)} className="flex-1 py-3 text-lg font-bold text-gray-500">Annuler</button>
+                <button onClick={processPayment} disabled={isPaying} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-black text-lg flex items-center justify-center gap-2">
                     {isPaying ? <Loader2 size={16} className="animate-spin" /> : "Confirmer"}
                 </button>
             </div>

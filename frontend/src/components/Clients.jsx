@@ -105,7 +105,7 @@ export default function Clients({ onViewCredit }) {
             <input 
               type="text" 
               placeholder="Rechercher un client..." 
-              className="w-full bg-white border border-emerald-100 rounded-2xl py-2 pl-10 pr-4 text-sm focus:ring-4 focus:ring-emerald-500/5 transition-all outline-none" 
+              className="w-full bg-white border border-emerald-100 rounded-2xl py-2 pl-10 pr-4 text-lg focus:ring-4 focus:ring-emerald-500/5 transition-all outline-none" 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -114,26 +114,26 @@ export default function Clients({ onViewCredit }) {
           <div className="flex bg-emerald-50 p-1 rounded-xl border border-emerald-100">
             <button 
               onClick={() => setViewMode('table')}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${viewMode === 'table' ? 'bg-white text-emerald-700 shadow-sm' : 'text-emerald-600 hover:bg-white/50'}`}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[16px] font-black transition-all ${viewMode === 'table' ? 'bg-white text-emerald-700 shadow-sm' : 'text-emerald-600 hover:bg-white/50'}`}
             >
               <List size={14} /> LISTE
             </button>
             <button 
               onClick={() => setViewMode('cards')}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${viewMode === 'cards' ? 'bg-white text-emerald-700 shadow-sm' : 'text-emerald-600 hover:bg-white/50'}`}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[16px] font-black transition-all ${viewMode === 'cards' ? 'bg-white text-emerald-700 shadow-sm' : 'text-emerald-600 hover:bg-white/50'}`}
             >
               <LayoutGrid size={14} /> CARTES
             </button>
           </div>
         </div>
 
-        <button onClick={() => setShowModal(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-2xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-emerald-100">
+        <button onClick={() => setShowModal(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-2xl flex items-center justify-center gap-2 font-black text-[16px] uppercase tracking-widest transition-all shadow-lg shadow-emerald-100">
           <Plus size={18} /> <span>Nouveau Client</span>
         </button>
       </div>
 
       {loading ? (
-        <div className="py-20 text-center"><p className="text-gray-400 font-bold animate-pulse uppercase text-[10px] tracking-widest">Chargement des clients...</p></div>
+        <div className="py-20 text-center"><p className="text-gray-400 font-bold animate-pulse uppercase text-[16px] tracking-widest">Chargement des clients...</p></div>
       ) : filteredClients.length > 0 ? (
         viewMode === 'table' ? (
           /* Table View - "Finer" look */
@@ -141,11 +141,11 @@ export default function Clients({ onViewCredit }) {
             <table className="w-full text-left min-w-[800px]">
               <thead>
                 <tr className="bg-emerald-50/50 border-b border-emerald-100">
-                  <th className="p-4 pl-8 text-[10px] font-black text-emerald-700 uppercase tracking-widest">Nom</th>
-                  <th className="p-4 text-[10px] font-black text-emerald-700 uppercase tracking-widest">Contact</th>
-                  <th className="p-4 text-[10px] font-black text-emerald-700 uppercase tracking-widest">NIF / STAT</th>
-                  <th className="p-4 text-[10px] font-black text-emerald-700 uppercase tracking-widest">Adresse</th>
-                  <th className="p-4 pr-8 text-[10px] font-black text-emerald-700 uppercase tracking-widest text-right">Actions</th>
+                  <th className="p-4 pl-8 text-[16px] font-black text-emerald-700 uppercase tracking-widest">Nom</th>
+                  <th className="p-4 text-[16px] font-black text-emerald-700 uppercase tracking-widest">Contact</th>
+                  <th className="p-4 text-[16px] font-black text-emerald-700 uppercase tracking-widest">NIF / STAT</th>
+                  <th className="p-4 text-[16px] font-black text-emerald-700 uppercase tracking-widest">Adresse</th>
+                  <th className="p-4 pr-8 text-[16px] font-black text-emerald-700 uppercase tracking-widest text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-emerald-50">
@@ -156,28 +156,28 @@ export default function Clients({ onViewCredit }) {
                         <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 shrink-0">
                           <Users size={16} />
                         </div>
-                        <span className="text-xs font-black text-gray-800 uppercase tracking-tight">{c.name}</span>
+                        <span className="text-base font-black text-gray-800 uppercase tracking-tight">{c.name}</span>
                       </div>
                     </td>
                     <td className="p-4">
                       <div className="flex flex-col gap-0.5">
                         <div className="flex items-center gap-1.5 text-gray-500">
                           <Phone size={10} className="text-emerald-400" />
-                          <span className="text-[10px] font-bold">{c.phone || '-'}</span>
+                          <span className="text-[16px] font-bold">{c.phone || '-'}</span>
                         </div>
                         <div className="flex items-center gap-1.5 text-gray-400">
                           <Mail size={10} className="text-emerald-300" />
-                          <span className="text-[10px]">{c.email || '-'}</span>
+                          <span className="text-[16px]">{c.email || '-'}</span>
                         </div>
                       </div>
                     </td>
                     <td className="p-4">
                       <div className="flex gap-2">
-                        {c.nif && <span className="text-[9px] font-black bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded border border-emerald-100 uppercase">NIF: {c.nif}</span>}
-                        {c.stat && <span className="text-[9px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 uppercase">STAT: {c.stat}</span>}
+                        {c.nif && <span className="text-[15px] font-black bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded border border-emerald-100 uppercase">NIF: {c.nif}</span>}
+                        {c.stat && <span className="text-[15px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 uppercase">STAT: {c.stat}</span>}
                       </div>
                     </td>
-                    <td className="p-4 text-[10px] font-medium text-gray-500 max-w-[150px] truncate">
+                    <td className="p-4 text-[16px] font-medium text-gray-500 max-w-[150px] truncate">
                       {c.address || '-'}
                     </td>
                     <td className="p-4 pr-8 text-right">
@@ -217,36 +217,36 @@ export default function Clients({ onViewCredit }) {
                     <Users size={24} />
                   </div>
                   <div>
-                    <h4 className="text-base font-black text-gray-800 uppercase tracking-tight">{c.name}</h4>
-                    <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest">Client</p>
+                    <h4 className="text-xl font-black text-gray-800 uppercase tracking-tight">{c.name}</h4>
+                    <p className="text-[15px] text-emerald-600 font-bold uppercase tracking-widest">Client</p>
                   </div>
                 </div>
 
                 <div className="space-y-2.5">
                   <div className="flex items-center gap-3 text-gray-600">
                     <Mail size={14} className="text-emerald-400" />
-                    <span className="text-xs truncate font-medium">{c.email || 'Pas d\'email'}</span>
+                    <span className="text-base truncate font-medium">{c.email || 'Pas d\'email'}</span>
                   </div>
                   <div className="flex items-center gap-3 text-gray-600">
                     <Phone size={14} className="text-emerald-400" />
-                    <span className="text-xs font-bold">{c.phone || 'Pas de téléphone'}</span>
+                    <span className="text-base font-bold">{c.phone || 'Pas de téléphone'}</span>
                   </div>
                   <div className="flex items-center gap-3 text-gray-600">
                     <MapPin size={14} className="text-emerald-400" />
-                    <span className="text-xs truncate font-medium">{c.address || 'Pas d\'adresse'}</span>
+                    <span className="text-base truncate font-medium">{c.address || 'Pas d\'adresse'}</span>
                   </div>
                   {(c.nif || c.stat) && (
                     <div className="pt-2 mt-2 border-t border-emerald-50 grid grid-cols-2 gap-2">
                       {c.nif && (
                         <div className="bg-emerald-50/50 p-2 rounded-xl border border-emerald-100/50">
-                          <p className="text-[7px] font-black text-emerald-600 uppercase leading-none mb-1">NIF</p>
-                          <p className="text-[10px] font-black text-gray-700">{c.nif}</p>
+                          <p className="text-[13px] font-black text-emerald-600 uppercase leading-none mb-1">NIF</p>
+                          <p className="text-[16px] font-black text-gray-700">{c.nif}</p>
                         </div>
                       )}
                       {c.stat && (
                         <div className="bg-blue-50/50 p-2 rounded-xl border border-blue-100/50">
-                          <p className="text-[7px] font-black text-blue-600 uppercase leading-none mb-1">STAT</p>
-                          <p className="text-[10px] font-black text-gray-700">{c.stat}</p>
+                          <p className="text-[13px] font-black text-blue-600 uppercase leading-none mb-1">STAT</p>
+                          <p className="text-[16px] font-black text-gray-700">{c.stat}</p>
                         </div>
                       )}
                     </div>
@@ -256,7 +256,7 @@ export default function Clients({ onViewCredit }) {
                 <div className="mt-6">
                   <button 
                     onClick={() => onViewCredit?.(c.name)}
-                    className="w-full py-2.5 bg-emerald-50 text-emerald-700 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center gap-2 shadow-sm"
+                    className="w-full py-2.5 bg-emerald-50 text-emerald-700 rounded-xl font-black text-[15px] uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center gap-2 shadow-sm"
                   >
                     <Clock size={14} /> Échéances
                   </button>
@@ -268,7 +268,7 @@ export default function Clients({ onViewCredit }) {
       ) : (
         <div className="col-span-full text-center py-20 bg-white/40 border-2 border-dashed border-emerald-100 rounded-[2.5rem]">
           <Users className="mx-auto text-emerald-200 mb-4" size={48} />
-          <p className="text-gray-500 font-black uppercase text-[10px] tracking-widest">Aucun client trouvé.</p>
+          <p className="text-gray-500 font-black uppercase text-[16px] tracking-widest">Aucun client trouvé.</p>
         </div>
       )}
 
@@ -276,41 +276,41 @@ export default function Clients({ onViewCredit }) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-900/20 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 border-b border-emerald-50 flex justify-between items-center">
-              <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">
+              <h3 className="text-3xl font-black text-gray-800 uppercase tracking-tight">
                 {editingClient ? 'Modifier le client' : 'Ajouter un client'}
               </h3>
-              <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+              <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 text-3xl">&times;</button>
             </div>
             <form onSubmit={handleSave} className="p-8 space-y-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-emerald-700 uppercase ml-1">Nom complet</label>
-                <input required className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all text-sm font-bold uppercase" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                <label className="text-[16px] font-black text-emerald-700 uppercase ml-1">Nom complet</label>
+                <input required className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all text-lg font-bold uppercase" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-emerald-700 uppercase ml-1">Email</label>
-                  <input type="email" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all text-sm font-bold" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                  <label className="text-[16px] font-black text-emerald-700 uppercase ml-1">Email</label>
+                  <input type="email" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all text-lg font-bold" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-emerald-700 uppercase ml-1">Téléphone</label>
-                  <input className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all text-sm font-bold" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                  <label className="text-[16px] font-black text-emerald-700 uppercase ml-1">Téléphone</label>
+                  <input className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all text-lg font-bold" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-emerald-700 uppercase ml-1">NIF</label>
-                  <input className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all text-sm font-bold" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} />
+                  <label className="text-[16px] font-black text-emerald-700 uppercase ml-1">NIF</label>
+                  <input className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all text-lg font-bold" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-emerald-700 uppercase ml-1">STAT</label>
-                  <input className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all text-sm font-bold" value={formData.stat} onChange={e => setFormData({...formData, stat: e.target.value})} />
+                  <label className="text-[16px] font-black text-emerald-700 uppercase ml-1">STAT</label>
+                  <input className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all text-lg font-bold" value={formData.stat} onChange={e => setFormData({...formData, stat: e.target.value})} />
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-emerald-700 uppercase ml-1">Adresse</label>
-                <textarea className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all text-sm font-medium min-h-[80px]" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})}></textarea>
+                <label className="text-[16px] font-black text-emerald-700 uppercase ml-1">Adresse</label>
+                <textarea className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all text-lg font-medium min-h-[80px]" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})}></textarea>
               </div>
-              <button type="submit" disabled={isSubmitting} className="w-full bg-emerald-600 text-white font-black text-[10px] uppercase tracking-[0.2em] py-4 rounded-2xl shadow-lg shadow-emerald-100 mt-4 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+              <button type="submit" disabled={isSubmitting} className="w-full bg-emerald-600 text-white font-black text-[16px] uppercase tracking-[0.2em] py-4 rounded-2xl shadow-lg shadow-emerald-100 mt-4 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
                 {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : (editingClient ? "Mettre à jour" : "Enregistrer le client")}
               </button>
             </form>

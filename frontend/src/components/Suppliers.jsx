@@ -141,7 +141,7 @@ export default function Suppliers() {
             <input 
               type="text" 
               placeholder="Rechercher un fournisseur..." 
-              className="w-full bg-white border border-emerald-100 rounded-xl py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-emerald-500/10 transition-all outline-none" 
+              className="w-full bg-white border border-emerald-100 rounded-xl py-2 pl-10 pr-4 text-lg focus:ring-2 focus:ring-emerald-500/10 transition-all outline-none" 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -192,13 +192,13 @@ export default function Suppliers() {
                     <Truck size={28} />
                   </div>
                   <div>
-                    <h4 className="text-lg font-bold text-gray-800 leading-tight">{s.name}</h4>
+                    <h4 className="text-2xl font-bold text-gray-800 leading-tight">{s.name}</h4>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${s.local_etranger === 'Etranger' ? 'bg-purple-100 text-purple-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                      <span className={`text-[14px] font-black uppercase px-2 py-0.5 rounded-full ${s.local_etranger === 'Etranger' ? 'bg-purple-100 text-purple-600' : 'bg-emerald-100 text-emerald-600'}`}>
                         {s.local_etranger || 'Local'}
                       </span>
                       {s.nif && (
-                        <span className="text-[8px] font-black text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full uppercase">
+                        <span className="text-[14px] font-black text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full uppercase">
                           NIF: {s.nif}
                         </span>
                       )}
@@ -210,27 +210,27 @@ export default function Suppliers() {
                   {s.raison_sociale && (
                     <div className="flex items-center gap-3 text-gray-600">
                       <div className="w-4 h-4 rounded bg-gray-50 flex items-center justify-center">
-                        <span className="text-[8px] font-black">RS</span>
+                        <span className="text-[14px] font-black">RS</span>
                       </div>
-                      <span className="text-xs font-bold text-gray-400 uppercase truncate">{s.raison_sociale}</span>
+                      <span className="text-base font-bold text-gray-400 uppercase truncate">{s.raison_sociale}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-3 text-gray-600">
                     <Mail size={16} className="text-emerald-400" />
-                    <span className="text-sm truncate">{s.email || 'Pas d\'email'}</span>
+                    <span className="text-lg truncate">{s.email || 'Pas d\'email'}</span>
                   </div>
                   <div className="flex items-center gap-3 text-gray-600">
                     <Phone size={16} className="text-emerald-400" />
-                    <span className="text-sm">{s.phone || 'Pas de téléphone'}</span>
+                    <span className="text-lg">{s.phone || 'Pas de téléphone'}</span>
                   </div>
                   <div className="flex items-center gap-3 text-gray-600">
                     <MapPin size={16} className="text-emerald-400" />
-                    <span className="text-sm truncate">{s.address || 'Pas d\'adresse'}</span>
+                    <span className="text-lg truncate">{s.address || 'Pas d\'adresse'}</span>
                   </div>
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-emerald-50 flex gap-2">
-                  <button onClick={() => { setCreditModal(s); fetchSupplierCredits(s.id); }} className="flex-1 py-2 bg-emerald-600 text-white rounded-xl font-bold text-[9px] uppercase tracking-wider hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-100">
+                  <button onClick={() => { setCreditModal(s); fetchSupplierCredits(s.id); }} className="flex-1 py-2 bg-emerald-600 text-white rounded-xl font-bold text-[15px] uppercase tracking-wider hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-100">
                     <Banknote size={14} /> Payer
                   </button>
                 </div>
@@ -242,7 +242,7 @@ export default function Suppliers() {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-emerald-50/50 text-[10px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">
+                  <tr className="bg-emerald-50/50 text-[16px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">
                     <th className="p-4 pl-6">Fournisseur</th>
                     <th className="p-4">Type</th>
                     <th className="p-4">Raison Sociale</th>
@@ -253,25 +253,25 @@ export default function Suppliers() {
                 </thead>
                 <tbody className="divide-y divide-emerald-50">
                   {filteredSuppliers.map((s) => (
-                    <tr key={s.id} className="hover:bg-emerald-50/10 transition-colors text-sm group">
+                    <tr key={s.id} className="hover:bg-emerald-50/10 transition-colors text-lg group">
                       <td className="p-4 pl-6">
                         <div className="font-bold text-gray-800 uppercase">{s.name}</div>
                       </td>
                       <td className="p-4">
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${s.local_etranger === 'Etranger' ? 'bg-purple-100 text-purple-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                        <span className={`text-[15px] font-black uppercase px-2 py-0.5 rounded-full ${s.local_etranger === 'Etranger' ? 'bg-purple-100 text-purple-600' : 'bg-emerald-100 text-emerald-600'}`}>
                           {s.local_etranger || 'Local'}
                         </span>
                       </td>
                       <td className="p-4">
-                        <span className="text-xs text-gray-400 font-bold uppercase truncate max-w-[150px] block">{s.raison_sociale || '-'}</span>
+                        <span className="text-base text-gray-400 font-bold uppercase truncate max-w-[150px] block">{s.raison_sociale || '-'}</span>
                       </td>
                       <td className="p-4">
-                        <span className="text-[10px] font-bold text-gray-500">{s.nif || '-'}</span>
+                        <span className="text-[16px] font-bold text-gray-500">{s.nif || '-'}</span>
                       </td>
                       <td className="p-4">
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-xs font-bold text-gray-700">{s.phone || '-'}</span>
-                          <span className="text-[10px] text-gray-400">{s.email || '-'}</span>
+                          <span className="text-base font-bold text-gray-700">{s.phone || '-'}</span>
+                          <span className="text-[16px] text-gray-400">{s.email || '-'}</span>
                         </div>
                       </td>
                       <td className="p-4 pr-6 text-right">
@@ -306,20 +306,20 @@ export default function Suppliers() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-900/20 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl p-6">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-bold text-gray-800">Détails Crédits: {creditModal.name}</h3>
-              <button onClick={() => setCreditModal(null)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+              <h3 className="text-2xl font-bold text-gray-800">Détails Crédits: {creditModal.name}</h3>
+              <button onClick={() => setCreditModal(null)} className="text-gray-400 hover:text-gray-600 text-3xl">&times;</button>
             </div>
             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
                 {supplierCredits.length > 0 ? supplierCredits.map(c => (
                     <div key={c.id} className="border border-emerald-100 rounded-2xl overflow-hidden mb-4">
-                        <div className="bg-emerald-50 p-3 flex justify-between items-center font-black text-emerald-800 text-xs uppercase tracking-widest">
+                        <div className="bg-emerald-50 p-3 flex justify-between items-center font-black text-emerald-800 text-base uppercase tracking-widest">
                             <span>BL: {c.bl_number}</span>
                             <span>{c.total_amount.toLocaleString()} Ar</span>
                         </div>
                         <div className="p-3 grid grid-cols-2 gap-4">
                             <div>
-                                <h4 className="text-[10px] uppercase font-black text-gray-400 mb-2">Produits</h4>
-                                <table className="w-full text-xs">
+                                <h4 className="text-[16px] uppercase font-black text-gray-400 mb-2">Produits</h4>
+                                <table className="w-full text-base">
                                     <tbody>
                                         {c.delivery_note_items.map((item, idx) => (
                                             <tr key={idx} className="border-t">
@@ -331,12 +331,12 @@ export default function Suppliers() {
                                 </table>
                             </div>
                             <div>
-                                <h4 className="text-[10px] uppercase font-black text-gray-400 mb-2">Historique Paiements</h4>
-                                <table className="w-full text-xs">
+                                <h4 className="text-[16px] uppercase font-black text-gray-400 mb-2">Historique Paiements</h4>
+                                <table className="w-full text-base">
                                     <tbody>
                                         {(c.paiements || []).map((p, idx) => (
                                             <tr key={idx} className="border-t">
-                                                <td className="p-1 text-[9px] font-bold text-gray-500">{new Date(p.date_paiement).toLocaleDateString()}</td>
+                                                <td className="p-1 text-[15px] font-bold text-gray-500">{new Date(p.date_paiement).toLocaleDateString()}</td>
                                                 <td className="p-1 font-bold">{p.montant.toLocaleString()} Ar</td>
                                             </tr>
                                         ))}
@@ -346,7 +346,7 @@ export default function Suppliers() {
                             </div>
                         </div>
                     </div>
-                )) : <p className="text-gray-400 text-center py-4 text-xs font-black uppercase">Aucun crédit en cours</p>}
+                )) : <p className="text-gray-400 text-center py-4 text-base font-black uppercase">Aucun crédit en cours</p>}
             </div>
           </div>
         </div>
@@ -356,17 +356,17 @@ export default function Suppliers() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-900/20 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden">
             <div className="p-4 border-b border-emerald-50 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-800">
+              <h3 className="text-2xl font-bold text-gray-800">
                 {editingSupplier ? 'Modifier le fournisseur' : 'Ajouter un fournisseur'}
               </h3>
-              <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+              <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 text-3xl">&times;</button>
             </div>
             <form onSubmit={handleSave} className="p-4 space-y-3 max-h-[85vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                   <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Type de Fournisseur</label>
+                   <label className="text-[15px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Type de Fournisseur</label>
                    <select 
-                    className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs font-bold"
+                    className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-base font-bold"
                     value={formData.local_etranger}
                     onChange={e => setFormData({...formData, local_etranger: e.target.value})}
                   >
@@ -376,40 +376,40 @@ export default function Suppliers() {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Nom du Fournisseur</label>
-                  <input required placeholder="Ex: Sanofi, GSK..." className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                  <label className="text-[15px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Nom du Fournisseur</label>
+                  <input required placeholder="Ex: Sanofi, GSK..." className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-base" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                 </div>
 
                 <div className="col-span-2">
-                  <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Raison Sociale</label>
-                  <input placeholder="Raison Sociale complète" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs" value={formData.raison_sociale} onChange={e => setFormData({...formData, raison_sociale: e.target.value})} />
+                  <label className="text-[15px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Raison Sociale</label>
+                  <input placeholder="Raison Sociale complète" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-base" value={formData.raison_sociale} onChange={e => setFormData({...formData, raison_sociale: e.target.value})} />
                 </div>
 
                 <div>
-                  <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">NIF</label>
-                  <input placeholder="NIF" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} />
+                  <label className="text-[15px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">NIF</label>
+                  <input placeholder="NIF" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-base" value={formData.nif} onChange={e => setFormData({...formData, nif: e.target.value})} />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">STAT</label>
-                  <input placeholder="STAT" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs" value={formData.stat} onChange={e => setFormData({...formData, stat: e.target.value})} />
+                  <label className="text-[15px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">STAT</label>
+                  <input placeholder="STAT" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-base" value={formData.stat} onChange={e => setFormData({...formData, stat: e.target.value})} />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">RCS</label>
-                  <input placeholder="RCS" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs" value={formData.rcs} onChange={e => setFormData({...formData, rcs: e.target.value})} />
+                  <label className="text-[15px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">RCS</label>
+                  <input placeholder="RCS" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-base" value={formData.rcs} onChange={e => setFormData({...formData, rcs: e.target.value})} />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Téléphone</label>
-                  <input placeholder="Téléphone" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
-                </div>
-
-                <div className="col-span-2">
-                  <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Email contact</label>
-                  <input type="email" placeholder="Email" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                  <label className="text-[15px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Téléphone</label>
+                  <input placeholder="Téléphone" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-base" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
                 </div>
 
                 <div className="col-span-2">
-                  <label className="text-[9px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Adresse du siège</label>
-                  <textarea placeholder="Adresse complète..." className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs min-h-[40px] h-[40px] resize-none" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})}></textarea>
+                  <label className="text-[15px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Email contact</label>
+                  <input type="email" placeholder="Email" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-base" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="text-[15px] font-black uppercase text-emerald-600 mb-0.5 block ml-1">Adresse du siège</label>
+                  <textarea placeholder="Adresse complète..." className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-base min-h-[40px] h-[40px] resize-none" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})}></textarea>
                 </div>
               </div>
 

@@ -82,21 +82,21 @@ export default function StockTransfer() {
   return (
     <div className="flex flex-col h-screen p-4 md:p-6 bg-gray-100">
       <header className="flex-none mb-6">
-        <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+        <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
             <ArrowLeftRight className="text-emerald-600" /> Transfert de Stock
         </h1>
       </header>
 
       <div className="flex-none bg-white p-4 rounded shadow-sm border border-gray-300 mb-6 grid grid-cols-2 gap-4">
         <div>
-            <label className="text-xs font-bold text-gray-600 uppercase mb-1 block">Dépôt Source</label>
+            <label className="text-base font-bold text-gray-600 uppercase mb-1 block">Dépôt Source</label>
             <select className="w-full p-2 border border-gray-400 bg-white" value={sourceDepotId} onChange={e => setSourceDepotId(e.target.value)}>
                 <option value="">Sélectionner...</option>
                 {depots.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
         </div>
         <div>
-            <label className="text-xs font-bold text-gray-600 uppercase mb-1 block">Dépôt Destination</label>
+            <label className="text-base font-bold text-gray-600 uppercase mb-1 block">Dépôt Destination</label>
             <select className="w-full p-2 border border-gray-400 bg-white" value={destDepotId} onChange={e => setDestDepotId(e.target.value)}>
                 <option value="">Sélectionner...</option>
                 {depots.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -112,7 +112,7 @@ export default function StockTransfer() {
       {transferModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-6 w-full max-w-sm border-2 border-emerald-600">
-            <h4 className="font-bold text-sm mb-4 bg-emerald-600 text-white p-2">Transférer {transferModal.name}</h4>
+            <h4 className="font-bold text-lg mb-4 bg-emerald-600 text-white p-2">Transférer {transferModal.name}</h4>
             <div className="flex gap-2 mb-4">
                 <input 
                     type="number" 
@@ -141,11 +141,11 @@ const StockSection = ({ title, stocks, icon, action, onAction, formatQuantity })
     console.log(`${title} stocks:`, stocks);
     return (
         <div className="bg-white border border-gray-300 h-full flex flex-col">
-            <div className="p-3 bg-gray-200 border-b border-gray-300 font-bold text-sm flex items-center gap-2">
+            <div className="p-3 bg-gray-200 border-b border-gray-300 font-bold text-lg flex items-center gap-2">
                 {icon} {title}
             </div>
             <div className="flex-1 overflow-y-auto p-0">
-                <table className="w-full text-sm text-left">
+                <table className="w-full text-lg text-left">
                     <thead className="bg-gray-50 border-b border-gray-300">
                         <tr><th className="p-2">Produit</th><th className="p-2">Quantité</th><th className="p-2 w-16"></th></tr>
                     </thead>

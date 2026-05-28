@@ -39,14 +39,14 @@ export default function CalculatorKeypad({ activeItem, onResult, onOpenDiscount,
   return (
     <div className="bg-white border border-slate-100 rounded-2xl p-2.5 flex flex-col gap-2 shadow-xl">
         <div className="flex items-center justify-between gap-2">
-            <h3 className="text-[9px] font-black text-slate-800 uppercase truncate px-1 flex-1">
+            <h3 className="text-[15px] font-black text-slate-800 uppercase truncate px-1 flex-1">
                 {activeItem ? activeItem.name : "Sélectionner un produit"}
             </h3>
-            <button onClick={onClose} className="text-red-500 hover:text-red-700 font-black text-sm p-1">X</button>
+            <button onClick={onClose} className="text-red-500 hover:text-red-700 font-black text-lg p-1">X</button>
         </div>
         
         {/* DISPLAY */}
-        <div className="bg-slate-900 rounded-lg p-2 text-right text-lg font-black text-emerald-400 h-9 flex items-center justify-end overflow-hidden shadow-inner">
+        <div className="bg-slate-900 rounded-lg p-2 text-right text-2xl font-black text-emerald-400 h-9 flex items-center justify-end overflow-hidden shadow-inner">
             {display}
         </div>
 
@@ -57,7 +57,7 @@ export default function CalculatorKeypad({ activeItem, onResult, onOpenDiscount,
             <button 
               key={btn}
               onClick={() => btn === 'C' ? setDisplay('0') : handlePress(btn)}
-              className="bg-slate-100 hover:bg-slate-200 p-2 rounded-lg font-bold text-slate-800 text-xs transition-all"
+              className="bg-slate-100 hover:bg-slate-200 p-2 rounded-lg font-bold text-slate-800 text-base transition-all"
             >
               {btn}
             </button>
@@ -69,7 +69,7 @@ export default function CalculatorKeypad({ activeItem, onResult, onOpenDiscount,
             <button 
                 onClick={() => activeItem && addQuantityByUnit('base')} 
                 disabled={!activeItem}
-                className={`${activeItem ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-200'} text-white p-2 rounded-lg font-black text-[9px] uppercase shadow-md transition-all`}
+                className={`${activeItem ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-200'} text-white p-2 rounded-lg font-black text-[15px] uppercase shadow-md transition-all`}
             >
                 + {activeItem?.unite_base || 'PCE'}
             </button>
@@ -77,7 +77,7 @@ export default function CalculatorKeypad({ activeItem, onResult, onOpenDiscount,
             {activeItem && activeItem.quantite_par_unite > 1 && (
                 <button 
                     onClick={() => addQuantityByUnit('superior')} 
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-lg font-black text-[9px] uppercase shadow-md transition-all"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-lg font-black text-[15px] uppercase shadow-md transition-all"
                 >
                     + {activeItem.unite_superieure || 'CTN'}
                 </button>
@@ -86,7 +86,7 @@ export default function CalculatorKeypad({ activeItem, onResult, onOpenDiscount,
 
         <button 
             onClick={() => onOpenDiscount({ isGlobal: true })}
-            className="w-full bg-orange-600 hover:bg-orange-500 text-white p-2 rounded-lg font-black text-[9px] uppercase shadow-md transition-all"
+            className="w-full bg-orange-600 hover:bg-orange-500 text-white p-2 rounded-lg font-black text-[15px] uppercase shadow-md transition-all"
         >
             REMISE GLOBALE
         </button>

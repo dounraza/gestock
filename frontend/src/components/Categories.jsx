@@ -74,7 +74,7 @@ export default function Categories() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-emerald-50 gap-4">
-        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 pl-2">
+        <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2 pl-2">
           <Tag className="text-emerald-500" size={20} /> Gestion des Catégories
         </h3>
         <button onClick={() => setShowModal(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-emerald-100">
@@ -87,9 +87,9 @@ export default function Categories() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-emerald-50/50">
-              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Nom de la catégorie</th>
-              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Date de création</th>
-              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest text-right">Actions</th>
+              <th className="p-5 text-base font-bold text-emerald-700 uppercase tracking-widest">Nom de la catégorie</th>
+              <th className="p-5 text-base font-bold text-emerald-700 uppercase tracking-widest">Date de création</th>
+              <th className="p-5 text-base font-bold text-emerald-700 uppercase tracking-widest text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-emerald-50">
@@ -99,7 +99,7 @@ export default function Categories() {
               categories.map((cat) => (
                 <tr key={cat.id} className="hover:bg-emerald-50/20 transition-colors">
                   <td className="p-5 font-bold text-gray-800">{cat.name}</td>
-                  <td className="p-5 text-sm text-gray-500">{new Date(cat.created_at).toLocaleDateString()}</td>
+                  <td className="p-5 text-lg text-gray-500">{new Date(cat.created_at).toLocaleDateString()}</td>
                   <td className="p-5 text-right">
                     <div className="flex justify-end gap-2">
                       <button 
@@ -129,7 +129,7 @@ export default function Categories() {
             <div key={cat.id} className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-5 shadow-sm flex justify-between items-center">
               <div>
                 <h4 className="font-bold text-gray-800">{cat.name}</h4>
-                <p className="text-[10px] text-gray-400 uppercase mt-1">Créé le {new Date(cat.created_at).toLocaleDateString()}</p>
+                <p className="text-[16px] text-gray-400 uppercase mt-1">Créé le {new Date(cat.created_at).toLocaleDateString()}</p>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => handleEdit(cat)} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
@@ -150,14 +150,14 @@ export default function Categories() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-900/20 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 border-b border-emerald-50 flex justify-between items-center">
-              <h3 className="text-xl font-bold text-gray-800">
+              <h3 className="text-3xl font-bold text-gray-800">
                 {editingCategory ? 'Modifier la catégorie' : 'Ajouter une catégorie'}
               </h3>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 text-3xl">&times;</button>
             </div>
             <form onSubmit={handleSubmit} className="p-8 space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-emerald-700 uppercase ml-1">Nom</label>
+                <label className="text-base font-bold text-emerald-700 uppercase ml-1">Nom</label>
                 <input 
                   autoFocus
                   required 

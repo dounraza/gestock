@@ -67,7 +67,7 @@ export default function ProductList() {
         <div className="overflow-auto flex-1">
           <table className="w-full text-left border-collapse sticky-header">
             <thead className="sticky top-0 z-20 bg-emerald-50 shadow-sm">
-              <tr className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">
+              <tr className="text-[16px] font-black text-emerald-800 uppercase tracking-widest">
                 <th className="p-4 pl-6">Produit</th>
                 <th className="p-4">Catégorie</th>
                 <th className="p-4 text-center">Stock</th>
@@ -78,12 +78,12 @@ export default function ProductList() {
               {filteredProducts.map(p => (
                 <tr key={p.id} className="hover:bg-emerald-50/10 transition-colors">
                   <td className="p-4 pl-6 font-bold text-gray-800">{p.name}</td>
-                  <td className="p-4 text-sm text-gray-500">{p.categories?.name || '-'}</td>
-                  <td className="p-4 text-sm font-bold text-emerald-600 text-center">{formatStock(p.stock_quantity, p)}</td>
+                  <td className="p-4 text-lg text-gray-500">{p.categories?.name || '-'}</td>
+                  <td className="p-4 text-lg font-bold text-emerald-600 text-center">{formatStock(p.stock_quantity, p)}</td>
                   <td className="p-4 pr-6">
-                    <div className="font-bold text-gray-800">{p.price.toLocaleString()} MGA <span className="text-[10px] text-gray-400">/{p.unite_base || 'unité'}</span></div>
+                    <div className="font-bold text-gray-800">{p.price.toLocaleString()} MGA <span className="text-[16px] text-gray-400">/{p.unite_base || 'unité'}</span></div>
                     {p.price_superior > 0 && (
-                      <div className="text-xs font-bold text-emerald-600">{p.price_superior.toLocaleString()} MGA <span className="text-[10px] text-emerald-400">/{p.unite_superieure || 'sup.'}</span></div>
+                      <div className="text-base font-bold text-emerald-600">{p.price_superior.toLocaleString()} MGA <span className="text-[16px] text-emerald-400">/{p.unite_superieure || 'sup.'}</span></div>
                     )}
                   </td>
                 </tr>

@@ -504,7 +504,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
             <input 
               type="text" 
               placeholder="Rechercher une facture (N° ou client)..." 
-              className="w-full bg-white border border-emerald-100 rounded-xl py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-emerald-500/10 transition-all outline-none" 
+              className="w-full bg-white border border-emerald-100 rounded-xl py-2 pl-10 pr-4 text-lg focus:ring-2 focus:ring-emerald-500/10 transition-all outline-none" 
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -516,7 +516,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
           <div className="flex items-center gap-2 bg-white border border-emerald-100 rounded-xl px-3 py-1.5 min-w-[200px]">
             <User size={16} className="text-emerald-500" />
             <select 
-              className="bg-transparent border-none text-[11px] font-black outline-none w-full cursor-pointer uppercase"
+              className="bg-transparent border-none text-[17px] font-black outline-none w-full cursor-pointer uppercase"
               value={selectedUser}
               onChange={(e) => setSelectedUser(e.target.value)}
             >
@@ -536,12 +536,12 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
         <table className="w-full text-left border-collapse">
           <thead className="sticky top-0 bg-emerald-50/95 z-10">
             <tr>
-              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">N° Facture</th>
-              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Date & Heure</th>
-              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Vendeur</th>
-              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Client</th>
-              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest">Statut</th>
-              <th className="p-5 text-xs font-bold text-emerald-700 uppercase tracking-widest text-right">Actions</th>
+              <th className="p-5 text-base font-bold text-emerald-700 uppercase tracking-widest">N° Facture</th>
+              <th className="p-5 text-base font-bold text-emerald-700 uppercase tracking-widest">Date & Heure</th>
+              <th className="p-5 text-base font-bold text-emerald-700 uppercase tracking-widest">Vendeur</th>
+              <th className="p-5 text-base font-bold text-emerald-700 uppercase tracking-widest">Client</th>
+              <th className="p-5 text-base font-bold text-emerald-700 uppercase tracking-widest">Statut</th>
+              <th className="p-5 text-base font-bold text-emerald-700 uppercase tracking-widest text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-emerald-50">
@@ -553,15 +553,15 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                   <td className="p-5 font-bold text-gray-800 flex items-center gap-2">
                     <FileText size={16} className="text-emerald-500" /> {inv.number}
                   </td>
-                  <td className="p-5 text-[11px] font-bold text-gray-600">
+                  <td className="p-5 text-[17px] font-bold text-gray-600">
                     {new Date(inv.created_at).toLocaleDateString('fr-FR')} {new Date(inv.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}
                   </td>
                   <td className="p-5">
                     <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center text-[10px] font-black text-emerald-700">
+                        <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center text-[16px] font-black text-emerald-700">
                             {(inv.profiles?.full_name || 'U')[0]}
                         </div>
-                        <span className="text-[11px] font-black text-gray-500 uppercase tracking-tighter">
+                        <span className="text-[17px] font-black text-gray-500 uppercase tracking-tighter">
                             {inv.profiles?.full_name || 'Inconnu'}
                         </span>
                     </div>
@@ -570,7 +570,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                     {inv.clients?.name || inv.guest_name || 'Client Direct'}
                   </td>
                   <td className="p-5">
-                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase border flex items-center gap-1.5 w-fit tracking-widest ${getStatusStyle(inv.status)}`}>
+                    <span className={`px-3 py-1 rounded-full text-[15px] font-black uppercase border flex items-center gap-1.5 w-fit tracking-widest ${getStatusStyle(inv.status)}`}>
                       {getStatusIcon(inv.status)} {inv.status}
                     </span>
                   </td>
@@ -616,18 +616,18 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                   </div>
                   <div>
                     <h4 className="font-bold text-gray-800">{inv.number}</h4>
-                    <p className="text-xs text-gray-500">{inv.clients?.name || 'Client inconnu'}</p>
+                    <p className="text-base text-gray-500">{inv.clients?.name || 'Client inconnu'}</p>
                   </div>
                 </div>
-                <span className={`px-2 py-1 rounded-full text-[9px] font-bold uppercase border flex items-center gap-1 ${getStatusStyle(inv.status)}`}>
+                <span className={`px-2 py-1 rounded-full text-[15px] font-bold uppercase border flex items-center gap-1 ${getStatusStyle(inv.status)}`}>
                   {getStatusIcon(inv.status)} {inv.status}
                 </span>
               </div>
               
               <div className="flex justify-between items-end pt-2 border-t border-emerald-50">
                 <div>
-                  <p className="text-[9px] text-gray-400 uppercase font-bold tracking-widest">Montant Total</p>
-                  <p className="text-lg font-black text-gray-800">{inv.total_amount.toLocaleString('fr-MG')} MGA</p>
+                  <p className="text-[15px] text-gray-400 uppercase font-bold tracking-widest">Montant Total</p>
+                  <p className="text-2xl font-black text-gray-800">{inv.total_amount.toLocaleString('fr-MG')} MGA</p>
                 </div>
                 <div className="flex gap-1">
                   <button 
@@ -651,7 +651,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                 </div>
               </div>
               
-              <div className="flex items-center gap-2 text-[10px] text-gray-500">
+              <div className="flex items-center gap-2 text-[16px] text-gray-500">
                 <Calendar size={12} />
                 <span>Échéance : {inv.due_date ? new Date(inv.due_date).toLocaleDateString('fr-FR') : '-'}</span>
               </div>
@@ -667,22 +667,22 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-900/20 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 border-b border-emerald-50 flex justify-between items-center">
-              <h3 className="text-xl font-bold text-gray-800">
+              <h3 className="text-3xl font-bold text-gray-800">
                 {editingInvoice ? 'Modifier la facture' : 'Nouvelle facture'}
               </h3>
-              <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+              <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 text-3xl">&times;</button>
             </div>
             <form onSubmit={handleSave} className="p-8 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">N° Facture</label>
+                  <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">N° Facture</label>
                   <div className="relative">
                     <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                     <input required className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.number} onChange={e => setFormData({...formData, number: e.target.value})} />
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Client</label>
+                  <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">Client</label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                     <select className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none" value={formData.client_id} onChange={e => setFormData({...formData, client_id: e.target.value})}>
@@ -695,24 +695,24 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Nom Invité</label>
+                  <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">Nom Invité</label>
                   <input className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none" value={formData.guest_name} onChange={e => setFormData({...formData, guest_name: e.target.value})} placeholder="Si pas de client" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Contact Invité</label>
+                  <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">Contact Invité</label>
                   <input className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none" value={formData.guest_contact} onChange={e => setFormData({...formData, guest_contact: e.target.value})} placeholder="Numéro..." />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Montant Total (MGA)</label>
+                  <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">Montant Total (MGA)</label>
                   <div className="relative">
                     <input required type="number" step="0.01" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.total_amount} onChange={e => setFormData({...formData, total_amount: e.target.value})} />
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Échéance</label>
+                  <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">Échéance</label>
                   <div className="relative">
                     <input required type="date" className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" value={formData.due_date} onChange={e => setFormData({...formData, due_date: e.target.value})} />
                   </div>
@@ -720,14 +720,14 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Statut</label>
+                <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">Statut</label>
                 <div className="flex gap-2">
                   {['draft', 'sent', 'paid', 'cancelled'].map((s) => (
                     <button
                       key={s}
                       type="button"
                       onClick={() => setFormData({...formData, status: s})}
-                      className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all ${
+                      className={`flex-1 py-2 rounded-xl text-[16px] font-bold uppercase border transition-all ${
                         formData.status === s 
                           ? getStatusStyle(s) + ' border-emerald-500 scale-[1.05]' 
                           : 'bg-white text-gray-400 border-gray-100 hover:bg-gray-50'
@@ -740,14 +740,14 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
               </div>
 
               <div className="space-y-4">
-                <label className="text-[10px] font-bold text-emerald-700 uppercase ml-1">Articles</label>
+                <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">Articles</label>
                 <div className="border border-emerald-100 rounded-xl overflow-hidden max-h-60 overflow-y-auto">
-                    <table className="w-full text-xs">
+                    <table className="w-full text-base">
                         <tbody className="divide-y divide-emerald-50">
                             {viewingItems.map(item => (
                                 <tr key={item.id}>
                                     <td className="p-2 font-bold">{item.produits?.name || 'Inconnu'}</td>
-                                    <td className="p-2 text-right text-[9px] text-slate-500 italic">
+                                    <td className="p-2 text-right text-[15px] text-slate-500 italic">
                                         {(() => {
                                             const q = item.quantity || 0;
                                             const p = item.produits || {};
@@ -786,16 +786,16 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-900/20 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-              <h3 className="text-lg font-bold text-gray-800">Détails Facture {viewingInvoice.number}</h3>
-              <button onClick={() => setViewingInvoice(null)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+              <h3 className="text-2xl font-bold text-gray-800">Détails Facture {viewingInvoice.number}</h3>
+              <button onClick={() => setViewingInvoice(null)} className="text-gray-400 hover:text-gray-600 text-3xl">&times;</button>
             </div>
             <div className="p-6 overflow-y-auto flex-1">
-               <div className="text-sm text-gray-600 mb-6">
+               <div className="text-lg text-gray-600 mb-6">
                <p><strong>Client:</strong> {viewingInvoice.clients?.name || viewingInvoice.guest_name || 'Client Direct'}</p>
                <p><strong>Total:</strong> {viewingInvoice.total_amount.toLocaleString('fr-MG')} Ar</p>
                <p><strong>Date & Heure:</strong> {new Date(viewingInvoice.created_at).toLocaleDateString('fr-FR')} {new Date(viewingInvoice.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</p>
                </div>               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-base">
                     <thead className="text-slate-400 uppercase font-black border-b border-slate-100">
                         <tr>
                             <th className="p-2">Désignation</th>
@@ -820,16 +820,16 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                                 <tr key={item.id} className="text-slate-800 font-bold">
                                     <td className="p-2 uppercase">{item.produits?.name || 'Inconnu'}</td>
                                     <td className="p-2 text-center">{q}</td>
-                                    <td className="p-2 text-center text-[9px] text-slate-500 italic">
+                                    <td className="p-2 text-center text-[15px] text-slate-500 italic">
                                         {qDisplay}
                                     </td>
                                     <td className="p-2 text-center text-orange-600">
                                         {item.discount ? `${item.discount.value || 0}${item.discount.type || ''}` : '-'}
                                     </td>
-                                    <td className="p-2 text-right text-[10px]">
+                                    <td className="p-2 text-right text-[16px]">
                                         <div>{ (item.unit_price || 0).toLocaleString() } Ar</div>
                                         {item.produits?.price_superior > 0 && (
-                                            <div className="text-[9px] text-slate-400">Sup: {Number(item.produits.price_superior).toLocaleString()} Ar</div>
+                                            <div className="text-[15px] text-slate-400">Sup: {Number(item.produits.price_superior).toLocaleString()} Ar</div>
                                         )}
                                     </td>
                                     <td className="p-2 text-right font-black">

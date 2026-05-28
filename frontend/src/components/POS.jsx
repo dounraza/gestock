@@ -30,6 +30,7 @@ export default function POS({ session, selectedDepotId }) {
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [tokens, setTokens] = useState([]);
+  const [pendingProductIds, setPendingProductIds] = useState(new Set());
   const [currentDepotInfo, setCurrentDepotInfo] = useState(null); 
   const itemsPerPage = 15;
 
@@ -57,26 +58,26 @@ export default function POS({ session, selectedDepotId }) {
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
               <h3 className="font-black text-gray-800">Prévisualisation de la facture</h3>
               <div className="flex gap-2">
-                <button onClick={() => setPreviewInvoice(null)} className="px-4 py-2 text-sm font-bold text-gray-500">Fermer</button>
-                <button onClick={() => window.print()} className="px-6 py-2 bg-emerald-600 text-white font-black rounded-xl text-sm">Imprimer</button>
+                <button onClick={() => setPreviewInvoice(null)} className="px-4 py-2 text-lg font-bold text-gray-500">Fermer</button>
+                <button onClick={() => window.print()} className="px-6 py-2 bg-emerald-600 text-white font-black rounded-xl text-lg">Imprimer</button>
               </div>
             </div>
             <div className="p-10 overflow-y-auto flex-1 print:p-0">
                 <div id="printable-invoice" className="text-gray-800">
                     <div className="grid grid-cols-2 gap-4 mb-8">
                         <div>
-                            <p className="text-xs uppercase font-bold text-gray-400">Facture #</p>
+                            <p className="text-base uppercase font-bold text-gray-400">Facture #</p>
                             <p className="font-bold">{previewInvoice.id.slice(0,8).toUpperCase()}</p>
                         </div>
                         <div>
-                            <p className="text-xs uppercase font-bold text-gray-400">Date :</p>
+                            <p className="text-base uppercase font-bold text-gray-400">Date :</p>
                             <p className="font-bold">{new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                         </div>
                     </div>
                     <div className="border-t border-b border-gray-200 py-4 mb-4">
-                        <table className="w-full text-left text-sm border-collapse">
+                        <table className="w-full text-left text-lg border-collapse">
                             <thead>
-                                <tr className="border-b border-gray-200 text-gray-500 text-[10px] uppercase">
+                                <tr className="border-b border-gray-200 text-gray-500 text-[16px] uppercase">
                                     <th className="py-2">Désignation</th>
                                     <th className="py-2 text-center">Qté</th>
                                     <th className="py-2 text-right">P.U</th>
@@ -88,10 +89,10 @@ export default function POS({ session, selectedDepotId }) {
                                 {invoiceItems.map(item => (
                                     <tr key={item.item_id} className="border-b border-gray-50">
                                         <td className="py-2 font-bold">{item.name}</td>
-                                        <td className="py-2 text-center text-xs">({formatQuantity(item.quantity, item)})</td>
-                                        <td className="py-2 text-right text-xs">
+                                        <td className="py-2 text-center text-base">({formatQuantity(item.quantity, item)})</td>
+                                        <td className="py-2 text-right text-base">
                                             {item.unit_price.toLocaleString()} Ar
-                                            {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
+                                            {item.price_superior && <div className="text-[15px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
                                         </td>
                                         <td className="py-2 text-center text-orange-600 font-bold">
                                             {item.discount ? `${item.discount.value}` : '-'}
@@ -101,7 +102,7 @@ export default function POS({ session, selectedDepotId }) {
                                 ))}
                             </tbody>
                         </table>
-                        <div className="flex justify-between font-black text-lg pt-4">
+                        <div className="flex justify-between font-black text-2xl pt-4">
                             <span>Total</span>
                             <span>{parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</span>
                         </div>
@@ -111,17 +112,17 @@ export default function POS({ session, selectedDepotId }) {
                       <div className="mt-10 break-before-page">
                           <div className="flex justify-between items-start mb-6">
                             <div>
-                                <h2 className="text-2xl font-black text-emerald-800">Bon d'enlèvement</h2>
-                                <p className="text-sm font-bold text-gray-600">N° BE-{previewInvoice.number.split('-')[1] || previewInvoice.number}</p>
+                                <h2 className="text-3xl font-black text-emerald-800">Bon d'enlèvement</h2>
+                                <p className="text-lg font-bold text-gray-600">N° BE-{previewInvoice.number.split('-')[1] || previewInvoice.number}</p>
                             </div>
-                            <div className="text-right text-[10px] font-bold">
+                            <div className="text-right text-[16px] font-bold">
                                 <p>Client: {clientName || '---'}</p>
                             </div>
                           </div>
                           <div className="border border-gray-200 rounded-lg p-4">
-                              <table className="w-full text-left text-sm border-collapse">
+                              <table className="w-full text-left text-lg border-collapse">
                                   <thead>
-                                      <tr className="border-b border-gray-200 text-gray-500 text-[10px] uppercase">
+                                      <tr className="border-b border-gray-200 text-gray-500 text-[16px] uppercase">
                                           <th className="py-2">Désignation</th>
                                           <th className="py-2 text-center">Qté</th>
                                           <th className="py-2 text-center">Remise</th>
@@ -133,20 +134,20 @@ export default function POS({ session, selectedDepotId }) {
                                       {invoiceItems.map(item => (
                                           <tr key={item.item_id} className="border-b border-gray-50">
                                               <td className="py-2 font-bold">{item.name}</td>
-                                              <td className="py-2 text-center text-xs">({formatQuantity(item.quantity, item)})</td>
-                                              <td className="py-2 text-center text-xs">
+                                              <td className="py-2 text-center text-base">({formatQuantity(item.quantity, item)})</td>
+                                              <td className="py-2 text-center text-base">
                                                   {item.discount ? `${item.discount.value}${item.discount.type}` : '-'}
                                               </td>
-                                              <td className="py-2 text-right text-xs">
+                                              <td className="py-2 text-right text-base">
                                                 {item.unit_price.toLocaleString()} Ar
-                                                {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
+                                                {item.price_superior && <div className="text-[15px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
                                               </td>
                                           </tr>
                                       ))}
                                   </tbody>
                               </table>
                           </div>
-                          <div className="mt-10 grid grid-cols-2 gap-20 text-center text-[10px] font-bold">
+                          <div className="mt-10 grid grid-cols-2 gap-20 text-center text-[16px] font-bold">
                             <div>Magasinier<br/><br/><br/>____________________</div>
                             <div>Client<br/><br/><br/>____________________</div>
                           </div>
@@ -157,17 +158,17 @@ export default function POS({ session, selectedDepotId }) {
                       <div className="mt-10 break-before-page">
                           <div className="flex justify-between items-start mb-6">
                             <div>
-                                <h2 className="text-2xl font-black text-emerald-800">Bon de livraison</h2>
-                                <p className="text-sm font-bold text-gray-600">N° BL-{previewInvoice.number.split('-')[1] || previewInvoice.number}</p>
+                                <h2 className="text-3xl font-black text-emerald-800">Bon de livraison</h2>
+                                <p className="text-lg font-bold text-gray-600">N° BL-{previewInvoice.number.split('-')[1] || previewInvoice.number}</p>
                             </div>
-                            <div className="text-right text-[10px] font-bold">
+                            <div className="text-right text-[16px] font-bold">
                                 <p>Client: {clientName || '---'}</p>
                             </div>
                           </div>
                           <div className="border border-gray-200 rounded-lg p-4">
-                              <table className="w-full text-left text-sm border-collapse">
+                              <table className="w-full text-left text-lg border-collapse">
                                   <thead>
-                                      <tr className="border-b border-gray-200 text-gray-500 text-[10px] uppercase">
+                                      <tr className="border-b border-gray-200 text-gray-500 text-[16px] uppercase">
                                           <th className="py-2">Désignation</th>
                                           <th className="py-2 text-center">Qté</th>
                                           <th className="py-2 text-center">Remise</th>
@@ -179,21 +180,21 @@ export default function POS({ session, selectedDepotId }) {
                                       {invoiceItems.map(item => (
                                           <tr key={item.item_id} className="border-b border-gray-50">
                                               <td className="py-2 font-bold">{item.name}</td>
-                                              <td className="py-2 text-center text-xs">({formatQuantity(item.quantity, item)})</td>
+                                              <td className="py-2 text-center text-base">({formatQuantity(item.quantity, item)})</td>
                                                 <td className="py-2 text-center text-orange-600 font-bold">
                                             {item.discount ? `${item.discount.value}` : '-'}
                                         </td>
 
-                                              <td className="py-2 text-right text-xs">
+                                              <td className="py-2 text-right text-base">
                                                 {item.unit_price.toLocaleString()} Ar                                                
-                                                {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
+                                                {item.price_superior && <div className="text-[15px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
                                               </td>
                                           </tr>
                                       ))}
                                   </tbody>
                               </table>
                           </div>
-                          <div className="mt-10 grid grid-cols-2 gap-20 text-center text-[10px] font-bold">
+                          <div className="mt-10 grid grid-cols-2 gap-20 text-center text-[16px] font-bold">
                             <div>Livreur<br/><br/><br/>____________________</div>
                             <div>Client<br/><br/><br/>____________________</div>
                           </div>
@@ -291,32 +292,45 @@ export default function POS({ session, selectedDepotId }) {
   };
 
   const addToInvoice = async (product) => {
-    let currentInvoice = activeInvoice;
-    if (!currentInvoice || currentInvoice.number === 'TEMP') {
-        const { data, error } = await supabase.from('factures')
-            .insert([{ number: `FAC-${Date.now().toString().slice(-6)}`, user_id: session?.user?.id, created_at: new Date().toISOString() }])
-            .select()
-            .single();
-        if (error) return alert("Erreur de création de facture.");
-        currentInvoice = data;
-        setActiveInvoice(data);
-    }
+    if (pendingProductIds.has(product.id)) return;
+    setPendingProductIds(prev => new Set(prev).add(product.id));
 
-    const existingItem = invoiceItems.find(item => item.id === product.id);
-    if (existingItem) {
-        setActiveItemId(existingItem.item_id);
-        setIsCalculatorOpen(true);
-    } else {
-        const { data, error } = await supabase.from('facture_items')
-            .insert([{ facture_id: currentInvoice.id, produit_id: product.id, quantity: 0, unit_price: product.price }])
-            .select()
-            .single();
-        if (data) {
-            console.log("POS - Item added to invoiceItems:", { ...product, item_id: data.id, quantity: 0, unit_price: product.price });
-            setInvoiceItems(prev => [...prev, { ...product, item_id: data.id, quantity: 0, unit_price: product.price, discount: null }]);
-            setActiveItemId(data.id);
-            setIsCalculatorOpen(true);
+    try {
+        let currentInvoice = activeInvoice;
+        if (!currentInvoice || currentInvoice.number === 'TEMP') {
+            const { data, error } = await supabase.from('factures')
+                .insert([{ number: `FAC-${Date.now().toString().slice(-6)}`, user_id: session?.user?.id, created_at: new Date().toISOString() }])
+                .select()
+                .single();
+            if (error) return alert("Erreur de création de facture.");
+            currentInvoice = data;
+            setActiveInvoice(data);
         }
+
+        // Check if product is already in the invoice by product.id
+        const existingItem = invoiceItems.find(item => item.id === product.id);
+        if (existingItem) {
+            // If it exists, just open the calculator for the existing item_id
+            setActiveItemId(existingItem.item_id);
+            setIsCalculatorOpen(true);
+        } else {
+            const { data, error } = await supabase.from('facture_items')
+                .insert([{ facture_id: currentInvoice.id, produit_id: product.id, quantity: 0, unit_price: product.price }])
+                .select()
+                .single();
+            if (data) {
+                console.log("POS - Item added to invoiceItems:", { ...product, item_id: data.id, quantity: 0, unit_price: product.price });
+                setInvoiceItems(prev => [...prev, { ...product, item_id: data.id, quantity: 0, unit_price: product.price, discount: null }]);
+                setActiveItemId(data.id);
+                setIsCalculatorOpen(true);
+            }
+        }
+    } finally {
+        setPendingProductIds(prev => {
+            const next = new Set(prev);
+            next.delete(product.id);
+            return next;
+        });
     }
   };
 
@@ -562,8 +576,8 @@ export default function POS({ session, selectedDepotId }) {
   return (
     <div className="flex flex-col gap-2 h-full p-2 pb-16">
       <div className="bg-white rounded-xl p-2 shadow-sm border border-emerald-100 flex items-center justify-between">
-        <div className="text-xs font-black">Facture: {activeInvoice?.number || '...'}</div>
-        <div className="text-2xl font-black text-emerald-600">{netTotal.toLocaleString()} Ar</div>
+        <div className="text-base font-black">Facture: {activeInvoice?.number || '...'}</div>
+        <div className="text-3xl font-black text-emerald-600">{netTotal.toLocaleString()} Ar</div>
       </div>
       
       <div className="flex-1 overflow-y-auto">
@@ -571,11 +585,11 @@ export default function POS({ session, selectedDepotId }) {
           {/* CART */}
           <div className="col-span-12 lg:col-span-8 bg-white rounded-xl shadow-sm border border-emerald-100 flex flex-col min-h-0 overflow-hidden">
             <div className="p-2 border-b border-emerald-50 bg-emerald-50/30 flex items-center justify-between">
-              <h3 className="font-black text-gray-700 uppercase text-[9px] flex items-center gap-2"><ShoppingCart size={12} className="text-emerald-500" /> Panier</h3>
-              <span className="bg-emerald-500 text-white px-1.5 py-0.5 rounded-full text-[8px] font-black">{invoiceItems.length}</span>
+              <h3 className="font-black text-gray-700 uppercase text-[15px] flex items-center gap-2"><ShoppingCart size={12} className="text-emerald-500" /> Panier</h3>
+              <span className="bg-emerald-500 text-white px-1.5 py-0.5 rounded-full text-[14px] font-black">{invoiceItems.length}</span>
             </div>
             {/* Cart Header */}
-            <div className="grid grid-cols-12 gap-1 px-2 py-1 bg-emerald-50 text-[8px] font-black text-emerald-800 uppercase border-b border-emerald-100">
+            <div className="grid grid-cols-12 gap-1 px-2 py-1 bg-emerald-50 text-[14px] font-black text-emerald-800 uppercase border-b border-emerald-100">
               <div className="col-span-3">Produit</div>
               <div className="col-span-2 text-center">Qté</div>
               <div className="col-span-2 text-center">Remise</div>
@@ -586,16 +600,16 @@ export default function POS({ session, selectedDepotId }) {
             <div className="flex-1 overflow-y-auto p-1.5 space-y-1">
               {invoiceItems.map(item => (
                 <div key={item.item_id} onClick={() => { setActiveItemId(item.item_id); setIsCalculatorOpen(true); }} className="grid grid-cols-12 gap-1 items-center px-2 py-2 border-b border-gray-50 hover:bg-emerald-50 cursor-pointer">
-                  <div className="col-span-3 font-black text-[9px] uppercase truncate">{item.name}</div>
-                  <div className="col-span-2 text-center font-black text-[10px] bg-emerald-100 rounded">
+                  <div className="col-span-3 font-black text-[15px] uppercase truncate">{item.name}</div>
+                  <div className="col-span-2 text-center font-black text-[16px] bg-emerald-100 rounded">
                     {formatQuantity(item.quantity, item)}
                   </div>
                   <div className="col-span-2 text-center">
-                    <button onClick={(e) => { e.stopPropagation(); openDiscountModalForItem(item); }} className="px-2 py-1 text-xs font-black text-orange-600 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors">
+                    <button onClick={(e) => { e.stopPropagation(); openDiscountModalForItem(item); }} className="px-2 py-1 text-base font-black text-orange-600 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors">
                       {item.discount ? `${item.discount.value}` : '+ Remise'}
                     </button>
                   </div>
-                  <div className="col-span-3 text-right font-black text-[9px]">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</div>
+                  <div className="col-span-3 text-right font-black text-[15px]">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</div>
                   <div className="col-span-2 text-center">
                     <button onClick={(e) => { e.stopPropagation(); removeItem(item.item_id, item.item_id); }} className="p-1.5 text-red-500 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors">
                       <Trash2 size={14} />
@@ -608,27 +622,27 @@ export default function POS({ session, selectedDepotId }) {
           {/* VALIDATION */}
           <div className="col-span-12 lg:col-span-4 bg-emerald-950 text-white rounded-xl p-2 shadow-xl flex flex-col gap-1.5">
             <div className="flex justify-between items-center">
-               <h3 className="font-black text-[8px] uppercase">Paiement</h3>
+               <h3 className="font-black text-[14px] uppercase">Paiement</h3>
                {globalDiscountAmount > 0 && (
-                   <span className="text-[8px] font-black text-orange-400">Remise: -{globalDiscountAmount.toLocaleString()} Ar</span>
+                   <span className="text-[14px] font-black text-orange-400">Remise: -{globalDiscountAmount.toLocaleString()} Ar</span>
                )}
             </div>
 
             <div className="grid grid-cols-2 gap-1 p-0.5 bg-emerald-900/50 rounded-lg border border-white/10">
-               <button onClick={() => setPaymentMode('cash')} className={`py-1 rounded text-[8px] font-black ${paymentMode === 'cash' ? 'bg-emerald-500 text-white' : 'text-emerald-400'}`}>COMPTANT</button>
-               <button onClick={() => setPaymentMode('credit')} className={`py-1 rounded text-[8px] font-black ${paymentMode === 'credit' ? 'bg-orange-500 text-white' : 'text-emerald-400'}`}>CRÉDIT</button>
+               <button onClick={() => setPaymentMode('cash')} className={`py-1 rounded text-[14px] font-black ${paymentMode === 'cash' ? 'bg-emerald-500 text-white' : 'text-emerald-400'}`}>COMPTANT</button>
+               <button onClick={() => setPaymentMode('credit')} className={`py-1 rounded text-[14px] font-black ${paymentMode === 'credit' ? 'bg-orange-500 text-white' : 'text-emerald-400'}`}>CRÉDIT</button>
             </div>
 
             <div className="p-1.5 bg-emerald-900/30 rounded-lg flex flex-wrap items-center gap-2">
-               <label className="flex items-center gap-1 text-[7px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
+               <label className="flex items-center gap-1 text-[13px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
                  <input type="checkbox" checked={printInvoice} onChange={() => setPrintInvoice(!printInvoice)} className="accent-emerald-500 scale-75" /> 
                  FACTURE
                </label>
-               <label className="flex items-center gap-1 text-[7px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
+               <label className="flex items-center gap-1 text-[13px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
                  <input type="checkbox" checked={isWithdrawal} onChange={() => setIsWithdrawal(!isWithdrawal)} className="accent-emerald-500 scale-75" /> 
                  B. ENLÈVEMENT
                </label>
-               <label className="flex items-center gap-1 text-[7px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
+               <label className="flex items-center gap-1 text-[13px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
                  <input type="checkbox" checked={isOther} onChange={() => setIsOther(!isOther)} className="accent-emerald-500 scale-75" /> 
                  B. LIVRAISON
                </label>
@@ -636,55 +650,55 @@ export default function POS({ session, selectedDepotId }) {
 
             {/* Client Info */}
             <div className="grid grid-cols-2 gap-1.5 bg-emerald-900/30 p-1.5 rounded-lg border border-white/10">
-               <input type="text" className="bg-emerald-950 border border-white/10 rounded p-1 text-[9px] font-black outline-none w-full text-white placeholder-emerald-400" placeholder="Nom Client" value={clientName} onChange={e => setClientName(e.target.value)} />
-               <input type="text" className="bg-emerald-950 border border-white/10 rounded p-1 text-[9px] font-black outline-none w-full text-white placeholder-emerald-400" placeholder="Téléphone" value={clientPhone} onChange={e => setClientPhone(e.target.value)} />
+               <input type="text" className="bg-emerald-950 border border-white/10 rounded p-1 text-[15px] font-black outline-none w-full text-white placeholder-emerald-400" placeholder="Nom Client" value={clientName} onChange={e => setClientName(e.target.value)} />
+               <input type="text" className="bg-emerald-950 border border-white/10 rounded p-1 text-[15px] font-black outline-none w-full text-white placeholder-emerald-400" placeholder="Téléphone" value={clientPhone} onChange={e => setClientPhone(e.target.value)} />
             </div>
 
             {paymentMode === 'credit' && (
                <div className="grid grid-cols-1 gap-1.5 bg-emerald-900/30 p-1.5 rounded-lg border border-white/10">
                    <div className="grid grid-cols-2 gap-1.5">
                        <div className="flex flex-col gap-0.5">
-                           <span className="text-[6px] font-black text-emerald-400 uppercase">Échéance</span>
-                           <input type="date" className="bg-emerald-950 border border-white/10 rounded p-1 text-[9px] font-black outline-none w-full text-white" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+                           <span className="text-[12px] font-black text-emerald-400 uppercase">Échéance</span>
+                           <input type="date" className="bg-emerald-950 border border-white/10 rounded p-1 text-[15px] font-black outline-none w-full text-white" value={dueDate} onChange={e => setDueDate(e.target.value)} />
                        </div>
                        <div className="flex flex-col gap-0.5">
-                           <span className="text-[6px] font-black text-emerald-400 uppercase">Type</span>
-                           <select className="bg-emerald-950 border border-white/10 rounded p-1 text-[9px] font-black outline-none w-full text-white" value={creditType} onChange={e => setCreditType(e.target.value)}>
+                           <span className="text-[12px] font-black text-emerald-400 uppercase">Type</span>
+                           <select className="bg-emerald-950 border border-white/10 rounded p-1 text-[15px] font-black outline-none w-full text-white" value={creditType} onChange={e => setCreditType(e.target.value)}>
                                <option value="mensuel">Mensuel</option>
                                <option value="journalier">Journalier</option>
                            </select>
                        </div>
                    </div>
                    <div className="flex flex-col gap-0.5">
-                       <span className="text-[6px] font-black text-emerald-400 uppercase">Avance</span>
-                       <input type="number" className="bg-emerald-950 border border-white/10 rounded p-1 text-[9px] font-black outline-none w-full text-orange-400" placeholder="0" value={advanceAmount || ''} onChange={e => setAdvanceAmount(e.target.value)} />
+                       <span className="text-[12px] font-black text-emerald-400 uppercase">Avance</span>
+                       <input type="number" className="bg-emerald-950 border border-white/10 rounded p-1 text-[15px] font-black outline-none w-full text-orange-400" placeholder="0" value={advanceAmount || ''} onChange={e => setAdvanceAmount(e.target.value)} />
                    </div>
                </div>
             )}
-            <button onClick={handleFinalize} disabled={isProcessing} className="w-full mt-auto py-1.5 bg-emerald-600 text-white font-black rounded-lg text-[9px] uppercase tracking-wider flex items-center justify-center gap-1">
+            <button onClick={handleFinalize} disabled={isProcessing} className="w-full mt-auto py-1.5 bg-emerald-600 text-white font-black rounded-lg text-[15px] uppercase tracking-wider flex items-center justify-center gap-1">
                {isProcessing ? <Loader2 className="animate-spin" size={12} /> : 'FINALISER'}
             </button>          </div>        </div>
 
         {/* PRODUCTS LIST */}
         <div className="mt-16 bg-white rounded-xl p-2 shadow-sm border border-emerald-100">
-           <input type="text" placeholder="Chercher produit..." className="w-full bg-emerald-50 p-2 rounded-lg text-xs font-bold" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+           <input type="text" placeholder="Chercher produit..." className="w-full bg-emerald-50 p-2 rounded-lg text-base font-bold" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
            <div className="mt-4 h-64 overflow-y-auto">
              <table className="w-full text-left">
                 <tbody className="divide-y divide-emerald-50">
                   {paginatedProducts.map(p => (
-                    <tr key={p.id} onClick={() => Number(p.stock_quantity) > 0 && addToInvoice(p)} className="border-b border-gray-100 cursor-pointer hover:bg-emerald-50">
+                    <tr key={p.id} onClick={() => Number(p.stock_quantity) > 0 && !pendingProductIds.has(p.id) && addToInvoice(p)} className="border-b border-gray-100 cursor-pointer hover:bg-emerald-50">
                       <td className="p-2">
-                        <div className="font-black text-xs uppercase">{p.name}</div>
-                        <div className="text-xs text-gray-600 font-black">
+                        <div className="font-black text-base uppercase">{p.name}</div>
+                        <div className="text-base text-gray-600 font-black">
                             {p.quantite_par_unite > 1 ? `${Math.floor(p.stock_quantity / p.quantite_par_unite)} ${p.unite_superieure || 'Sac'} + ${p.stock_quantity % p.quantite_par_unite} ${p.unite_base || 'Kg'}` : `${p.stock_quantity} ${p.unite_base || 'Pce'}`}
                         </div>
                       </td>
                       <td className="p-2 text-right">
-                        <div className="text-[10px] font-black text-emerald-700">
+                        <div className="text-[16px] font-black text-emerald-700">
                           {p.price.toLocaleString()} Ar / {p.unite_base || 'pce'}
                         </div>
                         {p.price_superior && (
-                          <div className="text-[8px] font-bold text-gray-500">
+                          <div className="text-[14px] font-bold text-gray-500">
                             Sup: {p.price_superior.toLocaleString()} Ar / {p.unite_superieure || 'unité'}
                           </div>
                         )}
@@ -702,23 +716,23 @@ export default function POS({ session, selectedDepotId }) {
           className="fixed z-[300] w-full max-w-xs animate-in fade-in duration-200"
           style={{ top: '10%', left: '48%', transform: `translate(${calculatorPos.x}px, ${calculatorPos.y}px)` }}
         >
-          <div className="drag-handle cursor-move bg-slate-800 text-white text-[8px] font-black uppercase text-center py-1 rounded-t-xl opacity-80 hover:opacity-100 transition-opacity" onMouseDown={handleMouseDown}>Déplacer</div>
+          <div className="drag-handle cursor-move bg-slate-800 text-white text-[14px] font-black uppercase text-center py-1 rounded-t-xl opacity-80 hover:opacity-100 transition-opacity" onMouseDown={handleMouseDown}>Déplacer</div>
           <Calculator key={activeItemId} activeItem={invoiceItems.find(i => i.item_id === activeItemId)} onResult={handleCalculatorResult} onOpenDiscount={openDiscountModalForItem} onClose={() => setIsCalculatorOpen(false)} />
         </div>
       )}
       {discountModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-emerald-950/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[2rem] shadow-2xl p-8 w-full max-w-sm">
-            <h3 className="text-lg font-black text-gray-800 mb-2 uppercase">{discountModal.isGlobal ? 'Remise Globale' : `Remise sur ${discountModal.name}`}</h3>
+            <h3 className="text-2xl font-black text-gray-800 mb-2 uppercase">{discountModal.isGlobal ? 'Remise Globale' : `Remise sur ${discountModal.name}`}</h3>
             <div className="space-y-4">
               <div className="flex bg-gray-100 p-1 rounded-xl">
-                <button onClick={() => setDiscountModal({...discountModal, type: 'Ar'})} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${discountModal.type === 'Ar' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}>Ar</button>
-              {/* <button class="flex-1 py-2 rounded-lg text-xs font-black transition-all bg-white text-emerald-600 shadow-sm">%</button>  <button onClick={() => setDiscountModal({...discountModal, type: '%'})} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${discountModal.type === '%' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}>%</button> */}
+                <button onClick={() => setDiscountModal({...discountModal, type: 'Ar'})} className={`flex-1 py-2 rounded-lg text-base font-black transition-all ${discountModal.type === 'Ar' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}>Ar</button>
+              {/* <button class="flex-1 py-2 rounded-lg text-base font-black transition-all bg-white text-emerald-600 shadow-sm">%</button>  <button onClick={() => setDiscountModal({...discountModal, type: '%'})} className={`flex-1 py-2 rounded-lg text-base font-black transition-all ${discountModal.type === '%' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}>%</button> */}
               </div>
-              <input autoFocus type="number" className="w-full bg-emerald-50 border-2 border-emerald-100 rounded-xl py-4 px-6 text-xl font-black outline-none" value={discountModal.value || ''} onChange={(e) => setDiscountModal({...discountModal, value: e.target.value})} />
+              <input autoFocus type="number" className="w-full bg-emerald-50 border-2 border-emerald-100 rounded-xl py-4 px-6 text-3xl font-black outline-none" value={discountModal.value || ''} onChange={(e) => setDiscountModal({...discountModal, value: e.target.value})} />
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => setDiscountModal(null)} className="py-3 text-xs font-bold text-gray-400 uppercase">Annuler</button>
-                <button onClick={() => applyDiscount(discountModal.isGlobal ? 'global' : discountModal.itemId, discountModal.type, discountModal.value)} className="bg-emerald-600 text-white py-3 rounded-xl text-xs font-black shadow-lg">Appliquer</button>
+                <button onClick={() => setDiscountModal(null)} className="py-3 text-base font-bold text-gray-400 uppercase">Annuler</button>
+                <button onClick={() => applyDiscount(discountModal.isGlobal ? 'global' : discountModal.itemId, discountModal.type, discountModal.value)} className="bg-emerald-600 text-white py-3 rounded-xl text-base font-black shadow-lg">Appliquer</button>
               </div>
             </div>
           </div>
@@ -763,12 +777,12 @@ export default function POS({ session, selectedDepotId }) {
           `}</style>
           <div id="printable-invoice-container" className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-gray-100 flex flex-wrap justify-between items-center bg-gray-50 print:hidden gap-3">
-              <h3 className="font-black text-gray-800 text-sm">Prévisualisation</h3>
+              <h3 className="font-black text-gray-800 text-lg">Prévisualisation</h3>
               <div className="flex flex-wrap gap-2 items-center">
-                <input type="text" placeholder="Nom client" className="px-3 py-1.5 border rounded-lg text-xs w-32" value={clientName} onChange={(e) => setClientName(e.target.value)} />
-                <input type="text" placeholder="Tél" className="px-3 py-1.5 border rounded-lg text-xs w-24" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} />
-                <button onClick={() => { setPreviewInvoice(null); window.location.reload(); }} className="px-3 py-1.5 text-xs font-bold text-gray-500 bg-gray-100 rounded-lg">Fermer</button>
-                <button onClick={() => window.print()} className="px-4 py-1.5 bg-emerald-600 text-white font-black rounded-lg text-xs">Imprimer</button>
+                <input type="text" placeholder="Nom client" className="px-3 py-1.5 border rounded-lg text-base w-32" value={clientName} onChange={(e) => setClientName(e.target.value)} />
+                <input type="text" placeholder="Tél" className="px-3 py-1.5 border rounded-lg text-base w-24" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} />
+                <button onClick={() => { setPreviewInvoice(null); window.location.reload(); }} className="px-3 py-1.5 text-base font-bold text-gray-500 bg-gray-100 rounded-lg">Fermer</button>
+                <button onClick={() => window.print()} className="px-4 py-1.5 bg-emerald-600 text-white font-black rounded-lg text-base">Imprimer</button>
               </div>
             </div>
             <div className="p-10 overflow-y-auto flex-1 print:p-0">
@@ -776,22 +790,22 @@ export default function POS({ session, selectedDepotId }) {
                     <div className="flex justify-between items-start mb-6 pb-6 border-b border-gray-100">
                         <div>
                             <h1 className="text-3xl font-black text-emerald-800">{currentDepotInfo?.name || 'GESTOCK SARL'}</h1>
-                            <div className="text-xs font-bold text-gray-500 mt-2">
+                            <div className="text-base font-bold text-gray-500 mt-2">
                                 <p>{currentDepotInfo?.address || '123 Rue Principale, Antananarivo'}</p>
                                 <p>Tél: {currentDepotInfo?.phone || '+261 34 00 000 00'}</p>
                             </div>
                         </div>
                         <div className="text-right">
-                            <p className="text-sm font-bold uppercase">Client: {clientName || 'Non spécifié'}</p>
-                            <p className="text-sm font-bold">Tél: {clientPhone || '---'}</p>
+                            <p className="text-lg font-bold uppercase">Client: {clientName || 'Non spécifié'}</p>
+                            <p className="text-lg font-bold">Tél: {clientPhone || '---'}</p>
                         </div>
                     </div>
                     
-                    <h2 className="text-xl font-black text-gray-800 mb-4">Facture # {previewInvoice.number}</h2>
+                    <h2 className="text-3xl font-black text-gray-800 mb-4">Facture # {previewInvoice.number}</h2>
                     <div className="border-t border-b border-gray-200 py-4 mb-4">
-                        <table className="w-full text-left text-sm border-collapse">
+                        <table className="w-full text-left text-lg border-collapse">
                             <thead>
-                                <tr className="border-b border-gray-200 text-gray-500 text-[10px] uppercase">
+                                <tr className="border-b border-gray-200 text-gray-500 text-[16px] uppercase">
                                     <th className="py-2">Désignation</th>
                                     <th className="py-2 text-center">Qté</th>
                                     <th className="py-2 text-right">P.U</th>
@@ -803,10 +817,10 @@ export default function POS({ session, selectedDepotId }) {
                                 {invoiceItems.map(item => (
                                     <tr key={item.item_id} className="border-b border-gray-50">
                                         <td className="py-2 font-bold">{item.name}</td>
-                                        <td className="py-2 text-center text-xs">({formatQuantity(item.quantity, item)})</td>
-                                        <td className="py-2 text-right text-xs">
+                                        <td className="py-2 text-center text-base">({formatQuantity(item.quantity, item)})</td>
+                                        <td className="py-2 text-right text-base">
                                             {item.unit_price.toLocaleString()} Ar
-                                            {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
+                                            {item.price_superior && <div className="text-[15px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
                                         </td>
                                         <td className="py-2 text-center text-orange-600 font-bold">
                                             {item.discount ? `${item.discount.value}` : '-'}
@@ -816,7 +830,7 @@ export default function POS({ session, selectedDepotId }) {
                                 ))}
                             </tbody>
                         </table>
-                        <div className="flex justify-between font-black text-lg pt-4">
+                        <div className="flex justify-between font-black text-2xl pt-4">
                             <span>Total</span>
                             <span>{parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</span>
                         </div>
@@ -824,11 +838,11 @@ export default function POS({ session, selectedDepotId }) {
 
                     <div className="mt-12 grid grid-cols-2 gap-10 text-center">
                         <div>
-                            <p className="text-[10px] font-black uppercase text-gray-400 mb-10">Signature Client</p>
+                            <p className="text-[16px] font-black uppercase text-gray-400 mb-10">Signature Client</p>
                             <div className="border-b border-gray-300 w-32 mx-auto"></div>
                         </div>
                         <div>
-                            <p className="text-[10px] font-black uppercase text-gray-400 mb-10">Signature GESTOCK / Cachet</p>
+                            <p className="text-[16px] font-black uppercase text-gray-400 mb-10">Signature GESTOCK / Cachet</p>
                             <div className="border-b border-gray-300 w-32 mx-auto"></div>
                         </div>
                     </div>
@@ -837,18 +851,18 @@ export default function POS({ session, selectedDepotId }) {
                       <div className="mt-10 break-before-page">
                           <div className="flex justify-between items-start mb-6">
                             <div>
-                                <h2 className="text-2xl font-black text-emerald-800">Bon d'enlèvement</h2>
+                                <h2 className="text-3xl font-black text-emerald-800">Bon d'enlèvement</h2>
                                   {/* <p>Tél: +261 34 00 000 00</p> */}
-                                <p className="text-sm font-bold text-gray-600">N° BE-{previewInvoice.number.split('-')[1] || previewInvoice.number}</p>
+                                <p className="text-lg font-bold text-gray-600">N° BE-{previewInvoice.number.split('-')[1] || previewInvoice.number}</p>
                             </div>
-                            <div className="text-right text-[10px] font-bold">
+                            <div className="text-right text-[16px] font-bold">
                                 <p>Client: {clientName || '---'}</p>
                             </div>
                           </div>
                           <div className="border border-gray-200 rounded-lg p-4">
-                              <table className="w-full text-left text-sm border-collapse">
+                              <table className="w-full text-left text-lg border-collapse">
                                   <thead>
-                                      <tr className="border-b border-gray-200 text-gray-500 text-[10px] uppercase">
+                                      <tr className="border-b border-gray-200 text-gray-500 text-[16px] uppercase">
                                           <th className="py-2">Désignation</th>
                                           <th className="py-2 text-center">Qté</th>
                                           <th className="py-2 text-right">P.U / Sup</th>
@@ -860,10 +874,10 @@ export default function POS({ session, selectedDepotId }) {
                                       {invoiceItems.map(item => (
                                           <tr key={item.item_id} className="border-b border-gray-50">
                                               <td className="py-2 font-bold">{item.name}</td>
-                                              <td className="py-2 text-center text-xs">({formatQuantity(item.quantity, item)})</td>
-                                              <td className="py-2 text-right text-xs">
+                                              <td className="py-2 text-center text-base">({formatQuantity(item.quantity, item)})</td>
+                                              <td className="py-2 text-right text-base">
                                                 {item.unit_price.toLocaleString()} Ar
-                                                {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
+                                                {item.price_superior && <div className="text-[15px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
                                               </td>
                                               <td className="py-2 text-center text-orange-600 font-bold">{item.discount ? `${item.discount.value}` : '-'}</td>
                                               <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</td>
@@ -872,12 +886,12 @@ export default function POS({ session, selectedDepotId }) {
                                   </tbody>
                               </table>
                           </div>
-                          <div className="mt-4 font-black text-sm text-right">Total Remise: {totalDiscount.toLocaleString()} Ar</div>
-                          <div className="mt-1 font-black text-lg text-right text-emerald-800">Total: {parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</div>
-                          <div className="mt-10 pt-6 border-t border-gray-100 text-center text-[10px] text-gray-500 font-bold">
+                          <div className="mt-4 font-black text-lg text-right">Total Remise: {totalDiscount.toLocaleString()} Ar</div>
+                          <div className="mt-1 font-black text-2xl text-right text-emerald-800">Total: {parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</div>
+                          <div className="mt-10 pt-6 border-t border-gray-100 text-center text-[16px] text-gray-500 font-bold">
                             {currentDepotInfo?.address || '123 Rue Principale, Antananarivo'}
                           </div>
-                          <div className="mt-6 grid grid-cols-2 gap-20 text-center text-[10px] font-bold">
+                          <div className="mt-6 grid grid-cols-2 gap-20 text-center text-[16px] font-bold">
                             <div>Magasinier<br/><br/><br/>____________________</div>
                             <div>Client<br/><br/><br/>____________________</div>
                           </div>
@@ -888,18 +902,18 @@ export default function POS({ session, selectedDepotId }) {
                       <div className="mt-10 break-before-page">
                           <div className="flex justify-between items-start mb-6">
                             <div>
-                                <h2 className="text-2xl font-black text-emerald-800">Bon de livraison</h2>
+                                <h2 className="text-3xl font-black text-emerald-800">Bon de livraison</h2>
                                   <p>Tél: +261 34 00 000 00</p>
-                                <p className="text-sm font-bold text-gray-600">N° BL-{previewInvoice.number.split('-')[1] || previewInvoice.number}</p>
+                                <p className="text-lg font-bold text-gray-600">N° BL-{previewInvoice.number.split('-')[1] || previewInvoice.number}</p>
                             </div>
-                            <div className="text-right text-[10px] font-bold">
+                            <div className="text-right text-[16px] font-bold">
                                 <p>Client: {clientName || '---'}</p>
                             </div>
                           </div>
                           <div className="border border-gray-200 rounded-lg p-4">
-                              <table className="w-full text-left text-sm border-collapse">
+                              <table className="w-full text-left text-lg border-collapse">
                                   <thead>
-                                      <tr className="border-b border-gray-200 text-gray-500 text-[10px] uppercase">
+                                      <tr className="border-b border-gray-200 text-gray-500 text-[16px] uppercase">
                                           <th className="py-2">Désignation</th>
                                           <th className="py-2 text-center">Qté</th>
                                           <th className="py-2 text-right">P.U / Sup</th>
@@ -911,10 +925,10 @@ export default function POS({ session, selectedDepotId }) {
                                       {invoiceItems.map(item => (
                                           <tr key={item.item_id} className="border-b border-gray-50">
                                               <td className="py-2 font-bold">{item.name}</td>
-                                              <td className="py-2 text-center text-xs">({formatQuantity(item.quantity, item)})</td>
-                                              <td className="py-2 text-right text-xs">
+                                              <td className="py-2 text-center text-base">({formatQuantity(item.quantity, item)})</td>
+                                              <td className="py-2 text-right text-base">
                                                 {item.unit_price.toLocaleString()} Ar
-                                                {item.price_superior && <div className="text-[9px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
+                                                {item.price_superior && <div className="text-[15px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
                                               </td>
                                               <td className="py-2 text-center text-orange-600 font-bold">{item.discount ? `${item.discount.value}` : '-'}</td>
                                               <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</td>
@@ -923,12 +937,12 @@ export default function POS({ session, selectedDepotId }) {
                                   </tbody>
                               </table>
                           </div>
-                          <div className="mt-4 font-black text-sm text-right">Total Remise: {totalDiscount.toLocaleString()} Ar</div>
-                          <div className="mt-1 font-black text-lg text-right text-emerald-800">Total: {parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</div>
-                          <div className="mt-10 pt-6 border-t border-gray-100 text-center text-[10px] text-gray-500 font-bold">
+                          <div className="mt-4 font-black text-lg text-right">Total Remise: {totalDiscount.toLocaleString()} Ar</div>
+                          <div className="mt-1 font-black text-2xl text-right text-emerald-800">Total: {parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</div>
+                          <div className="mt-10 pt-6 border-t border-gray-100 text-center text-[16px] text-gray-500 font-bold">
                             {currentDepotInfo?.address || '123 Rue Principale, Antananarivo'}
                           </div>
-                          <div className="mt-6 grid grid-cols-2 gap-20 text-center text-[10px] font-bold">
+                          <div className="mt-6 grid grid-cols-2 gap-20 text-center text-[16px] font-bold">
                             <div>Livreur<br/><br/><br/>____________________</div>
                             <div>Client<br/><br/><br/>____________________</div>
                           </div>

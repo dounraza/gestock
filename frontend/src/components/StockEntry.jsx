@@ -343,8 +343,8 @@ export default function StockEntry() {
               <Package className="text-white" size={24} />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-gray-800 tracking-tight">Entrées de Stock</h1>
-              <p className="text-xs text-emerald-600 font-bold uppercase tracking-widest mt-1">Gestion des approvisionnements</p>
+              <h1 className="text-3xl font-black text-gray-800 tracking-tight">Entrées de Stock</h1>
+              <p className="text-base text-emerald-600 font-bold uppercase tracking-widest mt-1">Gestion des approvisionnements</p>
             </div>
           </div>
 
@@ -352,43 +352,43 @@ export default function StockEntry() {
             <div className="flex items-center gap-2 bg-white rounded-2xl border border-emerald-100 p-2 shadow-sm">
               <div className="flex items-center gap-2 px-3">
                 <Calendar size={16} className="text-emerald-500" />
-                <span className="text-[10px] font-black text-gray-400 uppercase">De</span>
+                <span className="text-[16px] font-black text-gray-400 uppercase">De</span>
                 <input 
                   type="date" 
                   value={startDate} 
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-transparent border-none text-sm font-bold text-gray-700 outline-none" 
+                  className="bg-transparent border-none text-lg font-bold text-gray-700 outline-none" 
                 />
               </div>
               <div className="w-px h-8 bg-emerald-50"></div>
               <div className="flex items-center gap-2 px-3">
-                <span className="text-[10px] font-black text-gray-400 uppercase">À</span>
+                <span className="text-[16px] font-black text-gray-400 uppercase">À</span>
                 <input 
                   type="date" 
                   value={endDate} 
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-transparent border-none text-sm font-bold text-gray-700 outline-none" 
+                  className="bg-transparent border-none text-lg font-bold text-gray-700 outline-none" 
                 />
               </div>
             </div>
             
             <button 
               onClick={() => setShowBLModal(true)}
-              className="px-6 py-3 bg-emerald-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-95 transition-all flex items-center gap-2"
+              className="px-6 py-3 bg-emerald-600 text-white font-black text-base uppercase tracking-widest rounded-2xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-95 transition-all flex items-center gap-2"
             >
               <Plus size={16} /> Nouveau BL
             </button>
             
             <button 
               onClick={fetchData}
-              className="px-6 py-3 bg-white border-2 border-emerald-100 text-gray-600 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-emerald-50 active:scale-95 transition-all flex items-center gap-2"
+              className="px-6 py-3 bg-white border-2 border-emerald-100 text-gray-600 font-black text-base uppercase tracking-widest rounded-2xl hover:bg-emerald-50 active:scale-95 transition-all flex items-center gap-2"
             >
               <Search size={16} /> Valider
             </button>
             
             <button 
               onClick={handlePrint}
-              className="px-6 py-3 bg-white border-2 border-emerald-600 text-emerald-600 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-emerald-50 active:scale-95 transition-all flex items-center gap-2"
+              className="px-6 py-3 bg-white border-2 border-emerald-600 text-emerald-600 font-black text-base uppercase tracking-widest rounded-2xl hover:bg-emerald-50 active:scale-95 transition-all flex items-center gap-2"
             >
               <Printer size={16} /> Imprimer
             </button>
@@ -406,8 +406,8 @@ export default function StockEntry() {
                   <FileText className="text-white" size={20} />
                 </div>
                 <div>
-                    <h3 className="text-lg font-bold text-emerald-900 uppercase tracking-widest">Nouveau Bon de Livraison</h3>
-                    <p className="text-[10px] font-medium text-emerald-600/80 uppercase tracking-widest mt-0.5">Enregistrement des entrées de marchandises</p>
+                    <h3 className="text-2xl font-bold text-emerald-900 uppercase tracking-widest">Nouveau Bon de Livraison</h3>
+                    <p className="text-[16px] font-medium text-emerald-600/80 uppercase tracking-widest mt-0.5">Enregistrement des entrées de marchandises</p>
                 </div>
               </div>
               <button 
@@ -434,18 +434,18 @@ export default function StockEntry() {
                 {/* BL Info */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-emerald-600 uppercase ml-1 tracking-widest">N° BL (Auto)</label>
+                    <label className="text-[15px] font-bold text-emerald-600 uppercase ml-1 tracking-widest">N° BL (Auto)</label>
                     <input 
                       type="text"
                       readOnly
-                      className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-2.5 text-xs font-bold text-emerald-900 outline-none cursor-not-allowed"
+                      className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-2.5 text-base font-bold text-emerald-900 outline-none cursor-not-allowed"
                       value={blFormData.bl_number}
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Fournisseur</label>
+                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Fournisseur</label>
                     <select 
-                      className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
+                      className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 text-base font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
                       value={blFormData.supplier_id}
                       onChange={e => setBLFormData({...blFormData, supplier_id: e.target.value})}
                     >
@@ -454,20 +454,20 @@ export default function StockEntry() {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Date du BL</label>
+                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Date du BL</label>
                     <input 
                       type="date"
                       required
-                      className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
+                      className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 text-base font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
                       value={blFormData.bl_date}
                       onChange={e => setBLFormData({...blFormData, bl_date: e.target.value})}
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Dépôt Destination</label>
+                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Dépôt Destination</label>
                     <select 
                       required
-                      className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
+                      className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 text-base font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
                       value={blFormData.depot_id}
                       onChange={e => setBLFormData({...blFormData, depot_id: e.target.value})}
                     >
@@ -475,10 +475,10 @@ export default function StockEntry() {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Type de Paiement</label>
+                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Type de Paiement</label>
                     <select 
                       required
-                      className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
+                      className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 text-base font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
                       value={blFormData.payment_type}
                       onChange={e => setBLFormData({...blFormData, payment_type: e.target.value})}
                     >
@@ -489,10 +489,10 @@ export default function StockEntry() {
                   {blFormData.payment_type === 'credit' && (
                     <>
                       <div className="space-y-1 animate-in slide-in-from-top-2 duration-200">
-                        <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Échéance</label>
+                        <label className="text-[15px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Échéance</label>
                         <select 
                           required
-                          className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
+                          className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 text-base font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
                           value={blFormData.credit_type}
                           onChange={e => setBLFormData({...blFormData, credit_type: e.target.value})}
                         >
@@ -502,11 +502,11 @@ export default function StockEntry() {
                         </select>
                       </div>
                       <div className="space-y-1 animate-in slide-in-from-top-2 duration-200">
-                        <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 tracking-widest">1ère échéance</label>
+                        <label className="text-[15px] font-bold text-gray-400 uppercase ml-1 tracking-widest">1ère échéance</label>
                         <input 
                           type="date"
                           required
-                          className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
+                          className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 text-base font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
                           value={blFormData.first_due_date}
                           onChange={e => setBLFormData({...blFormData, first_due_date: e.target.value})}
                         />
@@ -517,14 +517,14 @@ export default function StockEntry() {
 
                 {/* Add Items Form */}
                 <div className="bg-emerald-50/20 p-5 md:p-6 rounded-3xl border border-emerald-50/50">
-                  <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                  <h4 className="text-base font-bold text-emerald-900 uppercase tracking-widest mb-6 flex items-center gap-2">
                     <Plus size={14} className="text-emerald-500" /> Ajouter des articles
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                     <div className="md:col-span-2 space-y-1">
-                      <label className="text-[9px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">Produit</label>
+                      <label className="text-[15px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">Produit</label>
                       <select 
-                        className="w-full bg-white border border-emerald-100 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
+                        className="w-full bg-white border border-emerald-100 rounded-xl px-4 py-2.5 text-base font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
                         value={newItem.product_id}
                         onChange={e => {
                           const p = products.find(prod => prod.id === e.target.value);
@@ -540,19 +540,19 @@ export default function StockEntry() {
                       </select>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">Quantité</label>
+                      <label className="text-[15px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">Quantité</label>
                       <input 
                         type="number"
-                        className="w-full bg-white border border-emerald-100 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
+                        className="w-full bg-white border border-emerald-100 rounded-xl px-4 py-2.5 text-base font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
                         value={newItem.quantity}
                         placeholder="0"
                         onChange={e => setNewItem({...newItem, quantity: e.target.value})}
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">Unité</label>
+                      <label className="text-[15px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">Unité</label>
                       <select
-                        className="w-full bg-white border border-emerald-100 rounded-xl px-2 py-2.5 text-[10px] font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
+                        className="w-full bg-white border border-emerald-100 rounded-xl px-2 py-2.5 text-[16px] font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
                         value={newItem.unit}
                         onChange={e => setNewItem({...newItem, unit: e.target.value})}
                       >
@@ -563,10 +563,10 @@ export default function StockEntry() {
                       </select>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">Prix Achat</label>
+                      <label className="text-[15px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">Prix Achat</label>
                       <input 
                         type="number"
-                        className="w-full bg-white border border-emerald-100 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
+                        className="w-full bg-white border border-emerald-100 rounded-xl px-4 py-2.5 text-base font-bold text-gray-700 outline-none focus:border-emerald-500 transition-all"
                         value={newItem.purchase_price_per_unit}
                         placeholder="0"
                         onChange={e => setNewItem({...newItem, purchase_price_per_unit: e.target.value})}
@@ -575,7 +575,7 @@ export default function StockEntry() {
                     <button 
                       type="button"
                       onClick={addItemToBL}
-                      className="bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition-all text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-100/50 active:scale-95"
+                      className="bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition-all text-[16px] uppercase tracking-widest shadow-lg shadow-emerald-100/50 active:scale-95"
                     >
                       Ajouter
                     </button>
@@ -588,20 +588,20 @@ export default function StockEntry() {
                     <table className="w-full text-left">
                       <thead>
                         <tr className="bg-emerald-50/30 border-b border-emerald-50">
-                          <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest">Produit</th>
-                          <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest text-center">Quantité</th>
-                          <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest text-right">P.A.U</th>
-                          <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest text-right">Total</th>
-                          <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest text-center">Action</th>
+                          <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest">Produit</th>
+                          <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest text-center">Quantité</th>
+                          <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest text-right">P.A.U</th>
+                          <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest text-right">Total</th>
+                          <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest text-center">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-emerald-50 bg-white/50">
                         {blItems.map((item, idx) => (
                           <tr key={idx} className="hover:bg-emerald-50/10 transition-colors">
-                            <td className="px-6 py-3 text-xs font-bold text-gray-700 uppercase">{item.productName}</td>
-                            <td className="px-6 py-3 text-xs font-bold text-emerald-600 text-center">{item.quantity} {item.unitName}</td>
-                            <td className="px-6 py-3 text-xs font-bold text-gray-500 text-right">{parseFloat(item.purchase_price_per_unit).toLocaleString()} Ar</td>
-                            <td className="px-6 py-3 text-xs font-bold text-gray-800 text-right">{item.total.toLocaleString()} Ar</td>
+                            <td className="px-6 py-3 text-base font-bold text-gray-700 uppercase">{item.productName}</td>
+                            <td className="px-6 py-3 text-base font-bold text-emerald-600 text-center">{item.quantity} {item.unitName}</td>
+                            <td className="px-6 py-3 text-base font-bold text-gray-500 text-right">{parseFloat(item.purchase_price_per_unit).toLocaleString()} Ar</td>
+                            <td className="px-6 py-3 text-base font-bold text-gray-800 text-right">{item.total.toLocaleString()} Ar</td>
                             <td className="px-6 py-3 text-center">
                               <button onClick={() => removeItemFromBL(idx)} className="text-gray-300 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50"><Trash2 size={14} /></button>
                             </td>
@@ -610,8 +610,8 @@ export default function StockEntry() {
                       </tbody>
                       <tfoot>
                         <tr className="bg-emerald-50/20">
-                          <td colSpan="3" className="px-6 py-4 text-[10px] font-bold text-emerald-800 uppercase tracking-widest text-right">Total Général</td>
-                          <td className="px-6 py-4 text-base font-bold text-emerald-900 text-right">{blFormData.total_amount.toLocaleString()} Ar</td>
+                          <td colSpan="3" className="px-6 py-4 text-[16px] font-bold text-emerald-800 uppercase tracking-widest text-right">Total Général</td>
+                          <td className="px-6 py-4 text-xl font-bold text-emerald-900 text-right">{blFormData.total_amount.toLocaleString()} Ar</td>
                           <td></td>
                         </tr>
                       </tfoot>
@@ -623,14 +623,14 @@ export default function StockEntry() {
                   <button 
                     type="button" 
                     onClick={() => setShowBLModal(false)}
-                    className="px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gray-600 transition-all"
+                    className="px-6 py-3 rounded-xl text-[16px] font-bold uppercase tracking-widest text-gray-400 hover:text-gray-600 transition-all"
                   >
                     Annuler
                   </button>
                   <button 
                     type="submit" 
                     disabled={isSubmitting || blItems.length === 0}
-                    className="px-8 py-3 bg-emerald-600 text-white font-bold text-[10px] uppercase tracking-widest rounded-xl shadow-lg shadow-emerald-100/50 hover:bg-emerald-700 disabled:bg-gray-200 active:scale-95 transition-all flex items-center gap-2"
+                    className="px-8 py-3 bg-emerald-600 text-white font-bold text-[16px] uppercase tracking-widest rounded-xl shadow-lg shadow-emerald-100/50 hover:bg-emerald-700 disabled:bg-gray-200 active:scale-95 transition-all flex items-center gap-2"
                   >
                     {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <><CheckCircle2 size={16} /> Enregistrer le BL</>}
                   </button>
@@ -645,13 +645,13 @@ export default function StockEntry() {
       <div className="flex bg-emerald-50/30 p-1 rounded-2xl border border-emerald-100/50 max-w-sm">
         <button 
           onClick={() => setActiveTab('with-supplier')}
-          className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${activeTab === 'with-supplier' ? 'bg-white text-emerald-600 shadow-sm border border-emerald-50/50' : 'text-emerald-400 hover:text-emerald-600'}`}
+          className={`flex-1 py-2 rounded-xl text-[16px] font-bold uppercase tracking-wider transition-all ${activeTab === 'with-supplier' ? 'bg-white text-emerald-600 shadow-sm border border-emerald-50/50' : 'text-emerald-400 hover:text-emerald-600'}`}
         >
           Avec Fournisseur
         </button>
         <button 
           onClick={() => setActiveTab('without-supplier')}
-          className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${activeTab === 'without-supplier' ? 'bg-white text-emerald-600 shadow-sm border border-emerald-50/50' : 'text-emerald-400 hover:text-emerald-600'}`}
+          className={`flex-1 py-2 rounded-xl text-[16px] font-bold uppercase tracking-wider transition-all ${activeTab === 'without-supplier' ? 'bg-white text-emerald-600 shadow-sm border border-emerald-50/50' : 'text-emerald-400 hover:text-emerald-600'}`}
         >
           Sans Fournisseur
         </button>
@@ -662,7 +662,7 @@ export default function StockEntry() {
         {loading ? (
           <div className="p-20 flex flex-col items-center justify-center gap-4">
             <Loader2 className="animate-spin text-emerald-500" size={32} />
-            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Chargement...</p>
+            <p className="text-[16px] font-bold text-emerald-600 uppercase tracking-widest">Chargement...</p>
           </div>
         ) : (
           <div className="overflow-auto flex-1">
@@ -670,55 +670,55 @@ export default function StockEntry() {
               <table className="w-full text-left border-collapse min-w-[1000px] sticky-header">
                 <thead className="sticky top-0 z-20 bg-emerald-50/50 shadow-sm backdrop-blur-md">
                   <tr>
-                    <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Date</th>
-                    <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Fournisseur</th>
-                    <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">N° BL</th>
-                    <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Désignation</th>
-                    <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Paiement</th>
-                    <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-center">Qté</th>
-                    <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Unité</th>
-                    <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-right">P.A.U</th>
-                    <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-right">P.A.T</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Date</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Fournisseur</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">N° BL</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Désignation</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Paiement</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-center">Qté</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Unité</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-right">P.A.U</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-right">P.A.T</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-emerald-50/30">
                   {withSupplierData.length > 0 ? withSupplierData.map((item) => (
                     <tr key={item.id} className="hover:bg-emerald-50/10 transition-colors group">
                       <td className="px-6 py-3.5">
-                        <p className="text-xs font-bold text-gray-600">{new Date(item.delivery_notes?.bl_date || item.created_at).toLocaleDateString()}</p>
+                        <p className="text-base font-bold text-gray-600">{new Date(item.delivery_notes?.bl_date || item.created_at).toLocaleDateString()}</p>
                       </td>
                       <td className="px-6 py-3.5">
-                        <p className="text-[11px] font-bold text-emerald-700 uppercase">{item.delivery_notes?.fournisseurs?.name || 'Inconnu'}</p>
+                        <p className="text-[17px] font-bold text-emerald-700 uppercase">{item.delivery_notes?.fournisseurs?.name || 'Inconnu'}</p>
                       </td>
                       <td className="px-6 py-3.5">
-                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100/50 rounded-md text-[9px] font-bold uppercase">
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100/50 rounded-md text-[15px] font-bold uppercase">
                           {item.delivery_notes?.bl_number || '-'}
                         </span>
                       </td>
                       <td className="px-6 py-3.5">
-                        <p className="text-xs font-bold text-gray-700">{item.produits?.name}</p>
+                        <p className="text-base font-bold text-gray-700">{item.produits?.name}</p>
                       </td>
                       <td className="px-6 py-3.5">
-                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase ${item.delivery_notes?.payment_type === 'credit' ? 'bg-orange-50 text-orange-600 border border-orange-100/50' : 'bg-blue-50 text-blue-600 border border-blue-100/50'}`}>
+                        <span className={`px-2 py-0.5 rounded-md text-[15px] font-bold uppercase ${item.delivery_notes?.payment_type === 'credit' ? 'bg-orange-50 text-orange-600 border border-orange-100/50' : 'bg-blue-50 text-blue-600 border border-blue-100/50'}`}>
                           {item.delivery_notes?.payment_type === 'credit' ? 'Crédit' : 'Direct'}
                         </span>
                       </td>
                       <td className="px-6 py-3.5 text-center">
-                        <p className="text-xs font-bold text-emerald-600">{item.quantity}</p>
+                        <p className="text-base font-bold text-emerald-600">{item.quantity}</p>
                       </td>
                       <td className="px-6 py-3.5">
-                        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">{item.unit === 'base' ? 'Unité' : (item.unit || 'Unité')}</p>
+                        <p className="text-[16px] font-medium text-gray-400 uppercase tracking-wider">{item.unit === 'base' ? 'Unité' : (item.unit || 'Unité')}</p>
                       </td>
                       <td className="px-6 py-3.5 text-right">
-                        <p className="text-xs font-bold text-gray-600">{parseFloat(item.purchase_price_per_unit).toLocaleString()} Ar</p>
+                        <p className="text-base font-bold text-gray-600">{parseFloat(item.purchase_price_per_unit).toLocaleString()} Ar</p>
                       </td>
                       <td className="px-6 py-3.5 text-right">
-                        <p className="text-xs font-bold text-emerald-700">{parseFloat(item.line_total_purchase).toLocaleString()} Ar</p>
+                        <p className="text-base font-bold text-emerald-700">{parseFloat(item.line_total_purchase).toLocaleString()} Ar</p>
                       </td>
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan="9" className="p-20 text-center text-gray-400 font-bold uppercase text-[9px] tracking-widest">Aucune donnée trouvée</td>
+                      <td colSpan="9" className="p-20 text-center text-gray-400 font-bold uppercase text-[15px] tracking-widest">Aucune donnée trouvée</td>
                     </tr>
                   )}
                 </tbody>
@@ -727,43 +727,43 @@ export default function StockEntry() {
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead className="sticky top-0 z-20 bg-emerald-50/50 shadow-sm backdrop-blur-md">
                   <tr>
-                    <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Date</th>
-                    <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Motif</th>
-                    <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Désignation</th>
-                    <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-center">Qté</th>
-                    <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Unité</th>
-                    <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-right">P.A.U</th>
-                    <th className="px-6 py-4 text-[9px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-right">P.A.T</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Date</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Motif</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Désignation</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-center">Qté</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Unité</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-right">P.A.U</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-right">P.A.T</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-emerald-50/30">
                   {withoutSupplierData.length > 0 ? withoutSupplierData.map((item) => (
                     <tr key={item.id} className="hover:bg-emerald-50/10 transition-colors group">
                       <td className="px-6 py-3.5">
-                        <p className="text-xs font-bold text-gray-600">{new Date(item.created_at).toLocaleDateString()}</p>
+                        <p className="text-base font-bold text-gray-600">{new Date(item.created_at).toLocaleDateString()}</p>
                       </td>
                       <td className="px-6 py-3.5">
-                        <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{item.reason || '-'}</p>
+                        <p className="text-[16px] font-bold text-emerald-600 uppercase tracking-widest">{item.reason || '-'}</p>
                       </td>
                       <td className="px-6 py-3.5">
-                        <p className="text-xs font-bold text-gray-700">{item.produits?.name}</p>
+                        <p className="text-base font-bold text-gray-700">{item.produits?.name}</p>
                       </td>
                       <td className="px-6 py-3.5 text-center">
-                        <p className="text-xs font-bold text-emerald-600">{item.quantity}</p>
+                        <p className="text-base font-bold text-emerald-600">{item.quantity}</p>
                       </td>
                       <td className="px-6 py-3.5">
-                        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">{item.unit || 'Unité'}</p>
+                        <p className="text-[16px] font-medium text-gray-400 uppercase tracking-wider">{item.unit || 'Unité'}</p>
                       </td>
                       <td className="px-6 py-3.5 text-right">
-                        <p className="text-xs font-bold text-gray-600">{(item.price_at_movement || 0).toLocaleString()} Ar</p>
+                        <p className="text-base font-bold text-gray-600">{(item.price_at_movement || 0).toLocaleString()} Ar</p>
                       </td>
                       <td className="px-6 py-3.5 text-right">
-                        <p className="text-xs font-bold text-emerald-700">{(item.quantity * (item.price_at_movement || 0)).toLocaleString()} Ar</p>
+                        <p className="text-base font-bold text-emerald-700">{(item.quantity * (item.price_at_movement || 0)).toLocaleString()} Ar</p>
                       </td>
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan="7" className="p-20 text-center text-gray-400 font-bold uppercase text-[9px] tracking-widest">Aucune donnée trouvée</td>
+                      <td colSpan="7" className="p-20 text-center text-gray-400 font-bold uppercase text-[15px] tracking-widest">Aucune donnée trouvée</td>
                     </tr>
                   )}
                 </tbody>

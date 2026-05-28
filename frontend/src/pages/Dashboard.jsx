@@ -214,9 +214,9 @@ export default function Dashboard({ session }) {
           <div className="flex items-center justify-between mb-10">
             <div onClick={() => navigate('/dashboard')} className="cursor-pointer flex items-center gap-3">
               <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
-                <span className="text-white text-xl font-bold">+</span>
+                <span className="text-white text-3xl font-bold">+</span>
               </div>
-              <h1 className="text-xl font-bold text-gray-800 tracking-tight">Gestock<span className="text-emerald-500">PPN</span></h1>
+              <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Gestock<span className="text-emerald-500">PPN</span></h1>
             </div>
             <button className="lg:hidden text-gray-400 hover:text-emerald-500" onClick={closeSidebar}>
               <X size={24} />
@@ -226,7 +226,7 @@ export default function Dashboard({ session }) {
           <nav className="space-y-8">
             {/* GROUPE 1: Caisse & Ventes */}
             <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Caisse & Ventes</p>
+              <p className="text-[16px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Caisse & Ventes</p>
               <div className="space-y-1">
                 <NavItem icon={<LayoutDashboard size={20} />} label="Tableau de bord" active={activeTab === 'dashboard'} onClick={() => { navigate('/dashboard'); closeSidebar(); }} />
                 <NavItem icon={<ShoppingCart size={20} />} label="Caisse (POS)" active={activeTab === 'pos'} onClick={() => { navigate('/dashboard/pos'); closeSidebar(); }} />
@@ -236,7 +236,7 @@ export default function Dashboard({ session }) {
 
             {/* GROUPE 2: Gestion Financière */}
             <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Gestion Financière</p>
+              <p className="text-[16px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Gestion Financière</p>
               <div className="space-y-1">
                 <NavItem icon={<FileText size={20} />} label="Facturation" active={activeTab === 'billing'} onClick={() => { navigate('/dashboard/billing'); closeSidebar(); }} />
                 <NavItem icon={<DollarSign size={20} />} label="Décaissements" active={activeTab === 'decaissement'} onClick={() => { navigate('/dashboard/decaissement'); closeSidebar(); }} />
@@ -245,7 +245,7 @@ export default function Dashboard({ session }) {
 
             {/* GROUPE 3: Clients */}
             <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Clients</p>
+              <p className="text-[16px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Clients</p>
               <div className="space-y-1">
                 <button 
                   onClick={() => setIsClientsOpen(!isClientsOpen)}
@@ -257,7 +257,7 @@ export default function Dashboard({ session }) {
                 >
                   <div className="flex items-center gap-4">
                     <Users size={20} />
-                    <span className="font-bold text-sm tracking-tight">Menu Client</span>
+                    <span className="font-bold text-lg tracking-tight">Menu Client</span>
                   </div>
                   <ChevronDown size={16} className={`transition-transform ${isClientsOpen ? 'rotate-180' : ''}`} />
                 </button>
@@ -266,19 +266,19 @@ export default function Dashboard({ session }) {
                   <div className="ml-6 mt-1 space-y-1 border-l-2 border-emerald-100 pl-4">
                     <button 
                       onClick={() => { navigate('/dashboard/clients'); closeSidebar(); }}
-                      className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'clients' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                      className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'clients' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                     >
                       Liste
                     </button>
                     <button
                      onClick={() => { navigate('/dashboard/credit_history'); closeSidebar(); }}
-                     className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'credit_history' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                     className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'credit_history' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                     >
                      Historique client
                     </button>
                     <button
                      onClick={() => { navigate('/dashboard/deadlines'); closeSidebar(); }}
-                     className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'deadlines' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                     className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'deadlines' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                     >
                      Echéancier
                     </button>                  </div>
@@ -288,7 +288,7 @@ export default function Dashboard({ session }) {
 
             {/* GROUPE 4: Fournisseurs */}
             <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Fournisseurs</p>
+              <p className="text-[16px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Fournisseurs</p>
               <div className="space-y-1">
                 <button 
                   onClick={() => setIsSuppliersOpen(!isSuppliersOpen)}
@@ -300,7 +300,7 @@ export default function Dashboard({ session }) {
                 >
                   <div className="flex items-center gap-4">
                     <Users size={20} />
-                    <span className="font-bold text-sm tracking-tight">Menu Fournisseur</span>
+                    <span className="font-bold text-lg tracking-tight">Menu Fournisseur</span>
                   </div>
                   <ChevronDown size={16} className={`transition-transform ${isSuppliersOpen ? 'rotate-180' : ''}`} />
                 </button>
@@ -309,19 +309,19 @@ export default function Dashboard({ session }) {
                   <div className="ml-6 mt-1 space-y-1 border-l-2 border-emerald-100 pl-4">
                     <button 
                       onClick={() => { navigate('/dashboard/suppliers'); closeSidebar(); }}
-                      className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'suppliers' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                      className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'suppliers' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                     >
                       Liste Fournisseurs
                     </button>
                     {/* <button 
                       onClick={() => { navigate('/dashboard/supplier-history'); closeSidebar(); }}
-                      className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'supplier-history' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                      className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'supplier-history' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                     >
                       Historique
                     </button> */}
                     <button 
                       onClick={() => { navigate('/dashboard/supplier_credits'); closeSidebar(); }}
-                      className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'supplier_credits' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                      className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'supplier_credits' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                     >
                       Crédit Fournisseurs
                     </button>
@@ -332,7 +332,7 @@ export default function Dashboard({ session }) {
 
             {/* GROUPE 4: Stock & Logistique */}
             <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Stock & Logistique</p>
+              <p className="text-[16px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Stock & Logistique</p>
               <div className="space-y-1">
                 <div className="space-y-1">
                   <button 
@@ -345,7 +345,7 @@ export default function Dashboard({ session }) {
                   >
                     <div className="flex items-center gap-4">
                       <Package size={20} />
-                      <span className="font-bold text-sm tracking-tight">Gestion Stock</span>
+                      <span className="font-bold text-lg tracking-tight">Gestion Stock</span>
                     </div>
                     <ChevronDown size={16} className={`transition-transform ${isInventoryOpen ? 'rotate-180' : ''}`} />
                   </button>
@@ -354,31 +354,31 @@ export default function Dashboard({ session }) {
                     <div className="ml-6 mt-1 space-y-1 border-l-2 border-emerald-100 pl-4">
                       <button 
                         onClick={() => { navigate('/dashboard/products'); closeSidebar(); }}
-                        className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'products' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                        className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'products' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                       >
                         Stock Principal
                       </button>
                       <button 
                         onClick={() => { navigate('/dashboard/inventory'); closeSidebar(); }}
-                        className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'inventory' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                        className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'inventory' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                       >
                         Stock par Dépôt
                       </button>
                       <button 
                         onClick={() => { navigate('/dashboard/stock-entry'); closeSidebar(); }}
-                        className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'stock-entry' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                        className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'stock-entry' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                       >
                         Entrée de Stock
                       </button>
                       <button 
                         onClick={() => { navigate('/dashboard/historique'); closeSidebar(); }}
-                        className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'historique' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                        className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'historique' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                       >
                         Historique
                       </button>
                       <button 
                         onClick={() => { navigate('/dashboard/stock-transfer'); closeSidebar(); }}
-                        className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'stock-transfer' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                        className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'stock-transfer' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                       >
                         Transfert
                       </button>
@@ -393,7 +393,7 @@ export default function Dashboard({ session }) {
 
             {/* GROUPE 4: Système */}
             <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Système</p>
+              <p className="text-[16px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">Système</p>
               <div className="space-y-1">
                 <NavItem icon={<SettingsIcon size={20} />} label="Paramètres" active={activeTab === 'settings'} onClick={() => { navigate('/dashboard/settings'); closeSidebar(); }} />
               </div>
@@ -407,8 +407,8 @@ export default function Dashboard({ session }) {
               {session.user.email[0].toUpperCase()}
             </div>
             <div className="overflow-hidden">
-              <p className="text-sm font-bold text-gray-800 truncate">{session.user.email.split('@')[0]}</p>
-              <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Gestionnaire Stock</p>
+              <p className="text-lg font-bold text-gray-800 truncate">{session.user.email.split('@')[0]}</p>
+              <p className="text-[16px] text-emerald-600 font-bold uppercase tracking-wider">Gestionnaire Stock</p>
             </div>
           </div>
           <button 
@@ -416,7 +416,7 @@ export default function Dashboard({ session }) {
             className="flex items-center gap-3 text-gray-400 hover:text-red-500 transition-colors w-full group"
           >
             <LogOut size={18} />
-            <span className="font-bold text-sm">Déconnexion</span>
+            <span className="font-bold text-lg">Déconnexion</span>
           </button>
         </div>
       </aside>
@@ -431,7 +431,7 @@ export default function Dashboard({ session }) {
               onClick={() => setIsSidebarOpen(true)}
             >              <Menu size={24} />
             </button>
-            <h2 className="text-lg md:text-xl font-bold text-gray-800 capitalize truncate">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-800 capitalize truncate">
               {getTitle()}
             </h2>
           </div>
@@ -440,7 +440,7 @@ export default function Dashboard({ session }) {
             <div className="hidden sm:flex items-center gap-2 bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-1.5">
               <Building2 size={16} className="text-emerald-600" />
               <select 
-                className="bg-transparent border-none text-xs font-black text-emerald-800 focus:ring-0 outline-none cursor-pointer"
+                className="bg-transparent border-none text-base font-black text-emerald-800 focus:ring-0 outline-none cursor-pointer"
                 value={selectedDepotId}
                 onChange={handleDepotChange}
               >
@@ -454,7 +454,7 @@ export default function Dashboard({ session }) {
               <input 
                 type="text" 
                 placeholder="Rechercher..."
-                className="w-full bg-emerald-50/30 border border-emerald-100 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/10"
+                className="w-full bg-emerald-50/30 border border-emerald-100 rounded-xl py-2 pl-10 pr-4 text-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/10"
                 value={dashboardSearchTerm}
                 onChange={(e) => setDashboardSearchTerm(e.target.value)}
               />
@@ -466,7 +466,7 @@ export default function Dashboard({ session }) {
               >
                 <Bell size={20} />
                 {stats.overdueCredits > 0 && (
-                  <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">
+                  <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[14px] font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">
                     {stats.overdueCredits}
                   </span>
                 )}
@@ -475,7 +475,7 @@ export default function Dashboard({ session }) {
               {showNotifications && (
                 <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-emerald-50 overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2">
                   <div className="p-4 border-b border-emerald-50 flex justify-between items-center bg-emerald-50/30">
-                    <h4 className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">Alertes de Retard</h4>
+                    <h4 className="text-[16px] font-black text-emerald-800 uppercase tracking-widest">Alertes de Retard</h4>
                     <button onClick={() => setShowNotifications(false)}><X size={14} className="text-gray-400" /></button>
                   </div>
                   <div className="max-h-96 overflow-y-auto">
@@ -489,25 +489,25 @@ export default function Dashboard({ session }) {
                         className="p-4 border-b border-emerald-50 hover:bg-emerald-50/50 cursor-pointer transition-colors"
                       >
                         <div className="flex justify-between items-start mb-1">
-                          <p className="text-xs font-black text-gray-800">{item.factures?.number}</p>
-                          <p className="text-[9px] font-black text-red-500 uppercase">{new Date(item.date_echeance).toLocaleDateString()}</p>
+                          <p className="text-base font-black text-gray-800">{item.factures?.number}</p>
+                          <p className="text-[15px] font-black text-red-500 uppercase">{new Date(item.date_echeance).toLocaleDateString()}</p>
                         </div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase truncate">
+                        <p className="text-[16px] font-bold text-gray-500 uppercase truncate">
                           {item.factures?.clients?.name || item.factures?.guest_name || 'Client Direct'}
                         </p>
-                        <p className="text-sm font-black text-emerald-600 mt-1">{item.montant.toLocaleString()} Ar</p>
+                        <p className="text-lg font-black text-emerald-600 mt-1">{item.montant.toLocaleString()} Ar</p>
                       </div>
                     )) : (
                       <div className="p-10 text-center">
                         <CheckCircle2 size={32} className="text-emerald-200 mx-auto mb-2" />
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Aucun retard détecté</p>
+                        <p className="text-[16px] font-bold text-gray-400 uppercase tracking-widest">Aucun retard détecté</p>
                       </div>
                     )}
                   </div>
                   {overdueList.length > 0 && (
                     <button 
                       onClick={() => { navigate('/dashboard/deadlines'); setShowNotifications(false); }}
-                      className="w-full py-3 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-colors"
+                      className="w-full py-3 bg-emerald-600 text-white text-[16px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-colors"
                     >
                       Voir tout l'échéancier
                     </button>
@@ -580,33 +580,33 @@ export default function Dashboard({ session }) {
                 {/* Recent Activity Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                   <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-6 shadow-sm">
-                    <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+                    <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                       <Package size={20} className="text-emerald-500" /> État du Stock
                     </h3>
-                    <p className="text-gray-400 text-sm text-center py-10">
+                    <p className="text-gray-400 text-lg text-center py-10">
                       {stats.stockAlerts > 0 
                         ? `Attention : ${stats.stockAlerts} produits sont en dessous du seuil critique.` 
                         : "Tout votre stock est actuellement suffisant."}
                     </p>
                     <button 
                       onClick={() => navigate('/dashboard/inventory')}
-                      className="w-full py-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm hover:bg-emerald-100 transition-colors"
+                      className="w-full py-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-100 transition-colors"
                     >
                       Gérer l'inventaire
                     </button>
                   </div>
                   <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl p-6 shadow-sm">
-                    <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+                    <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                       <Calendar size={20} className="text-emerald-500" /> Échéancier & Crédits
                     </h3>
-                    <p className="text-gray-400 text-sm text-center py-10">
+                    <p className="text-gray-400 text-lg text-center py-10">
                       {stats.pendingInvoices > 0 
                         ? `Vous avez ${stats.pendingInvoices} ventes à crédit en attente de paiement.` 
                         : "Toutes vos factures récentes sont réglées."}
                     </p>
                     <button 
                       onClick={() => navigate('/dashboard/deadlines')}
-                      className="w-full py-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm hover:bg-emerald-100 transition-colors"
+                      className="w-full py-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-100 transition-colors"
                     >
                       Voir l'échéancier
                     </button>
@@ -661,9 +661,9 @@ function NavItem({ icon, label, active = false, onClick, badge }) {
       }`}
     >
       {icon}
-      <span className="font-bold text-sm tracking-tight">{label}</span>
+      <span className="font-bold text-lg tracking-tight">{label}</span>
       {badge > 0 && (
-        <span className="absolute right-4 top-1/2 -translate-y-1/2 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full animate-bounce">
+        <span className="absolute right-4 top-1/2 -translate-y-1/2 bg-red-500 text-white text-[16px] font-black w-5 h-5 flex items-center justify-center rounded-full animate-bounce">
             {badge}
         </span>
       )}
@@ -678,14 +678,14 @@ function StatCard({ title, value, trend, icon, negative = false }) {
         <div className="w-10 h-10 bg-white/80 rounded-xl flex items-center justify-center shadow-sm">
           {icon}
         </div>
-        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md ${
+        <span className={`text-[15px] font-bold uppercase px-1.5 py-0.5 rounded-md ${
           negative ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'
         }`}>
           {trend}
         </span>
       </div>
-      <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">{title}</p>
-      <p className="text-lg font-black text-gray-800 mt-0.5">{value}</p>
+      <p className="text-[16px] font-medium text-gray-500 uppercase tracking-wide">{title}</p>
+      <p className="text-2xl font-black text-gray-800 mt-0.5">{value}</p>
     </div>
   );
 }
