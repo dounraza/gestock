@@ -230,7 +230,7 @@ export default function Dashboard({ session }) {
               <div className="space-y-1">
                 <NavItem icon={<LayoutDashboard size={20} />} label="Tableau de bord" active={activeTab === 'dashboard'} onClick={() => { navigate('/dashboard'); closeSidebar(); }} />
                 <NavItem icon={<ShoppingCart size={20} />} label="Caisse (POS)" active={activeTab === 'pos'} onClick={() => { navigate('/dashboard/pos'); closeSidebar(); }} />
-                <NavItem icon={<TrendingUp size={20} />} label="Analyse Ventes" active={activeTab === 'sales-analytics'} onClick={() => { navigate('/dashboard/sales-analytics'); closeSidebar(); }} />
+                <NavItem icon={<TrendingUp size={20} />} label="Résultat Journalière" active={activeTab === 'sales-analytics'} onClick={() => { navigate('/dashboard/sales-analytics'); closeSidebar(); }} />
               </div>
             </div>
 

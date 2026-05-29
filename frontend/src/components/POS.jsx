@@ -49,163 +49,6 @@ export default function POS({ session, selectedDepotId }) {
     return result.trim() || `${quantity} ${product.unite_base}`;
   };
 
-  // ... (inside the component return, at the end)
-
-      {/* Invoice Preview Modal */}
-      {previewInvoice && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 print:hidden">
-          <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="font-black text-gray-800">Prévisualisation de la facture</h3>
-              <div className="flex gap-2">
-                <button onClick={() => setPreviewInvoice(null)} className="px-4 py-2 text-lg font-bold text-gray-500">Fermer</button>
-                <button onClick={() => window.print()} className="px-6 py-2 bg-emerald-600 text-white font-black rounded-xl text-lg">Imprimer</button>
-              </div>
-            </div>
-            <div className="p-10 overflow-y-auto flex-1 print:p-0">
-                <div id="printable-invoice" className="text-gray-800">
-                    <div className="grid grid-cols-2 gap-4 mb-8">
-                        <div>
-                            <p className="text-base uppercase font-bold text-gray-400">Facture #</p>
-                            <p className="font-bold">{previewInvoice.id.slice(0,8).toUpperCase()}</p>
-                        </div>
-                        <div>
-                            <p className="text-base uppercase font-bold text-gray-400">Date :</p>
-                            <p className="font-bold">{new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                        </div>
-                    </div>
-                    <div className="border-t border-b border-gray-200 py-4 mb-4">
-                        <table className="w-full text-left text-lg border-collapse">
-                            <thead>
-                                <tr className="border-b border-gray-200 text-gray-500 text-[16px] uppercase">
-                                    <th className="py-2">Désignation</th>
-                                    <th className="py-2 text-center">Qté</th>
-                                    <th className="py-2 text-right">P.U</th>
-                                    <th className="py-2 text-center">Remise</th>
-                                    <th className="py-2 text-right">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {invoiceItems.map(item => (
-                                    <tr key={item.item_id} className="border-b border-gray-50">
-                                        <td className="py-2 font-bold">{item.name}</td>
-                                        <td className="py-2 text-center text-base">({formatQuantity(item.quantity, item)})</td>
-                                        <td className="py-2 text-right text-base">
-                                            {item.unit_price.toLocaleString()} Ar
-                                            {item.price_superior && <div className="text-[15px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
-                                        </td>
-                                        <td className="py-2 text-center text-orange-600 font-bold">
-                                            {item.discount ? `${item.discount.value}` : '-'}
-                                        </td>
-                                        <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        <div className="flex justify-between font-black text-2xl pt-4">
-                            <span>Total</span>
-                            <span>{parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</span>
-                        </div>
-                    </div>
-
-                    {isWithdrawal && (
-                      <div className="mt-10 break-before-page">
-                          <div className="flex justify-between items-start mb-6">
-                            <div>
-                                <h2 className="text-3xl font-black text-emerald-800">Bon d'enlèvement</h2>
-                                <p className="text-lg font-bold text-gray-600">N° BE-{previewInvoice.number.split('-')[1] || previewInvoice.number}</p>
-                            </div>
-                            <div className="text-right text-[16px] font-bold">
-                                <p>Client: {clientName || '---'}</p>
-                            </div>
-                          </div>
-                          <div className="border border-gray-200 rounded-lg p-4">
-                              <table className="w-full text-left text-lg border-collapse">
-                                  <thead>
-                                      <tr className="border-b border-gray-200 text-gray-500 text-[16px] uppercase">
-                                          <th className="py-2">Désignation</th>
-                                          <th className="py-2 text-center">Qté</th>
-                                          <th className="py-2 text-center">Remise</th>
-
-                                          <th className="py-2 text-right">P.U / Sup</th>
-                                      </tr>
-                                  </thead>
-                                  <tbody>
-                                      {invoiceItems.map(item => (
-                                          <tr key={item.item_id} className="border-b border-gray-50">
-                                              <td className="py-2 font-bold">{item.name}</td>
-                                              <td className="py-2 text-center text-base">({formatQuantity(item.quantity, item)})</td>
-                                              <td className="py-2 text-center text-base">
-                                                  {item.discount ? `${item.discount.value}${item.discount.type}` : '-'}
-                                              </td>
-                                              <td className="py-2 text-right text-base">
-                                                {item.unit_price.toLocaleString()} Ar
-                                                {item.price_superior && <div className="text-[15px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
-                                              </td>
-                                          </tr>
-                                      ))}
-                                  </tbody>
-                              </table>
-                          </div>
-                          <div className="mt-10 grid grid-cols-2 gap-20 text-center text-[16px] font-bold">
-                            <div>Magasinier<br/><br/><br/>____________________</div>
-                            <div>Client<br/><br/><br/>____________________</div>
-                          </div>
-                      </div>
-                    )}
-
-                    {isOther && (
-                      <div className="mt-10 break-before-page">
-                          <div className="flex justify-between items-start mb-6">
-                            <div>
-                                <h2 className="text-3xl font-black text-emerald-800">Bon de livraison</h2>
-                                <p className="text-lg font-bold text-gray-600">N° BL-{previewInvoice.number.split('-')[1] || previewInvoice.number}</p>
-                            </div>
-                            <div className="text-right text-[16px] font-bold">
-                                <p>Client: {clientName || '---'}</p>
-                            </div>
-                          </div>
-                          <div className="border border-gray-200 rounded-lg p-4">
-                              <table className="w-full text-left text-lg border-collapse">
-                                  <thead>
-                                      <tr className="border-b border-gray-200 text-gray-500 text-[16px] uppercase">
-                                          <th className="py-2">Désignation</th>
-                                          <th className="py-2 text-center">Qté</th>
-                                          <th className="py-2 text-center">Remise</th>
-
-                                          <th className="py-2 text-right">P.U / Sup</th>
-                                      </tr>
-                                  </thead>
-                                  <tbody>
-                                      {invoiceItems.map(item => (
-                                          <tr key={item.item_id} className="border-b border-gray-50">
-                                              <td className="py-2 font-bold">{item.name}</td>
-                                              <td className="py-2 text-center text-base">({formatQuantity(item.quantity, item)})</td>
-                                                <td className="py-2 text-center text-orange-600 font-bold">
-                                            {item.discount ? `${item.discount.value}` : '-'}
-                                        </td>
-
-                                              <td className="py-2 text-right text-base">
-                                                {item.unit_price.toLocaleString()} Ar                                                
-                                                {item.price_superior && <div className="text-[15px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
-                                              </td>
-                                          </tr>
-                                      ))}
-                                  </tbody>
-                              </table>
-                          </div>
-                          <div className="mt-10 grid grid-cols-2 gap-20 text-center text-[16px] font-bold">
-                            <div>Livreur<br/><br/><br/>____________________</div>
-                            <div>Client<br/><br/><br/>____________________</div>
-                          </div>
-                      </div>
-                    )}
-                </div>
-            </div>
-          </div>
-        </div>
-      )}
-
   const handleMouseDown = (e) => {
     setIsDragging(true);
     dragStart.current = { x: e.clientX - calculatorPos.x, y: e.clientY - calculatorPos.y };
@@ -675,7 +518,7 @@ export default function POS({ session, selectedDepotId }) {
                    </div>
                </div>
             )}
-            <button onClick={handleFinalize} disabled={isProcessing} className="w-full mt-auto py-1.5 bg-emerald-600 text-white font-black rounded-lg text-[15px] uppercase tracking-wider flex items-center justify-center gap-1">
+            <button onClick={handleFinalize} disabled={isProcessing} className="w-full mt-4 py-1.5 bg-emerald-600 text-white font-black rounded-lg text-[15px] uppercase tracking-wider flex items-center justify-center gap-1">
                {isProcessing ? <Loader2 className="animate-spin" size={12} /> : 'FINALISER'}
             </button>          </div>        </div>
 
@@ -801,7 +644,10 @@ export default function POS({ session, selectedDepotId }) {
                         </div>
                     </div>
                     
-                    <h2 className="text-3xl font-black text-gray-800 mb-4">Facture # {previewInvoice.number}</h2>
+                    <h2 className="text-3xl font-black text-gray-800 mb-2">Facture # {previewInvoice.number}</h2>
+                    <p className="text-base font-bold text-gray-400 uppercase mb-4 tracking-widest">
+                        Date: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </p>
                     <div className="border-t border-b border-gray-200 py-4 mb-4">
                         <table className="w-full text-left text-lg border-collapse">
                             <thead>

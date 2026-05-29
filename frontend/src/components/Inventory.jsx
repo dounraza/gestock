@@ -66,8 +66,8 @@ export default function Inventory({ selectedDepotId }) {
                             <p className="font-bold">{previewInvoice.fournisseurs?.name}</p>
                         </div>
                         <div>
-                            <p className="text-base uppercase font-bold text-gray-400">Date</p>
-                            <p className="font-bold">{new Date(previewInvoice.bl_date).toLocaleDateString()}</p>
+                            <p className="text-base uppercase font-bold text-gray-400">Date & Heure</p>
+                            <p className="font-bold">{new Date(previewInvoice.bl_date).toLocaleDateString()} {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                         </div>
                     </div>
                     <div className="border-t border-b border-gray-200 py-4 mb-4">
@@ -883,25 +883,25 @@ export default function Inventory({ selectedDepotId }) {
                       <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
                         <Package size={20} />
                       </div>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-1.5">
                         <button 
                           onClick={() => {setSelectedProductForStock(p); setShowStockModal(true);}} 
-                          className="p-1.5 text-gray-400 hover:text-emerald-600 transition-colors"
+                          className="p-1.5 text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
                           title="Gérer le stock"
                         >
                           <Warehouse size={14} />
                         </button>
                         <button 
                           onClick={() => {setSelectedProductForHistory(p); setStockHistoryModal(true);}} 
-                          className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                          className="p-1.5 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                           title="Historique des mouvements"
                         >
                           <History size={14} />
                         </button>
-                        <button onClick={() => handleEdit(p)} className="p-1.5 text-gray-400 hover:text-emerald-600 transition-colors">
+                        <button onClick={() => handleEdit(p)} className="p-1.5 text-amber-600 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">
                           <Edit2 size={14} />
                         </button>
-                        <button onClick={() => deleteProduct(p.id)} className="p-1.5 text-gray-400 hover:text-red-600 transition-colors">
+                        <button onClick={() => deleteProduct(p.id)} className="p-1.5 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -960,40 +960,40 @@ export default function Inventory({ selectedDepotId }) {
               <div className="overflow-auto flex-1">
                 <table className="w-full text-left border-collapse sticky-header">
                   <thead className="sticky top-0 z-20 bg-emerald-50 shadow-sm">
-                    <tr className="text-[16px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">
-                      <th className="p-4 pl-6">Produit</th>
-                      <th className="p-4">Catégorie</th>
-                      <th className="p-4">Stock</th>
-                      <th className="p-4">Prix</th>
-                      <th className="p-4 pr-6 text-right">Actions</th>
+                    <tr className="text-[14px] font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-100">
+                      <th className="py-2 px-4 pl-6">Produit</th>
+                      <th className="py-2 px-4">Catégorie</th>
+                      <th className="py-2 px-4">Stock</th>
+                      <th className="py-2 px-4">Prix</th>
+                      <th className="py-2 px-4 pr-6 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-emerald-50">
                     {filteredProducts.map((p) => (
-                      <tr key={p.id} className="hover:bg-emerald-50/10 transition-colors text-lg group">
-                        <td className="p-4 pl-6">
+                      <tr key={p.id} className="hover:bg-emerald-50/10 transition-colors text-base group">
+                        <td className="py-2 px-4 pl-6">
                           <div className="font-bold text-gray-800">{p.name}</div>
                         </td>
-                        <td className="p-4">
-                          <span className="text-base bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-bold">{p.categories?.name || '-'}</span>
+                        <td className="py-2 px-4">
+                          <span className="text-[13px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-bold">{p.categories?.name || '-'}</span>
                         </td>
-                        <td className="p-4">
+                        <td className="py-2 px-4">
                           <span className={`font-bold ${p.stock_quantity < 10 ? 'text-red-600' : 'text-emerald-600'}`}>
                             {formatStock(p.stock_quantity, p)}
                           </span>
                         </td>
-                        <td className="p-4">
-                          <div className="font-bold text-gray-800">{Number(p.price).toLocaleString('fr-MG')} MGA <span className="text-[16px] text-gray-400">/{p.unite_base}</span></div>
+                        <td className="py-2 px-4">
+                          <div className="font-bold text-gray-800 text-base">{Number(p.price).toLocaleString('fr-MG')} Ar <span className="text-[13px] text-gray-400">/{p.unite_base}</span></div>
                           {p.price_superior > 0 && (
-                            <div className="text-base font-bold text-emerald-600">{Number(p.price_superior).toLocaleString('fr-MG')} MGA <span className="text-[16px] text-emerald-400">/{p.unite_superieure}</span></div>
+                            <div className="text-[13px] font-bold text-emerald-600">{Number(p.price_superior).toLocaleString('fr-MG')} Ar <span className="text-[13px] text-gray-400">/{p.unite_superieure}</span></div>
                           )}
                         </td>
-                        <td className="p-4 pr-6 text-right">
-                          <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => {setSelectedProductForStock(p); setShowStockModal(true);}} className="p-2 text-gray-400 hover:text-emerald-600 transition-colors" title="Gérer le stock"><Warehouse size={16} /></button>
-                            <button onClick={() => {setSelectedProductForHistory(p); setStockHistoryModal(true);}} className="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="Historique"><History size={16} /></button>
-                            <button onClick={() => handleEdit(p)} className="p-2 text-gray-400 hover:text-emerald-600 transition-colors" title="Modifier"><Edit2 size={16} /></button>
-                            <button onClick={() => deleteProduct(p.id)} className="p-2 text-gray-400 hover:text-red-600 transition-colors" title="Supprimer"><Trash2 size={16} /></button>
+                        <td className="py-2 px-4 pr-6 text-right">
+                          <div className="flex justify-end gap-1.5">
+                            <button onClick={() => {setSelectedProductForStock(p); setShowStockModal(true);}} className="p-1.5 text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors" title="Gérer le stock"><Warehouse size={14} /></button>
+                            <button onClick={() => {setSelectedProductForHistory(p); setStockHistoryModal(true);}} className="p-1.5 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors" title="Historique"><History size={14} /></button>
+                            <button onClick={() => handleEdit(p)} className="p-1.5 text-amber-600 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors" title="Modifier"><Edit2 size={14} /></button>
+                            <button onClick={() => deleteProduct(p.id)} className="p-1.5 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors" title="Supprimer"><Trash2 size={14} /></button>
                           </div>
                         </td>
                       </tr>
@@ -1033,19 +1033,19 @@ export default function Inventory({ selectedDepotId }) {
             ) : stockMovements.filter(m => !selectedMovementProduct || m.product_id === selectedMovementProduct).length > 0 ? (
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="text-[16px] uppercase text-emerald-700 border-b border-emerald-100">
-                    <th className="p-3">Produit</th>
-                    <th className="p-3 text-center">In (Entrée)</th>
-                    <th className="p-3 text-center">Out (Sortie)</th>
-                    <th className="p-3">Date</th>
-                    <th className="p-3">Raison</th>
+                  <tr className="text-[14px] font-black uppercase text-emerald-700 border-b border-emerald-100">
+                    <th className="py-2 px-3">Produit</th>
+                    <th className="py-2 px-3 text-center">In (Entrée)</th>
+                    <th className="py-2 px-3 text-center">Out (Sortie)</th>
+                    <th className="py-2 px-3">Date</th>
+                    <th className="py-2 px-3">Raison</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-emerald-50">
                   {stockMovements.filter(m => !selectedMovementProduct || m.product_id === selectedMovementProduct).map(m => (
-                    <tr key={m.id} className="text-base hover:bg-emerald-50/30">
-                      <td className="p-3 font-bold text-gray-800">{m.products?.name}</td>
-                      <td className="p-3 text-center text-emerald-600 font-black">
+                    <tr key={m.id} className="text-[15px] hover:bg-emerald-50/30">
+                      <td className="py-1 px-3 font-bold text-gray-800">{m.products?.name}</td>
+                      <td className="py-1 px-3 text-center text-emerald-600 font-black">
                         {m.type === 'in' ? (
                           <input 
                             type="number" 
@@ -1055,7 +1055,7 @@ export default function Inventory({ selectedDepotId }) {
                           />
                         ) : '-'}
                       </td>
-                      <td className="p-3 text-center text-orange-600 font-black">
+                      <td className="py-1 px-3 text-center text-orange-600 font-black">
                         {m.type === 'out' ? (
                           <input 
                             type="number" 
@@ -1065,8 +1065,8 @@ export default function Inventory({ selectedDepotId }) {
                           />
                         ) : '-'}
                       </td>
-                      <td className="p-3 text-gray-500">{new Date(m.created_at).toLocaleDateString()}</td>
-                      <td className="p-3 text-gray-500 italic">{m.reason}</td>
+                      <td className="py-1 px-3 text-gray-500">{new Date(m.created_at).toLocaleDateString()}</td>
+                      <td className="py-1 px-3 text-gray-500 italic">{m.reason}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1080,57 +1080,60 @@ export default function Inventory({ selectedDepotId }) {
 
       {/* Product Management Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-900/20 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-emerald-50 flex justify-between items-center">
-              <h3 className="text-3xl font-bold text-gray-800">
-                {editingProduct ? 'Modifier le PPN' : 'Ajouter un nouveau PPN'}
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-900/20 backdrop-blur-sm p-2 sm:p-4">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+            <div className="p-5 border-b border-emerald-50 flex justify-between items-center bg-emerald-50/20">
+              <h3 className="text-2xl font-black text-gray-800 uppercase tracking-tight">
+                {editingProduct ? 'Modifier le PPN' : 'Ajouter un PPN'}
               </h3>
-              <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 text-3xl">&times;</button>
+              <button onClick={resetForm} className="w-8 h-8 flex items-center justify-center rounded-full bg-white shadow-sm text-gray-400 hover:text-red-500 transition-all text-2xl">&times;</button>
             </div>
-            <form onSubmit={handleSave} className="p-8 space-y-6">
-              <input required placeholder="Nom du produit" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-emerald-500/20" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+            <form onSubmit={handleSave} className="p-6 space-y-4 overflow-y-auto custom-scrollbar">
+              <div className="space-y-1">
+                <label className="text-[14px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Désignation</label>
+                <input required placeholder="Nom du produit" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              </div>
               
-              <div className="space-y-4">
-                <h4 className="text-[16px] font-black text-gray-400 uppercase tracking-widest">Configuration & Stock</h4>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <h4 className="text-[14px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-50 pb-1">Configuration & Stock</h4>
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">Stock actuel</label>
-                    <input required type="number" placeholder="Quantité" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none" value={formData.stock_quantity} onChange={e => setFormData({...formData, stock_quantity: e.target.value})} />
+                    <label className="text-[14px] font-bold text-gray-400 uppercase ml-1">Stock actuel</label>
+                    <input required type="number" placeholder="Quantité" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold" value={formData.stock_quantity} onChange={e => setFormData({...formData, stock_quantity: e.target.value})} />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">Unité Standard</label>
-                    <select className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none text-lg text-gray-600" value={formData.unite_standard_id || ''} onChange={e => handleUniteStandardChange(e.target.value)}>
+                    <label className="text-[14px] font-bold text-gray-400 uppercase ml-1">Unité Standard</label>
+                    <select className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none text-base font-bold text-gray-600" value={formData.unite_standard_id || ''} onChange={e => handleUniteStandardChange(e.target.value)}>
                       <option value="">Aucune</option>
                       {unites.map(u => <option key={u.id} value={u.id}>{u.nom}</option>)}
                     </select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">
+                    <label className="text-[14px] font-bold text-gray-400 uppercase ml-1">
                       Prix / {formData.unite_base || 'unité'}
                     </label>
-                    <input required type="number" placeholder="Prix Unité" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
+                    <input required type="number" placeholder="Prix Unité" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">
-                      Prix / {formData.unite_superieure || 'unité sup.'}
+                    <label className="text-[14px] font-bold text-gray-400 uppercase ml-1">
+                      Prix / {formData.unite_superieure || 'sup.'}
                     </label>
-                    <input type="number" placeholder="Prix Supérieur" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none" value={formData.price_superior} onChange={e => setFormData({...formData, price_superior: e.target.value})} />
+                    <input type="number" placeholder="Prix Supérieur" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold text-emerald-600" value={formData.price_superior} onChange={e => setFormData({...formData, price_superior: e.target.value})} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">Catégorie</label>
-                    <select className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none text-lg text-gray-600" value={formData.category_id} onChange={e => setFormData({...formData, category_id: e.target.value})}>
+                    <label className="text-[14px] font-bold text-gray-400 uppercase ml-1">Catégorie</label>
+                    <select className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none text-base font-bold text-gray-600" value={formData.category_id} onChange={e => setFormData({...formData, category_id: e.target.value})}>
                       <option value="">Sélectionner...</option>
                       {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">Fournisseur</label>
-                    <select className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none text-lg text-gray-600" value={formData.fournisseur_id} onChange={e => setFormData({...formData, fournisseur_id: e.target.value})}>
+                    <label className="text-[14px] font-bold text-gray-400 uppercase ml-1">Fournisseur</label>
+                    <select className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none text-base font-bold text-gray-600" value={formData.fournisseur_id} onChange={e => setFormData({...formData, fournisseur_id: e.target.value})}>
                       <option value="">Sélectionner...</option>
                       {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
@@ -1138,26 +1141,35 @@ export default function Inventory({ selectedDepotId }) {
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4 border-t border-gray-100">
-                <h4 className="text-[16px] font-black text-gray-400 uppercase tracking-widest">Paramètres de conditionnement</h4>
-                <div className="grid grid-cols-3 gap-3">
-                  <input type="number" readOnly={!!formData.unite_standard_id} placeholder="Qté/unité" className={`w-full ${formData.unite_standard_id ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-gray-50'} border-0 rounded-2xl px-4 py-3 outline-none`} value={formData.quantite_par_unite} onChange={e => setFormData({...formData, quantite_par_unite: e.target.value})} />
-                  <input type="text" readOnly={!!formData.unite_standard_id} placeholder="Unité base" className={`w-full ${formData.unite_standard_id ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-gray-50'} border-0 rounded-2xl px-4 py-3 outline-none`} value={formData.unite_base} onChange={e => setFormData({...formData, unite_base: e.target.value})} />
-                  <input type="text" readOnly={!!formData.unite_standard_id} placeholder="Unité sup" className={`w-full ${formData.unite_standard_id ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-gray-50'} border-0 rounded-2xl px-4 py-3 outline-none`} value={formData.unite_superieure} onChange={e => setFormData({...formData, unite_superieure: e.target.value})} />
+              <div className="space-y-3 pt-3">
+                <h4 className="text-[14px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-50 pb-1">Conditionnement</h4>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[13px] font-bold text-gray-400 uppercase ml-1">Qté/unité</label>
+                    <input type="number" readOnly={!!formData.unite_standard_id} className={`w-full ${formData.unite_standard_id ? 'bg-gray-100' : 'bg-gray-50'} border-0 rounded-xl px-3 py-2 outline-none font-bold`} value={formData.quantite_par_unite} onChange={e => setFormData({...formData, quantite_par_unite: e.target.value})} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[13px] font-bold text-gray-400 uppercase ml-1">Unité base</label>
+                    <input type="text" readOnly={!!formData.unite_standard_id} className={`w-full ${formData.unite_standard_id ? 'bg-gray-100' : 'bg-gray-50'} border-0 rounded-xl px-3 py-2 outline-none font-bold`} value={formData.unite_base} onChange={e => setFormData({...formData, unite_base: e.target.value})} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[13px] font-bold text-gray-400 uppercase ml-1">Unité sup</label>
+                    <input type="text" readOnly={!!formData.unite_standard_id} className={`w-full ${formData.unite_standard_id ? 'bg-gray-100' : 'bg-gray-50'} border-0 rounded-xl px-3 py-2 outline-none font-bold`} value={formData.unite_superieure} onChange={e => setFormData({...formData, unite_superieure: e.target.value})} />
+                  </div>
                 </div>
               </div>
               
               {formData.unite_standard_id && formData.stock_quantity && (
-                <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 text-center">
-                  <p className="text-[16px] uppercase font-black text-emerald-600 tracking-widest">Stock total converti</p>
-                  <p className="text-3xl font-black text-emerald-900 mt-1">
+                <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-center">
+                  <p className="text-[13px] uppercase font-black text-emerald-600 tracking-widest">Conversion</p>
+                  <p className="text-xl font-black text-emerald-900">
                     {parseInt(formData.stock_quantity) * (unites.find(u => u.id === formData.unite_standard_id)?.facteur || 1)} 
-                    <span className="text-lg font-bold ml-1">{unites.find(u => u.id === formData.unite_standard_id)?.unite_mesure}</span>
+                    <span className="text-base font-bold ml-1">{unites.find(u => u.id === formData.unite_standard_id)?.unite_mesure}</span>
                   </p>
                 </div>
               )}
 
-              <button type="submit" disabled={isSubmitting} className="w-full bg-gray-900 text-white font-bold py-4 rounded-2xl shadow-lg mt-4 active:scale-[0.98] transition-all">
+              <button type="submit" disabled={isSubmitting} className="w-full bg-emerald-600 text-white font-black py-4 rounded-xl shadow-lg shadow-emerald-100 mt-2 active:scale-[0.98] transition-all uppercase tracking-widest text-base">
                 {isSubmitting ? <Loader2 className="animate-spin mx-auto" size={20} /> : (editingProduct ? "Mettre à jour" : "Enregistrer")}
               </button>
             </form>

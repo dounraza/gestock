@@ -420,7 +420,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
           </div>
           <h2 style="font-size: 32px; font-weight: 900; color: #e5e7eb; margin: 0; text-transform: uppercase;">FACTURE</h2>
           <p style="font-size: 18px; font-weight: 900; color: #1f2937; margin: 5px 0;">${inv.number}</p>
-          <p style="font-size: 14px; font-weight: 700; color: #6b7280; margin: 5px 0;">Date: ${new Date(inv.created_at).toLocaleDateString('fr-FR')}</p>
+          <p style="font-size: 14px; font-weight: 700; color: #6b7280; margin: 5px 0;">Date & Heure: ${new Date(inv.created_at).toLocaleDateString('fr-FR')} ${new Date(inv.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</p>
         </div>
       </div>
 

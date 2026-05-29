@@ -53,6 +53,16 @@ export default function StockEntry() {
     unit: 'base'
   });
 
+  // Quick Product Creation States
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [unites, setUnites] = useState([]);
+  const [productFormData, setProductFormData] = useState({
+    name: '', price: '', price_superior: '', category_id: '', fournisseur_id: '', description: '',
+    unite_base: 'unité', unite_superieure: '', quantite_par_unite: 1,
+    unite_standard_id: ''
+  });
+
   useEffect(() => {
     fetchData();
   }, [activeTab, startDate, endDate]);
@@ -89,22 +99,29 @@ export default function StockEntry() {
   const fetchSuppliersAndProducts = async () => {
     try {
       setIsSubmitting(true);
-      console.log("StockEntry: Fetching suppliers, products and depots...");
-      const [sRes, pRes, dRes] = await Promise.all([
+      console.log("StockEntry: Fetching suppliers, products, depots, categories and units...");
+      const [sRes, pRes, dRes, cRes, uRes] = await Promise.all([
         supabase.from('fournisseurs').select('*').order('name'),
         supabase.from('produits').select('*').order('name'),
-        supabase.from('depots').select('*').order('name')
+        supabase.from('depots').select('*').order('name'),
+        supabase.from('categories').select('*').order('name'),
+        supabase.from('unites_standards').select('*').order('nom')
       ]);
 
       if (sRes.error) throw sRes.error;
       if (pRes.error) throw pRes.error;
       if (dRes.error) throw dRes.error;
+      if (cRes.error) throw cRes.error;
+      if (uRes.error) throw uRes.error;
 
       if (sRes.data) setSuppliers(sRes.data);
       if (pRes.data) {
         console.log("StockEntry: Products loaded:", pRes.data.length);
         setProducts(pRes.data);
       }
+      if (cRes.data) setCategories(cRes.data);
+      if (uRes.data) setUnites(uRes.data);
+      
       if (dRes.data) {
         setDepots(dRes.data);
         const principal = dRes.data.find(dep => dep.name.toLowerCase().includes('principal')) || dRes.data[0];
@@ -329,6 +346,70 @@ export default function StockEntry() {
     }
   };
 
+  const handleUniteStandardChange = (unitId) => {
+    const selectedUnit = unites.find(u => u.id === unitId);
+    if (selectedUnit) {
+      setProductFormData(prev => ({
+        ...prev,
+        unite_standard_id: unitId,
+        unite_base: selectedUnit.unite_mesure,
+        unite_superieure: selectedUnit.nom,
+        quantite_par_unite: selectedUnit.facteur
+      }));
+    } else {
+      setProductFormData(prev => ({ ...prev, unite_standard_id: '' }));
+    }
+  };
+
+  const handleSaveProduct = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      const payload = {
+        name: productFormData.name,
+        price: parseFloat(productFormData.price) || 0,
+        price_superior: parseFloat(productFormData.price_superior) || 0,
+        category_id: productFormData.category_id || null,
+        fournisseur_id: productFormData.fournisseur_id || null,
+        description: productFormData.description || '',
+        quantite_par_unite: parseInt(productFormData.quantite_par_unite) || 1,
+        unite_base: productFormData.unite_base || 'unité',
+        unite_superieure: productFormData.unite_superieure || '',
+        unite_standard_id: (productFormData.unite_standard_id && productFormData.unite_standard_id !== "") ? productFormData.unite_standard_id : null
+      };
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert("Vous devez être connecté.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const { data: newProduct, error } = await supabase.from('produits').insert([{ 
+        ...payload, 
+        user_id: user.id
+      }]).select().single();
+
+      if (error) throw error;
+
+      await fetchSuppliersAndProducts();
+      setNewItem(prev => ({ ...prev, product_id: newProduct.id, purchase_price_per_unit: '' }));
+      setShowProductModal(false);
+      setProductFormData({
+        name: '', price: '', price_superior: '', category_id: '', fournisseur_id: '', description: '',
+        unite_base: 'unité', unite_superieure: '', quantite_par_unite: 1,
+        unite_standard_id: ''
+      });
+      
+      alert("Produit créé et sélectionné !");
+    } catch (err) {
+      alert("Erreur lors de la création du produit : " + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -517,9 +598,18 @@ export default function StockEntry() {
 
                 {/* Add Items Form */}
                 <div className="bg-emerald-50/20 p-5 md:p-6 rounded-3xl border border-emerald-50/50">
-                  <h4 className="text-base font-bold text-emerald-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <Plus size={14} className="text-emerald-500" /> Ajouter des articles
-                  </h4>
+                  <div className="flex justify-between items-center mb-6">
+                    <h4 className="text-base font-bold text-emerald-900 uppercase tracking-widest flex items-center gap-2">
+                      <Plus size={14} className="text-emerald-500" /> Ajouter des articles
+                    </h4>
+                    <button 
+                      type="button"
+                      onClick={() => setShowProductModal(true)}
+                      className="text-[14px] font-black text-emerald-600 uppercase tracking-widest bg-white px-4 py-1.5 rounded-xl border border-emerald-100 shadow-sm hover:bg-emerald-50 transition-all"
+                    >
+                      + Nouveau Produit
+                    </button>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                     <div className="md:col-span-2 space-y-1">
                       <label className="text-[15px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">Produit</label>
@@ -772,6 +862,90 @@ export default function StockEntry() {
           </div>
         )}
       </div>
+
+      {/* Product Quick Creation Modal */}
+      {showProductModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-emerald-900/20 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 border border-emerald-100">
+            <div className="p-8 border-b border-emerald-50 flex justify-between items-center bg-emerald-50/20">
+              <h3 className="text-2xl font-bold text-emerald-900 uppercase tracking-widest">
+                Nouveau Produit
+              </h3>
+              <button 
+                onClick={() => setShowProductModal(false)} 
+                className="w-8 h-8 flex items-center justify-center rounded-xl bg-white text-gray-400 hover:text-red-500 shadow-sm transition-all"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveProduct} className="p-8 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
+              <div className="space-y-1">
+                <label className="text-[15px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Nom du produit</label>
+                <input required placeholder="Ex: Riz Luxe" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-emerald-500/20 text-lg font-bold" value={productFormData.name} onChange={e => setProductFormData({...productFormData, name: e.target.value})} />
+              </div>
+              
+              <div className="space-y-4">
+                <h4 className="text-[16px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-50 pb-2">Vente & Catégorie</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1">Prix Vente / Unité</label>
+                    <input required type="number" placeholder="0" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none font-bold" value={productFormData.price} onChange={e => setProductFormData({...productFormData, price: e.target.value})} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1">Prix Vente / Sup.</label>
+                    <input type="number" placeholder="0" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none font-bold text-emerald-600" value={productFormData.price_superior} onChange={e => setProductFormData({...productFormData, price_superior: e.target.value})} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1">Catégorie</label>
+                    <select className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none text-base font-bold text-gray-600" value={productFormData.category_id} onChange={e => setProductFormData({...productFormData, category_id: e.target.value})}>
+                      <option value="">Sélectionner...</option>
+                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1">Fournisseur</label>
+                    <select className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none text-base font-bold text-gray-600" value={productFormData.fournisseur_id} onChange={e => setProductFormData({...productFormData, fournisseur_id: e.target.value})}>
+                      <option value="">Sélectionner...</option>
+                      {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4">
+                <h4 className="text-[16px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-50 pb-2">Conditionnement</h4>
+                <div className="space-y-1 mb-4">
+                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1">Unité Standard (Optionnel)</label>
+                    <select className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none text-base font-bold text-gray-600" value={productFormData.unite_standard_id || ''} onChange={e => handleUniteStandardChange(e.target.value)}>
+                      <option value="">Aucune (Manuel)</option>
+                      {unites.map(u => <option key={u.id} value={u.id}>{u.nom}</option>)}
+                    </select>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[13px] font-bold text-gray-400 uppercase ml-1">Qté/unité</label>
+                    <input type="number" readOnly={!!productFormData.unite_standard_id} className={`w-full ${productFormData.unite_standard_id ? 'bg-gray-100' : 'bg-gray-50'} border-0 rounded-xl px-4 py-3 outline-none font-bold`} value={productFormData.quantite_par_unite} onChange={e => setProductFormData({...productFormData, quantite_par_unite: e.target.value})} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[13px] font-bold text-gray-400 uppercase ml-1">Unité base</label>
+                    <input type="text" readOnly={!!productFormData.unite_standard_id} className={`w-full ${productFormData.unite_standard_id ? 'bg-gray-100' : 'bg-gray-50'} border-0 rounded-xl px-4 py-3 outline-none font-bold`} value={productFormData.unite_base} onChange={e => setProductFormData({...productFormData, unite_base: e.target.value})} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[13px] font-bold text-gray-400 uppercase ml-1">Unité sup</label>
+                    <input type="text" readOnly={!!productFormData.unite_standard_id} className={`w-full ${productFormData.unite_standard_id ? 'bg-gray-100' : 'bg-gray-50'} border-0 rounded-xl px-4 py-3 outline-none font-bold`} value={productFormData.unite_superieure} onChange={e => setProductFormData({...productFormData, unite_superieure: e.target.value})} />
+                  </div>
+                </div>
+              </div>
+              
+              <button type="submit" disabled={isSubmitting} className="w-full bg-emerald-600 text-white font-black py-5 rounded-2xl shadow-lg shadow-emerald-100 mt-4 active:scale-[0.98] transition-all uppercase tracking-[0.2em]">
+                {isSubmitting ? <Loader2 className="animate-spin mx-auto" size={24} /> : "Créer le Produit"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @media print {
