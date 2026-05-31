@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
-import { Calendar, Filter, FileText, User } from 'lucide-react';
+import { Calendar, Filter, FileText, User, TrendingUp, ShoppingCart, Clock } from 'lucide-react';
 import { logAction } from '../utils/audit';
 
 export default function SalesDashboard() {
@@ -14,9 +14,60 @@ export default function SalesDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  const [financialStats, setFinancialStats] = useState({
+    sales: { global: 0, monthly: 0, daily: 0 },
+    purchases: { global: 0, monthly: 0, daily: 0 }
+  });
+
   useEffect(() => {
     fetchSales();
+    fetchFinancialStats();
   }, [filterDate]);
+
+  const fetchFinancialStats = async () => {
+    const today = new Date();
+    const startOfToday = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+    const endOfToday = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+    
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
+    
+    try {
+      // SALES
+      const { data: salesData } = await supabase
+        .from('factures')
+        .select('total_amount, created_at')
+        .neq('status', 'cancelled')
+        .neq('status', 'draft');
+
+      const salesStats = { global: 0, monthly: 0, daily: 0 };
+      salesData?.forEach(s => {
+        const amt = parseFloat(s.total_amount) || 0;
+        salesStats.global += amt;
+        if (s.created_at >= startOfMonth) salesStats.monthly += amt;
+        if (s.created_at >= startOfToday && s.created_at <= endOfToday) salesStats.daily += amt;
+      });
+
+      // PURCHASES
+      const { data: purchaseData } = await supabase
+        .from('delivery_notes')
+        .select('total_amount, bl_date');
+
+      const purchaseStats = { global: 0, monthly: 0, daily: 0 };
+      purchaseData?.forEach(p => {
+        const amt = parseFloat(p.total_amount) || 0;
+        purchaseStats.global += amt;
+        if (p.bl_date >= startOfMonth) purchaseStats.monthly += amt;
+        if (p.bl_date >= startOfToday && p.bl_date <= endOfToday) purchaseStats.daily += amt;
+      });
+
+      setFinancialStats({
+        sales: salesStats,
+        purchases: purchaseStats
+      });
+    } catch (err) {
+      console.error("Error fetching financial stats:", err);
+    }
+  };
 
   // Logic for filtering and pagination
   const filteredSales = useMemo(() => {
@@ -145,18 +196,80 @@ const handleCancelInvoice = async (invoice) => {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Financial Summaries */}
+      <div className="space-y-6 mb-8">
+        {/* Sales Summary */}
+        <div>
+          <h2 className="text-xl font-black text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <TrendingUp className="text-emerald-600" size={24} /> Résumé des Ventes
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-emerald-600 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <TrendingUp size={80} />
+                </div>
+                <h3 className="text-base uppercase font-black opacity-80">Ventes Globales</h3>
+                <p className="text-3xl font-black">{financialStats.sales.global.toLocaleString()} Ar</p>
+            </div>
+            <div className="bg-emerald-500 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <Calendar size={80} />
+                </div>
+                <h3 className="text-base uppercase font-black opacity-80">Ventes du Mois</h3>
+                <p className="text-3xl font-black">{financialStats.sales.monthly.toLocaleString()} Ar</p>
+            </div>
+            <div className="bg-emerald-400 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <Clock size={80} />
+                </div>
+                <h3 className="text-base uppercase font-black opacity-80">Ventes du Jour</h3>
+                <p className="text-3xl font-black">{financialStats.sales.daily.toLocaleString()} Ar</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Purchases Summary */}
+        <div>
+          <h2 className="text-xl font-black text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <ShoppingCart className="text-blue-600" size={24} /> Résumé des Achats (Appro)
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-blue-600 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <TrendingUp size={80} />
+                </div>
+                <h3 className="text-base uppercase font-black opacity-80">Achats Globaux</h3>
+                <p className="text-3xl font-black">{financialStats.purchases.global.toLocaleString()} Ar</p>
+            </div>
+            <div className="bg-blue-500 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <Calendar size={80} />
+                </div>
+                <h3 className="text-base uppercase font-black opacity-80">Achats du Mois</h3>
+                <p className="text-3xl font-black">{financialStats.purchases.monthly.toLocaleString()} Ar</p>
+            </div>
+            <div className="bg-blue-400 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <Clock size={80} />
+                </div>
+                <h3 className="text-base uppercase font-black opacity-80">Achats du Jour</h3>
+                <p className="text-3xl font-black">{financialStats.purchases.daily.toLocaleString()} Ar</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-slate-800 text-white p-6 rounded-3xl shadow-lg">
-            <h3 className="text-base uppercase font-black opacity-80">Total Journalier</h3>
+            <h3 className="text-base uppercase font-black opacity-80">Total Journalier ({new Date(filterDate).toLocaleDateString('fr-FR')})</h3>
             <p className="text-3xl font-black">{totals.daily.toLocaleString()} Ar</p>
         </div>
-        <div className="bg-emerald-600 text-white p-6 rounded-3xl shadow-lg">
-            <h3 className="text-base uppercase font-black opacity-80">Total Comptant</h3>
+        <div className="bg-slate-700 text-white p-6 rounded-3xl shadow-lg">
+            <h3 className="text-base uppercase font-black opacity-80">Comptant (Filtre)</h3>
             <p className="text-3xl font-black">{totals.cash.toLocaleString()} Ar</p>
         </div>
         <div className="bg-orange-500 text-white p-6 rounded-3xl shadow-lg">
-            <h3 className="text-base uppercase font-black opacity-80">Total Crédit</h3>
+            <h3 className="text-base uppercase font-black opacity-80">Crédit (Filtre)</h3>
             <p className="text-3xl font-black">{totals.credit.toLocaleString()} Ar</p>
         </div>
       </div>

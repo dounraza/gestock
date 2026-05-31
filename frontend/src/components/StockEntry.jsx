@@ -58,7 +58,7 @@ export default function StockEntry() {
   const [categories, setCategories] = useState([]);
   const [unites, setUnites] = useState([]);
   const [productFormData, setProductFormData] = useState({
-    name: '', price: '', price_superior: '', category_id: '', fournisseur_id: '', description: '',
+    name: '', price: '', price_superior: '', purchase_price: '', category_id: '', fournisseur_id: '', description: '',
     unite_base: 'unité', unite_superieure: '', quantite_par_unite: 1,
     unite_standard_id: ''
   });
@@ -370,6 +370,7 @@ export default function StockEntry() {
         name: productFormData.name,
         price: parseFloat(productFormData.price) || 0,
         price_superior: parseFloat(productFormData.price_superior) || 0,
+        purchase_price: parseFloat(productFormData.purchase_price) || 0,
         category_id: productFormData.category_id || null,
         fournisseur_id: productFormData.fournisseur_id || null,
         description: productFormData.description || '',
@@ -885,8 +886,12 @@ export default function StockEntry() {
               </div>
               
               <div className="space-y-4">
-                <h4 className="text-[16px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-50 pb-2">Vente & Catégorie</h4>
-                <div className="grid grid-cols-2 gap-4">
+                <h4 className="text-[16px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-50 pb-2">Prix & Catégorie</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1">Prix Achat</label>
+                    <input required type="number" placeholder="0" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none font-bold text-emerald-700" value={productFormData.purchase_price} onChange={e => setProductFormData({...productFormData, purchase_price: e.target.value})} />
+                  </div>
                   <div className="space-y-1">
                     <label className="text-[15px] font-bold text-gray-400 uppercase ml-1">Prix Vente / Unité</label>
                     <input required type="number" placeholder="0" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none font-bold" value={productFormData.price} onChange={e => setProductFormData({...productFormData, price: e.target.value})} />

@@ -25,7 +25,7 @@ export default function Inventory({ selectedDepotId }) {
   const [stockMovements, setStockMovements] = useState([]); 
   const [selectedMovementProduct, setSelectedMovementProduct] = useState(''); 
   const [formData, setFormData] = useState({ 
-    name: '', price: '', price_superior: '', stock_quantity: '', category_id: '', fournisseur_id: '', description: '',
+    name: '', price: '', price_superior: '', purchase_price: '', stock_quantity: '', category_id: '', fournisseur_id: '', description: '',
     unite_base: 'unité', unite_superieure: '', quantite_par_unite: 1,
     unite_standard_id: ''
   });
@@ -242,7 +242,7 @@ export default function Inventory({ selectedDepotId }) {
     
     const inputQuantity = parseInt(formData.stock_quantity) || 0;
     const factor = parseInt(formData.quantite_par_unite) || 1;
-    const stockQty = inputQuantity * factor;
+    const stockQty = editingProduct ? editingProduct.stock_quantity : (inputQuantity * factor);
 
     if (stockQty < 0) {
       alert("La quantité en stock ne peut pas être négative.");
@@ -254,6 +254,7 @@ export default function Inventory({ selectedDepotId }) {
       name: formData.name,
       price: parseFloat(formData.price) || 0,
       price_superior: parseFloat(formData.price_superior) || 0,
+      purchase_price: parseFloat(formData.purchase_price) || 0,
       category_id: formData.category_id || null,
       fournisseur_id: formData.fournisseur_id || null,
       description: formData.description || '',
@@ -350,6 +351,7 @@ export default function Inventory({ selectedDepotId }) {
       name: product.name,
       price: product.price,
       price_superior: product.price_superior || '',
+      purchase_price: product.purchase_price || '',
       stock_quantity: product.stock_quantity,
       category_id: product.category_id || '',
       fournisseur_id: product.fournisseur_id || '',
@@ -378,7 +380,7 @@ export default function Inventory({ selectedDepotId }) {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', price: '', price_superior: '', stock_quantity: '', category_id: '', fournisseur_id: '', description: '', unite_base: 'unité', unite_superieure: '', quantite_par_unite: 1, unite_standard_id: '' });
+    setFormData({ name: '', price: '', price_superior: '', purchase_price: '', stock_quantity: '', category_id: '', fournisseur_id: '', description: '', unite_base: 'unité', unite_superieure: '', quantite_par_unite: 1, unite_standard_id: '' });
     setEditingProduct(null);
     setShowModal(false);
   };
@@ -705,8 +707,39 @@ export default function Inventory({ selectedDepotId }) {
     return `${q} ${uBase}`;
   };
 
+  const globalTotalPurchase = products.reduce((acc, p) => acc + (parseFloat(p.purchase_price) || 0), 0);
+  const dailyTotalPurchase = stockMovements
+    .filter(m => {
+      const moveDate = new Date(m.created_at).toLocaleDateString();
+      const today = new Date().toLocaleDateString();
+      return m.type === 'in' && moveDate === today;
+    })
+    .reduce((acc, m) => acc + (parseFloat(m.price_at_movement) || 0), 0);
+
   return (
     <div className="space-y-6">
+      {/* Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 p-6 rounded-[2rem] shadow-xl shadow-emerald-200/50 text-white relative overflow-hidden group">
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+          <p className="text-emerald-100 font-black uppercase tracking-[0.2em] text-[13px] mb-1">Valeur Totale Stock (Achat)</p>
+          <p className="text-4xl font-black tabular-nums">{globalTotalPurchase.toLocaleString()} <span className="text-xl font-bold opacity-80">MGA</span></p>
+          <div className="mt-4 flex items-center gap-2 text-emerald-100/80">
+            <Package size={16} />
+            <span className="text-sm font-bold">{products.length} produits référencés</span>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-6 rounded-[2rem] shadow-xl shadow-blue-200/50 text-white relative overflow-hidden group">
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+          <p className="text-blue-100 font-black uppercase tracking-[0.2em] text-[13px] mb-1">Total Achats du Jour</p>
+          <p className="text-4xl font-black tabular-nums">{dailyTotalPurchase.toLocaleString()} <span className="text-xl font-bold opacity-80">MGA</span></p>
+          <div className="mt-4 flex items-center gap-2 text-blue-100/80">
+            <History size={16} />
+            <span className="text-sm font-bold">Basé sur les entrées de stock aujourd'hui</span>
+          </div>
+        </div>
+      </div>
       {/* Action Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-emerald-50 gap-4">
         <div className="flex-1 flex flex-col sm:flex-row gap-4 max-w-2xl">
@@ -1099,7 +1132,7 @@ export default function Inventory({ selectedDepotId }) {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-[14px] font-bold text-gray-400 uppercase ml-1">Stock actuel</label>
-                    <input required type="number" placeholder="Quantité" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold" value={formData.stock_quantity} onChange={e => setFormData({...formData, stock_quantity: e.target.value})} />
+                    <input required type="number" placeholder="Quantité" className={`w-full ${editingProduct ? 'bg-gray-100' : 'bg-gray-50'} border-0 rounded-xl px-4 py-3 outline-none font-bold`} value={formData.stock_quantity} onChange={e => setFormData({...formData, stock_quantity: e.target.value})} disabled={!!editingProduct} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[14px] font-bold text-gray-400 uppercase ml-1">Unité Standard</label>
@@ -1108,6 +1141,10 @@ export default function Inventory({ selectedDepotId }) {
                       {unites.map(u => <option key={u.id} value={u.id}>{u.nom}</option>)}
                     </select>
                   </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[14px] font-bold text-emerald-600 uppercase ml-1">Prix d'Achat (MGA)</label>
+                  <input type="number" placeholder="Prix d'achat" className="w-full bg-emerald-50/30 border border-emerald-100 rounded-xl px-4 py-3 outline-none font-black text-emerald-700" value={formData.purchase_price} onChange={e => setFormData({...formData, purchase_price: e.target.value})} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">

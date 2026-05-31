@@ -518,7 +518,7 @@ export default function POS({ session, selectedDepotId }) {
                    </div>
                </div>
             )}
-            <button onClick={handleFinalize} disabled={isProcessing} className="w-full mt-4 py-1.5 bg-emerald-600 text-white font-black rounded-lg text-[15px] uppercase tracking-wider flex items-center justify-center gap-1">
+            <button onClick={handleFinalize} disabled={isProcessing} className="w-full mt-4 py-1 bg-emerald-600 text-white font-black rounded-lg text-[15px] uppercase tracking-wider flex items-center justify-center gap-1">
                {isProcessing ? <Loader2 className="animate-spin" size={12} /> : 'FINALISER'}
             </button>          </div>        </div>
 
