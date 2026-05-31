@@ -684,6 +684,20 @@ export default function Inventory({ selectedDepotId }) {
   };
 
   const globalTotalPurchase = products.reduce((acc, p) => acc + (parseFloat(p.purchase_price) || 0), 0);
+  const globalTotalSelling = products.reduce((acc, p) => {
+    const q = Number(p.stock_quantity) || 0;
+    const qpu = Number(p.quantite_par_unite) || 1;
+    const priceBase = Number(p.price) || 0;
+    const priceSup = Number(p.price_superior) || 0;
+    
+    if (qpu > 1 && priceSup > 0) {
+      const superior = Math.floor(q / qpu);
+      const base = q % qpu;
+      return acc + (superior * priceSup) + (base * priceBase);
+    }
+    return acc + (q * priceBase);
+  }, 0);
+
   const dailyTotalPurchase = stockMovements
     .filter(m => {
       const moveDate = new Date(m.created_at).toLocaleDateString();
@@ -695,24 +709,34 @@ export default function Inventory({ selectedDepotId }) {
   return (
     <div className="space-y-6">
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 p-6 rounded-[2rem] shadow-xl shadow-emerald-200/50 text-white relative overflow-hidden group">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
           <p className="text-emerald-100 font-black uppercase tracking-[0.2em] text-[13px] mb-1">Valeur Totale Stock (Achat)</p>
-          <p className="text-4xl font-black tabular-nums">{globalTotalPurchase.toLocaleString()} <span className="text-xl font-bold opacity-80">MGA</span></p>
+          <p className="text-3xl font-black tabular-nums">{globalTotalPurchase.toLocaleString()} <span className="text-lg font-bold opacity-80">MGA</span></p>
           <div className="mt-4 flex items-center gap-2 text-emerald-100/80">
             <Package size={16} />
-            <span className="text-sm font-bold">{products.length} produits référencés</span>
+            <span className="text-sm font-bold">{products.length} produits</span>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-6 rounded-[2rem] shadow-xl shadow-amber-200/50 text-white relative overflow-hidden group">
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+          <p className="text-amber-100 font-black uppercase tracking-[0.2em] text-[13px] mb-1">Valeur Totale Stock (Vente)</p>
+          <p className="text-3xl font-black tabular-nums">{globalTotalSelling.toLocaleString()} <span className="text-lg font-bold opacity-80">MGA</span></p>
+          <div className="mt-4 flex items-center gap-2 text-amber-100/80">
+            <Tag size={16} />
+            <span className="text-sm font-bold">Prix mixés (Sup + Base)</span>
           </div>
         </div>
 
         <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-6 rounded-[2rem] shadow-xl shadow-blue-200/50 text-white relative overflow-hidden group">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
           <p className="text-blue-100 font-black uppercase tracking-[0.2em] text-[13px] mb-1">Total Achats du Jour</p>
-          <p className="text-4xl font-black tabular-nums">{dailyTotalPurchase.toLocaleString()} <span className="text-xl font-bold opacity-80">MGA</span></p>
+          <p className="text-3xl font-black tabular-nums">{dailyTotalPurchase.toLocaleString()} <span className="text-lg font-bold opacity-80">MGA</span></p>
           <div className="mt-4 flex items-center gap-2 text-blue-100/80">
             <History size={16} />
-            <span className="text-sm font-bold">Basé sur les entrées de stock aujourd'hui</span>
+            <span className="text-sm font-bold">Mouvements "Entrée" aujourd'hui</span>
           </div>
         </div>
       </div>
@@ -949,6 +973,16 @@ export default function Inventory({ selectedDepotId }) {
                         )}
                       </div>
                       <div className="text-right">
+                        <p className="text-[14px] font-black text-emerald-600 uppercase tracking-widest mb-1">Valeur: {(() => {
+                            const q = Number(p.stock_quantity) || 0;
+                            const qpu = Number(p.quantite_par_unite) || 1;
+                            const pb = Number(p.price) || 0;
+                            const ps = Number(p.price_superior) || 0;
+                            if (qpu > 1 && ps > 0) {
+                                return ((Math.floor(q / qpu) * ps) + ((q % qpu) * pb)).toLocaleString();
+                            }
+                            return (q * pb).toLocaleString();
+                        })()} Ar</p>
                         <p className="text-[15px] text-gray-400 uppercase font-bold tracking-widest mb-1">Stock</p>
                         <span className={`px-2 py-0.5 rounded-lg font-bold text-base ${p.stock_quantity < 10 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
                           {formatStock(p.stock_quantity, p)}
@@ -974,6 +1008,7 @@ export default function Inventory({ selectedDepotId }) {
                       <th className="py-2 px-4">Catégorie</th>
                       <th className="py-2 px-4">Stock</th>
                       <th className="py-2 px-4">Prix</th>
+                      <th className="py-2 px-4">Valeur</th>
                       <th className="py-2 px-4 pr-6 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -996,6 +1031,20 @@ export default function Inventory({ selectedDepotId }) {
                           {p.price_superior > 0 && (
                             <div className="text-[13px] font-bold text-emerald-600">{Number(p.price_superior).toLocaleString('fr-MG')} Ar <span className="text-[13px] text-gray-400">/{p.unite_superieure}</span></div>
                           )}
+                        </td>
+                        <td className="py-2 px-4">
+                          <div className="font-black text-emerald-700 text-base">
+                            {(() => {
+                                const q = Number(p.stock_quantity) || 0;
+                                const qpu = Number(p.quantite_par_unite) || 1;
+                                const pb = Number(p.price) || 0;
+                                const ps = Number(p.price_superior) || 0;
+                                if (qpu > 1 && ps > 0) {
+                                    return ((Math.floor(q / qpu) * ps) + ((q % qpu) * pb)).toLocaleString();
+                                }
+                                return (q * pb).toLocaleString();
+                            })()} Ar
+                          </div>
                         </td>
                         <td className="py-2 px-4 pr-6 text-right">
                           <div className="flex justify-end gap-1.5">
