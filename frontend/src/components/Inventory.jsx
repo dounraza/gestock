@@ -19,13 +19,13 @@ export default function Inventory({ selectedDepotId }) {
   const [showModal, setShowModal] = useState(false);
   const [showStockModal, setShowStockModal] = useState(false); 
   const [selectedProductForStock, setSelectedProductForStock] = useState(null); 
-  const [stockFormData, setStockFormData] = useState({ type: 'in', quantity: '', reason: '', unit: 'base', entry_type: 'physique', destination_depot: 'Magasin Principal' });
+  const [stockFormData, setStockFormData] = useState({ type: 'in', quantity: '', quantity_base: '', reason: '', unit: 'superieure', entry_type: 'physique', destination_depot: 'Magasin Principal' });
   const [stockHistoryModal, setStockHistoryModal] = useState(false); 
   const [selectedProductForHistory, setSelectedProductForHistory] = useState(null); 
   const [stockMovements, setStockMovements] = useState([]); 
   const [selectedMovementProduct, setSelectedMovementProduct] = useState(''); 
   const [formData, setFormData] = useState({ 
-    name: '', price: '', price_superior: '', purchase_price: '', stock_quantity: '', category_id: '', fournisseur_id: '', description: '',
+    name: '', price: '', price_superior: '', purchase_price: '', stock_quantity: '', stock_quantity_base: '', category_id: '', fournisseur_id: '', description: '',
     unite_base: 'unité', unite_superieure: '', quantite_par_unite: 1,
     unite_standard_id: ''
   });
@@ -97,9 +97,10 @@ export default function Inventory({ selectedDepotId }) {
   const [newItemFormData, setNewItemFormData] = useState({
     product_id: '',
     quantity: '',
+    quantity_base: '',
     purchase_price_per_unit: '',
     selling_price_per_unit: '',
-    unit: 'base'
+    unit: 'superieure'
   });
   const [showPhysicalChoiceModal, setShowPhysicalChoiceModal] = useState(false);
   const [physicalSearchTerm, setPhysicalSearchTerm] = useState('');
@@ -241,8 +242,9 @@ export default function Inventory({ selectedDepotId }) {
     setIsSubmitting(true);
     
     const inputQuantity = parseInt(formData.stock_quantity) || 0;
+    const inputQuantityBase = parseInt(formData.stock_quantity_base) || 0;
     const factor = parseInt(formData.quantite_par_unite) || 1;
-    const stockQty = editingProduct ? editingProduct.stock_quantity : (inputQuantity * factor);
+    const stockQty = editingProduct ? editingProduct.stock_quantity : (inputQuantity * factor) + inputQuantityBase;
 
     if (stockQty < 0) {
       alert("La quantité en stock ne peut pas être négative.");
@@ -411,16 +413,14 @@ export default function Inventory({ selectedDepotId }) {
 
   const handleStockSave = async (e) => {
     e.preventDefault();
-    if (!selectedProductForStock || !stockFormData.quantity) return;
+    if (!selectedProductForStock || (!stockFormData.quantity && !stockFormData.quantity_base)) return;
 
-    let quantity = parseInt(stockFormData.quantity);
+    const factor = selectedProductForStock.quantite_par_unite || 1;
+    const quantity = (parseInt(stockFormData.quantity) || 0) * factor + (parseInt(stockFormData.quantity_base) || 0);
+
     if (isNaN(quantity) || quantity <= 0) {
       alert("Veuillez entrer une quantité valide.");
       return;
-    }
-
-    if (stockFormData.unit === 'superieure') {
-      quantity = quantity * (selectedProductForStock.quantite_par_unite || 1);
     }
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -451,6 +451,10 @@ export default function Inventory({ selectedDepotId }) {
       }
     }
 
+    const mixedReason = [];
+    if (stockFormData.quantity > 0) mixedReason.push(`${stockFormData.quantity} ${selectedProductForStock.unite_superieure}`);
+    if (stockFormData.quantity_base > 0) mixedReason.push(`${stockFormData.quantity_base} ${selectedProductForStock.unite_base}`);
+
     const { error: movementInsertError } = await supabase
       .from('stock_movements')
       .insert([
@@ -459,7 +463,7 @@ export default function Inventory({ selectedDepotId }) {
           type: stockFormData.type,
           quantity: quantity,
           price_at_movement: selectedProductForStock.price,
-          reason: `[${stockFormData.entry_type.toUpperCase()}] ` + stockFormData.reason + (stockFormData.unit === 'superieure' ? ` (${stockFormData.quantity} ${selectedProductForStock.unite_superieure})` : ''),
+          reason: `[${stockFormData.entry_type.toUpperCase()}] ` + stockFormData.reason + (mixedReason.length > 0 ? ` (${mixedReason.join(' + ')})` : ''),
           destination_depot: stockFormData.destination_depot,
           user_id: user.id,
           depot_id: selectedDepotId
@@ -514,16 +518,22 @@ export default function Inventory({ selectedDepotId }) {
 
   // Delivery Note Handlers
   const addNewItem = () => {
-    if (!newItemFormData.product_id || !newItemFormData.quantity || !newItemFormData.purchase_price_per_unit) {
+    if (!newItemFormData.product_id || (!newItemFormData.quantity && !newItemFormData.quantity_base) || !newItemFormData.purchase_price_per_unit) {
       alert("Veuillez remplir tous les champs de l'article");
       return;
     }
 
     const product = products.find(p => p.id === newItemFormData.product_id);
+    const factor = product.quantite_par_unite || 1;
+    const totalQty = (parseInt(newItemFormData.quantity) || 0) * factor + (parseInt(newItemFormData.quantity_base) || 0);
+
+    // Calculate total price based on price per base unit
+    // (Assuming purchase_price_per_unit in BL is per BASE unit for accuracy in mixed entries)
     const newItem = {
       ...newItemFormData,
+      total_quantity: totalQty,
       productName: product.name,
-      total_purchase: parseFloat(newItemFormData.purchase_price_per_unit) * parseInt(newItemFormData.quantity)
+      total_purchase: parseFloat(newItemFormData.purchase_price_per_unit) * totalQty
     };
 
     setDeliveryNoteItems([...deliveryNoteItems, newItem]);
@@ -534,9 +544,10 @@ export default function Inventory({ selectedDepotId }) {
     setNewItemFormData({
       product_id: '',
       quantity: '',
+      quantity_base: '',
       purchase_price_per_unit: '',
       selling_price_per_unit: '',
-      unit: 'base'
+      unit: 'superieure'
     });
   };
 
@@ -578,33 +589,6 @@ export default function Inventory({ selectedDepotId }) {
 
       if (blError) throw blError;
 
-      // 1b. Record initial advance payment if credit
-      const advance = parseFloat(deliveryNoteFormData.advance_amount);
-      console.log("Attempting to record advance payment...", { 
-        delivery_note_id: bl.id, 
-        amount: advance,
-        type: deliveryNoteFormData.payment_type 
-      });
-      
-      if (deliveryNoteFormData.payment_type === 'credit' && advance > 0) {
-        const { error: paymentError } = await supabase
-          .from('supplier_payments')
-          .insert([{
-            delivery_note_id: bl.id,
-            amount: advance,
-            payment_method: 'cash',
-            notes: 'Avance initiale lors de la création du BL',
-            user_id: user.id
-          }]);
-        
-        if (paymentError) {
-          console.error("Payment insert error:", paymentError);
-          throw paymentError;
-        } else {
-          console.log("Advance payment recorded successfully!");
-        }
-      }
-
       // 2. Create line items and update stock
       for (const item of deliveryNoteItems) {
         const { error: itemError } = await supabase
@@ -612,21 +596,17 @@ export default function Inventory({ selectedDepotId }) {
           .insert([{
             delivery_note_id: bl.id,
             product_id: item.product_id,
-            quantity: parseInt(item.quantity),
+            quantity: item.total_quantity, // We store the total in base units
             purchase_price_per_unit: parseFloat(item.purchase_price_per_unit),
             selling_price_per_unit: parseFloat(item.selling_price_per_unit) || null,
             line_total_purchase: item.total_purchase,
-            unit: item.unit
+            unit: 'base' // Standardize to base in DB
           }]);
 
         if (itemError) throw itemError;
 
         const product = products.find(p => p.id === item.product_id);
-        
-        // Calculate quantity to add: if unit is 'superieure', multiply by factor
-        const quantityToAdd = item.unit === 'superieure' 
-          ? parseInt(item.quantity) * (product.quantite_par_unite || 1) 
-          : parseInt(item.quantity);
+        const quantityToAdd = item.total_quantity;
 
         const updatePayload = {};
         if (item.selling_price_per_unit) {
@@ -634,12 +614,7 @@ export default function Inventory({ selectedDepotId }) {
         }
 
         if (Object.keys(updatePayload).length > 0) {
-          const { error: productUpdateError } = await supabase
-            .from('produits')
-            .update(updatePayload)
-            .eq('id', item.product_id);
-
-          if (productUpdateError) throw productUpdateError;
+          await supabase.from('produits').update(updatePayload).eq('id', item.product_id);
         }
 
         // Mise à jour du stock par dépôt
@@ -667,8 +642,8 @@ export default function Inventory({ selectedDepotId }) {
           product_id: item.product_id,
           type: 'in',
           quantity: quantityToAdd,
-          price_at_movement: parseFloat(item.purchase_price_per_unit) / (item.unit === 'superieure' ? (product.quantite_par_unite || 1) : 1),
-          reason: `Réception BL #${bl.id.slice(0,8)}`,
+          price_at_movement: parseFloat(item.purchase_price_per_unit),
+          reason: `Réception BL #${bl.bl_number}`,
           user_id: user.id,
           depot_id: selectedDepotId
         }]);
@@ -679,6 +654,7 @@ export default function Inventory({ selectedDepotId }) {
       setDeliveryNoteItems([]);
       setDeliveryNoteFormData({
         supplier_id: '',
+        bl_number: `BL-${Date.now().toString().slice(-6)}`,
         bl_date: new Date().toISOString().split('T')[0],
         total_amount: 0,
         payment_type: 'direct_sale',
@@ -1131,16 +1107,28 @@ export default function Inventory({ selectedDepotId }) {
                 <h4 className="text-[14px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-50 pb-1">Configuration & Stock</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[14px] font-bold text-gray-400 uppercase ml-1">Stock actuel</label>
+                    <label className="text-[14px] font-bold text-gray-400 uppercase ml-1">Stock ({formData.unite_superieure || 'sup.'})</label>
                     <input required type="number" placeholder="Quantité" className={`w-full ${editingProduct ? 'bg-gray-100' : 'bg-gray-50'} border-0 rounded-xl px-4 py-3 outline-none font-bold`} value={formData.stock_quantity} onChange={e => setFormData({...formData, stock_quantity: e.target.value})} disabled={!!editingProduct} />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[14px] font-bold text-gray-400 uppercase ml-1">Unité Standard</label>
-                    <select className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none text-base font-bold text-gray-600" value={formData.unite_standard_id || ''} onChange={e => handleUniteStandardChange(e.target.value)}>
-                      <option value="">Aucune</option>
-                      {unites.map(u => <option key={u.id} value={u.id}>{u.nom}</option>)}
-                    </select>
-                  </div>
+                  {formData.quantite_par_unite > 1 && (
+                    <div className="space-y-1">
+                      <label className="text-[14px] font-bold text-gray-400 uppercase ml-1">Reste ({formData.unite_base})</label>
+                      <input type="number" placeholder="Reste" className={`w-full ${editingProduct ? 'bg-gray-100' : 'bg-gray-50'} border-0 rounded-xl px-4 py-3 outline-none font-bold`} value={formData.stock_quantity_base} onChange={e => setFormData({...formData, stock_quantity_base: e.target.value})} disabled={!!editingProduct} />
+                    </div>
+                  )}
+                  {!formData.unite_superieure && (
+                    <div className="space-y-1">
+                        <label className="text-[14px] font-bold text-emerald-600 uppercase ml-1">Conversion Rapide</label>
+                        <select 
+                        className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none text-base font-black text-emerald-700" 
+                        value={formData.unite_standard_id || ''} 
+                        onChange={e => handleUniteStandardChange(e.target.value)}
+                        >
+                        <option value="">Sélectionner conversion...</option>
+                        {unites.map(u => <option key={u.id} value={u.id}>{u.nom} ({u.facteur} {u.unite_mesure})</option>)}
+                        </select>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <label className="text-[14px] font-bold text-emerald-600 uppercase ml-1">Prix d'Achat (MGA)</label>
@@ -1256,37 +1244,35 @@ export default function Inventory({ selectedDepotId }) {
                     <option value="bl">📄 Par BL (Bon de Livraison)</option>
                   </select>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">Quantité</label>
+                <div className={`${selectedProductForStock.quantite_par_unite > 1 ? 'col-span-1' : 'col-span-2'} space-y-1`}>
+                  <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">{selectedProductForStock.unite_superieure || 'Quantité'}</label>
                   <input 
                     type="number" 
-                    placeholder="Quantité" 
-                    required 
-                    className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all" 
+                    placeholder="0" 
+                    className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all font-bold" 
                     value={stockFormData.quantity} 
                     onChange={e => setStockFormData(prev => ({ ...prev, quantity: e.target.value }))} 
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">Unité</label>
-                  <select 
-                    className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all font-bold"
-                    value={stockFormData.unit}
-                    onChange={e => setStockFormData(prev => ({ ...prev, unit: e.target.value }))}
-                  >
-                    <option value="base">{selectedProductForStock.unite_base || 'Unité de base'}</option>
-                    {selectedProductForStock.unite_superieure && (
-                      <option value="superieure">{selectedProductForStock.unite_superieure}</option>
-                    )}
-                  </select>
-                </div>
+                {selectedProductForStock.quantite_par_unite > 1 && (
+                  <div className="space-y-1">
+                    <label className="text-[16px] font-bold text-emerald-700 uppercase ml-1">{selectedProductForStock.unite_base}</label>
+                    <input 
+                      type="number" 
+                      placeholder="0" 
+                      className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all font-bold" 
+                      value={stockFormData.quantity_base} 
+                      onChange={e => setStockFormData(prev => ({ ...prev, quantity_base: e.target.value }))} 
+                    />
+                  </div>
+                )}
               </div>
 
-              {stockFormData.quantity && stockFormData.unit === 'superieure' && selectedProductForStock.quantite_par_unite > 1 && (
+              {(stockFormData.quantity || stockFormData.quantity_base) && selectedProductForStock.quantite_par_unite > 1 && (
                 <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 text-center animate-in fade-in slide-in-from-top-1">
                   <p className="text-[16px] uppercase font-black text-emerald-600 tracking-widest">Conversion automatique</p>
                   <p className="text-2xl font-black text-emerald-900 mt-1">
-                    {stockFormData.quantity} {selectedProductForStock.unite_superieure} = {parseInt(stockFormData.quantity) * selectedProductForStock.quantite_par_unite} 
+                    Total: {(parseInt(stockFormData.quantity) || 0) * selectedProductForStock.quantite_par_unite + (parseInt(stockFormData.quantity_base) || 0)} 
                     <span className="text-lg font-bold ml-1">{selectedProductForStock.unite_base}</span>
                   </p>
                 </div>
@@ -1471,28 +1457,25 @@ export default function Inventory({ selectedDepotId }) {
                   
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div className="space-y-1">
-                        <label className="text-[15px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">Quantité</label>
+                        <label className="text-[15px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">
+                          {products.find(p => p.id === newItemFormData.product_id)?.unite_superieure || 'Quantité'}
+                        </label>
                         <input type="number" placeholder="0" className="w-full bg-white border border-emerald-100 rounded-xl px-3 py-2 text-base font-bold text-gray-700 outline-none" value={newItemFormData.quantity} onChange={e => setNewItemFormData({...newItemFormData, quantity: e.target.value})} />
                     </div>
+                    {products.find(p => p.id === newItemFormData.product_id)?.quantite_par_unite > 1 && (
+                      <div className="space-y-1">
+                          <label className="text-[15px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">
+                            {products.find(p => p.id === newItemFormData.product_id)?.unite_base}
+                          </label>
+                          <input type="number" placeholder="0" className="w-full bg-white border border-emerald-100 rounded-xl px-3 py-2 text-base font-bold text-gray-700 outline-none" value={newItemFormData.quantity_base} onChange={e => setNewItemFormData({...newItemFormData, quantity_base: e.target.value})} />
+                      </div>
+                    )}
                     <div className="space-y-1">
-                        <label className="text-[15px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">Unité</label>
-                        <select 
-                            className="w-full bg-white border border-emerald-100 rounded-xl px-2 py-2 text-[16px] font-bold text-gray-700 outline-none" 
-                            value={newItemFormData.unit} 
-                            onChange={e => setNewItemFormData({...newItemFormData, unit: e.target.value})}
-                        >
-                            <option value="base">{products.find(p => p.id === newItemFormData.product_id)?.unite_base || 'Unité base'}</option>
-                            {products.find(p => p.id === newItemFormData.product_id)?.unite_superieure && (
-                                <option value="superieure">{products.find(p => p.id === newItemFormData.product_id)?.unite_superieure}</option>
-                            )}
-                        </select>
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[15px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">P. Achat</label>
+                        <label className="text-[15px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">P. Achat (Base)</label>
                         <input type="number" placeholder="0" className="w-full bg-white border border-emerald-100 rounded-xl px-3 py-2 text-base font-bold text-gray-700 outline-none" value={newItemFormData.purchase_price_per_unit} onChange={e => setNewItemFormData({...newItemFormData, purchase_price_per_unit: e.target.value})} />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-[15px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">P. Vente</label>
+                        <label className="text-[15px] font-bold text-emerald-600/70 uppercase ml-1 tracking-widest">P. Vente (Base)</label>
                         <input type="number" placeholder="0" className="w-full bg-white border border-emerald-100 rounded-xl px-3 py-2 text-base font-bold text-gray-700 outline-none" value={newItemFormData.selling_price_per_unit} onChange={e => setNewItemFormData({...newItemFormData, selling_price_per_unit: e.target.value})} />
                     </div>
                   </div>
