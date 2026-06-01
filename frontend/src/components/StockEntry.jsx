@@ -931,15 +931,15 @@ export default function StockEntry() {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1">
                     <label className="text-[13px] font-bold text-gray-400 uppercase ml-1">Qté/unité</label>
-                    <input type="number" readOnly={!!productFormData.unite_standard_id} className={`w-full ${productFormData.unite_standard_id ? 'bg-gray-100' : 'bg-gray-50'} border-0 rounded-xl px-4 py-3 outline-none font-bold`} value={productFormData.quantite_par_unite} onChange={e => setProductFormData({...productFormData, quantite_par_unite: e.target.value})} />
+                    <input type="number" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold" value={productFormData.quantite_par_unite} onChange={e => setProductFormData({...productFormData, quantite_par_unite: e.target.value})} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[13px] font-bold text-gray-400 uppercase ml-1">Unité base</label>
-                    <input type="text" readOnly={!!productFormData.unite_standard_id} className={`w-full ${productFormData.unite_standard_id ? 'bg-gray-100' : 'bg-gray-50'} border-0 rounded-xl px-4 py-3 outline-none font-bold`} value={productFormData.unite_base} onChange={e => setProductFormData({...productFormData, unite_base: e.target.value})} />
+                    <input type="text" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold" value={productFormData.unite_base} onChange={e => setProductFormData({...productFormData, unite_base: e.target.value})} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[13px] font-bold text-gray-400 uppercase ml-1">Unité sup</label>
-                    <input type="text" readOnly={!!productFormData.unite_standard_id} className={`w-full ${productFormData.unite_standard_id ? 'bg-gray-100' : 'bg-gray-50'} border-0 rounded-xl px-4 py-3 outline-none font-bold`} value={productFormData.unite_superieure} onChange={e => setProductFormData({...productFormData, unite_superieure: e.target.value})} />
+                    <input type="text" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold" value={productFormData.unite_superieure} onChange={e => setProductFormData({...productFormData, unite_superieure: e.target.value})} />
                   </div>
                 </div>
               </div>
