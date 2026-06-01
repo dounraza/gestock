@@ -636,9 +636,11 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                           <XCircle size={18} />
                         </button>
                       )}
-                      <button onClick={() => handleEdit(inv)} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors" title="Éditer">
-                        <Edit2 size={18} />
-                      </button>
+                      {inv.status !== 'cancelled' && (
+                        <button onClick={() => handleEdit(inv)} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors" title="Éditer">
+                          <Edit2 size={18} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -690,9 +692,11 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                       <XCircle size={16} />
                     </button>
                   )}
-                  <button onClick={() => handleEdit(inv)} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                    <Edit2 size={16} />
-                  </button>
+                  {inv.status !== 'cancelled' && (
+                    <button onClick={() => handleEdit(inv)} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                      <Edit2 size={16} />
+                    </button>
+                  )}
                   <button onClick={() => deleteInvoice(inv)} className="p-2 bg-red-50 text-red-600 rounded-lg">
                     <Trash2 size={16} />
                   </button>
