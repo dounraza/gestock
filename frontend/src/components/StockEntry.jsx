@@ -773,7 +773,7 @@ export default function StockEntry() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-emerald-50/30">
-                  {withSupplierData.length > 0 ? withSupplierData.map((item) => (
+                  {withSupplierData.filter(item => item.delivery_notes?.bl_number).length > 0 ? withSupplierData.filter(item => item.delivery_notes?.bl_number).map((item) => (
                     <tr key={item.id} className="hover:bg-emerald-50/10 transition-colors group">
                       <td className="px-6 py-3.5">
                         <p className="text-base font-bold text-gray-600">{new Date(item.delivery_notes?.bl_date || item.created_at).toLocaleDateString()}</p>

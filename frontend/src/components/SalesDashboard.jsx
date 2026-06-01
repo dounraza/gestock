@@ -60,22 +60,19 @@ export default function SalesDashboard() {
         if (s.created_at >= startOfToday && s.created_at <= endOfToday) salesStats.daily += amt;
       });
 
-      // PURCHASES
-      const { data: purchaseData } = await supabase
-        .from('delivery_notes')
-        .select('total_amount, bl_date');
+      // PURCHASES (Calculé comme la simple somme des prix d'achat de tous les produits)
+      const { data: productData } = await supabase
+        .from('produits')
+        .select('purchase_price');
 
-      const purchaseStats = { global: 0, monthly: 0, daily: 0 };
-      purchaseData?.forEach(p => {
-        const amt = parseFloat(p.total_amount) || 0;
-        purchaseStats.global += amt;
-        if (p.bl_date >= startOfMonth) purchaseStats.monthly += amt;
-        if (p.bl_date >= startOfToday && p.bl_date <= endOfToday) purchaseStats.daily += amt;
+      let totalPurchaseSum = 0;
+      productData?.forEach(p => {
+        totalPurchaseSum += parseFloat(p.purchase_price) || 0;
       });
 
       setFinancialStats({
         sales: salesStats,
-        purchases: purchaseStats
+        purchases: { global: totalPurchaseSum, monthly: 0, daily: 0 } // Historique non disponible
       });
     } catch (err) {
       console.error("Error fetching financial stats:", err);
