@@ -701,6 +701,7 @@ export default function Inventory({ selectedDepotId }) {
     }
     return acc + (q * priceBase);
   }, 0);
+  const globalTotalStock = products.reduce((acc, p) => acc + (Number(p.stock_quantity) || 0), 0);
 
   const dailyTotalPurchase = stockMovements
     .filter(m => {
@@ -713,7 +714,7 @@ export default function Inventory({ selectedDepotId }) {
   return (
     <div className="space-y-6">
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 p-6 rounded-[2rem] shadow-xl shadow-emerald-200/50 text-white relative overflow-hidden group">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
           <p className="text-emerald-100 font-black uppercase tracking-[0.2em] text-[13px] mb-1">Valeur Totale Stock (Achat)</p>
@@ -731,6 +732,16 @@ export default function Inventory({ selectedDepotId }) {
           <div className="mt-4 flex items-center gap-2 text-amber-100/80">
             <Tag size={16} />
             <span className="text-sm font-bold">Prix mixés (Sup + Base)</span>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-purple-600 to-purple-700 p-6 rounded-[2rem] shadow-xl shadow-purple-200/50 text-white relative overflow-hidden group">
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+          <p className="text-purple-100 font-black uppercase tracking-[0.2em] text-[13px] mb-1">Quantité Totale en Stock</p>
+          <p className="text-3xl font-black tabular-nums">{globalTotalStock.toLocaleString()} <span className="text-lg font-bold opacity-80">articles</span></p>
+          <div className="mt-4 flex items-center gap-2 text-purple-100/80">
+            <Layers size={16} />
+            <span className="text-sm font-bold">Somme de toutes les unités de base</span>
           </div>
         </div>
 
