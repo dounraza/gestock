@@ -493,7 +493,7 @@ export default function POS({ session, selectedDepotId }) {
   const paginatedProducts = useMemo(() => filteredProducts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [filteredProducts, currentPage]);
 
   const openDiscountModalForItem = (item) => {
-    if (!item || item.isGlobal) setDiscountModal({ itemId: 'global', name: 'Globale', isGlobal: true, value: globalDiscount.value, type: globalDiscount.type });
+    if (!item || item.isGlobal) setDiscountModal({ itemId: 'global', name: 'Globale', isGlobal: true, value: globalDiscount.value, type: globalDiscount.type || 'Ar' });
     else setDiscountModal({ itemId: item.item_id, name: item.name, isGlobal: false, value: item.discount?.value || 0, type: item.discount?.type || 'Ar' });
   };
 
@@ -511,7 +511,15 @@ export default function POS({ session, selectedDepotId }) {
     <div className="flex flex-col gap-2 h-full p-2 pb-16">
       <div className="bg-white rounded-xl p-2 shadow-sm border border-emerald-100 flex items-center justify-between">
         <div className="text-base font-black">Facture: {activeInvoice?.number || '...'}</div>
-        <div className="text-3xl font-black text-emerald-600">{netTotal.toLocaleString()} Ar</div>
+        <div className="flex items-center gap-3">
+            <button 
+                onClick={() => openDiscountModalForItem(null)}
+                className="bg-orange-600 hover:bg-orange-500 text-white px-3 py-1.5 rounded-lg font-black text-[12px] uppercase shadow-md transition-all"
+            >
+                Remise Totaux
+            </button>
+            <div className="text-3xl font-black text-emerald-600">{netTotal.toLocaleString()} Ar</div>
+        </div>
       </div>
       
       <div className="flex-1 overflow-y-auto">

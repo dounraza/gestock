@@ -83,13 +83,6 @@ export default function CalculatorKeypad({ activeItem, onResult, onOpenDiscount,
                 </button>
             )}
         </div>
-
-        <button 
-            onClick={() => onOpenDiscount({ isGlobal: true })}
-            className="w-full bg-orange-600 hover:bg-orange-500 text-white p-2 rounded-lg font-black text-[15px] uppercase shadow-md transition-all"
-        >
-            REMISE GLOBALE
-        </button>
     </div>
   );
 }
