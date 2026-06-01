@@ -200,9 +200,22 @@ export default function POS({ session, selectedDepotId }) {
   };
 
   function calculateItemTotal(item) {
-    const baseTotal = item.quantity * item.unit_price;
+    const q = Number(item.quantity) || 0;
+    const qpu = Number(item.quantite_par_unite) || 1;
+    const priceSup = Number(item.price_superior) || 0;
+    const priceBase = Number(item.unit_price) || 0;
+
+    let baseTotal = 0;
+    if (qpu > 1 && priceSup > 0) {
+        const superior = Math.floor(q / qpu);
+        const base = q % qpu;
+        baseTotal = (superior * priceSup) + (base * priceBase);
+    } else {
+        baseTotal = q * priceBase;
+    }
+
     if (!item.discount) return baseTotal;
-    const disc = parseFloat(item.discount.value);
+    const disc = parseFloat(item.discount.value) || 0;
     return item.discount.type === '%' ? baseTotal - (baseTotal * (disc / 100)) : baseTotal - disc;
   }
 
@@ -744,154 +757,283 @@ export default function POS({ session, selectedDepotId }) {
       {/* Combined Preview Modal */}
       {(previewInvoice || previewDeliveryNote) && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <style>{`
-            @media print {
-              @page { margin: 0 !important; size: 80mm auto; }
-              body, html { margin: 0 !important; padding: 0 !important; visibility: hidden; }
-              #printable-all-container {
-                visibility: visible !important;
-                display: block !important;
-                position: absolute !important;
-                left: 0 !important;
-                right: 0 !important;
-                top: 0 !important;
-                margin: 0 auto !important;
-                width: 72mm !important;
-                padding: 2mm !important;
-                font-family: 'Courier New', Courier, monospace !important;
-                font-size: 11pt !important;
-                color: black !important;
+          {previewInvoice?.type === 'CRÉDIT' ? (
+            <style>{`
+              @media print {
+                @page { size: A4; margin: 20mm; }
+                body, html { visibility: hidden; }
+                #printable-all-container {
+                  visibility: visible !important;
+                  display: block !important;
+                  position: absolute !important;
+                  left: 0 !important;
+                  top: 0 !important;
+                  width: 210mm !important;
+                  height: 297mm !important;
+                  padding: 20mm !important;
+                  font-family: Arial, sans-serif !important;
+                  color: black !important;
+                  border: none !important;
+                }
+                .print-hide { display: none !important; }
               }
-              .print-hide { display: none !important; }
-            }
-          `}</style>
-          <div id="printable-all-container" className="bg-white text-black max-h-[90vh] overflow-y-auto">
+            `}</style>
+          ) : (
+            <style>{`
+              @media print {
+                @page { margin: 0 !important; size: 80mm auto; }
+                body, html { margin: 0 !important; padding: 0 !important; visibility: hidden; }
+                #printable-all-container {
+                  visibility: visible !important;
+                  display: block !important;
+                  position: absolute !important;
+                  left: 0 !important;
+                  right: 0 !important;
+                  top: 0 !important;
+                  margin: 0 auto !important;
+                  width: 72mm !important;
+                  padding: 2mm !important;
+                  font-family: 'Courier New', Courier, monospace !important;
+                  font-size: 11pt !important;
+                  color: black !important;
+                }
+                .print-hide { display: none !important; }
+              }
+            `}</style>
+          )}
+          
+          <div id="printable-all-container" className={`bg-white text-black max-h-[90vh] overflow-y-auto ${previewInvoice?.type === 'CRÉDIT' ? 'w-[210mm] p-[20mm]' : ''}`}>
             <div className="print-hide p-4 border-b border-gray-200 bg-gray-50 flex justify-between sticky top-0">
-              <h3 className="font-bold">Prévisualisation</h3>
+              <h3 className="font-bold">Prévisualisation {previewInvoice?.type === 'CRÉDIT' ? '(Format A4)' : '(Format Ticket)'}</h3>
               <div className="flex gap-2">
                 <button onClick={() => { setPreviewInvoice(null); setPreviewDeliveryNote(null); window.location.reload(); }} className="px-3 py-1 bg-gray-200 rounded">Fermer</button>
                 <button onClick={() => window.print()} className="px-3 py-1 bg-emerald-600 text-white font-bold rounded">Imprimer</button>
               </div>
             </div>
             
-            <div className="text-[10pt] leading-tight border-2 border-dashed border-black p-2 space-y-8">
-              {previewInvoice && (
-                <div id="printable-invoice">
-                    <div className="text-center mb-4 border-b border-dashed border-black pb-2">
-                        <h1 className="text-xl font-black uppercase text-emerald-600">{currentDepotInfo?.name || 'GESTOCK'}</h1>
-                        <p>{currentDepotInfo?.address || 'Antananarivo'}</p>
-                        <p>Tél: {currentDepotInfo?.phone || '---'}</p>
-                    </div>
-                    <div className="mb-4 border-b border-dashed border-black py-1">
-                        <p>Facture: <span className="font-bold">{previewInvoice.number}</span></p>
-                        <p>Date: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                        <p>Client: <span className="font-bold">{clientName || 'Anonyme'}</span></p>
-                    </div>
-                    <table className="w-full text-left mb-4">
-                        <thead>
-                            <tr className="border-b border-dashed border-black">
-                                <th className="py-1">Désignation</th>
-                                <th className="py-1 text-right">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {invoiceItems.map(item => (
-                                <React.Fragment key={item.item_id}>
-                                    <tr>
-                                        <td colSpan="2" className="pt-2 font-bold">{item.name}</td>
+            {previewInvoice?.type === 'CRÉDIT' ? (
+              /* A4 Format for Credit Invoices */
+              <div id="printable-invoice" className="space-y-6">
+                  <div className="flex justify-between items-start bg-emerald-600 p-8 rounded-t-2xl text-white">
+                      <div>
+                          <h1 className="text-3xl font-black uppercase text-white">{currentDepotInfo?.name || 'GESTOCK'}</h1>
+                          <p className="text-sm font-bold opacity-90">{currentDepotInfo?.address || 'Antananarivo'}</p>
+                          <p className="text-sm opacity-90">Tél: {currentDepotInfo?.phone || '---'}</p>
+                      </div>
+                      <div className="text-right">
+                          <h2 className="text-2xl font-black uppercase opacity-80">FACTURE DE CRÉDIT</h2>
+                          <p className="text-xl font-bold">N° {previewInvoice.number}</p>
+                          <p className="text-sm opacity-90">Date: {new Date().toLocaleDateString('fr-FR')}</p>
+                      </div>
+                  </div>
+
+                  <div className="px-8 space-y-6">
+                      <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                          <h3 className="text-xs font-black uppercase text-gray-400 mb-2">Informations Client</h3>
+                          <p className="text-lg font-black">{clientName || 'Client Inconnu'}</p>
+                          {clientPhone && <p className="text-sm">Tél: {clientPhone}</p>}
+                          {clientAddress && <p className="text-sm">Adresse: {clientAddress}</p>}
+                      </div>
+
+                      <table className="w-full border-collapse">
+                          <thead>
+                              <tr className="bg-emerald-600 text-white">
+                                  <th className="p-3 text-left uppercase text-xs font-black">Désignation</th>
+                                  <th className="p-3 text-center uppercase text-xs font-black">Quantité</th>
+                                  <th className="p-3 text-right uppercase text-xs font-black">Prix Unitaire</th>
+                                  <th className="p-3 text-right uppercase text-xs font-black">Remise</th>
+                                  <th className="p-3 text-right uppercase text-xs font-black">Montant</th>
+                              </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 border-b-2 border-gray-100">
+                              {invoiceItems.map(item => {
+                                  const lineNetTotal = calculateItemTotal(item);
+                                  const lineBrutTotal = item.total || (item.quantity * item.unit_price);
+                                  const lineDiscount = lineBrutTotal - lineNetTotal;
+                                  return (
+                                    <tr key={item.item_id}>
+                                        <td className="p-3 font-bold uppercase">{item.name}</td>
+                                        <td className="p-3 text-center font-bold">{formatQuantity(item.quantity, item)}</td>
+                                        <td className="p-3 text-right">{(item.unit_price).toLocaleString()}</td>
+                                        <td className="p-3 text-right text-red-600">{lineDiscount > 0 ? `-${lineDiscount.toLocaleString()}` : '-'}</td>
+                                        <td className="p-3 text-right font-black">{lineNetTotal.toLocaleString()}</td>
                                     </tr>
-                                    <tr>
-                                        <td className="py-1 pl-2">
-                                            {formatQuantity(item.quantity, item)}
-                                            {item.discount && <div className="text-[9pt] italic text-gray-600">Remise: {item.discount.value}{item.discount.type}</div>}
-                                        </td>
-                                        <td className="py-1 text-right font-bold">
-                                            {(item.total || calculateItemTotal(item)).toLocaleString()}
-                                        </td>
-                                    </tr>
-                                </React.Fragment>
-                            ))}
-                        </tbody>
-                    </table>
-                    <div className="border-t border-dashed border-black pt-2 text-right">
-                        <p className="font-bold">Total Brut: {subtotal.toLocaleString()} MGA</p>
-                        {lineDiscountsTotal > 0 && (
-                            <p className="font-bold text-red-600">Remise Partielle: -{lineDiscountsTotal.toLocaleString()} MGA</p>
-                        )}
-                        {globalDiscountAmount > 0 && (
-                            <p className="font-bold text-red-600">REMISE TOTAUX: -{globalDiscountAmount.toLocaleString()} MGA</p>
-                        )}
-                        <p className="font-black text-lg mt-2">NET À PAYER: {parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</p>
-                    </div>
+                                  );
+                              })}
+                          </tbody>
+                          </table>
 
-                    <div className="grid grid-cols-2 gap-2 mt-6 text-sm">
-                        <div className="text-center">
-                            <p className="font-bold">Client</p>
-                            <div className="h-16 border-b border-black"></div>
-                        </div>
-                        <div className="text-center">
-                            <p className="font-bold">Vendeur</p>
-                            <div className="h-16 border-b border-black"></div>
-                        </div>
-                    </div>
-                </div>
-              )}
-              
-              {previewDeliveryNote && (
-                <div id="printable-dn" className="border-t-2 border-solid border-black pt-8">
-                    <div className="text-center mb-4 border-b border-dashed border-black pb-2">
-                        <h1 className="text-xl font-black uppercase">BON DE SORTIE</h1>
-                        <p className="font-black">Dépôt Principal</p>
-                        <p>Tél: 0387060782</p>
-                        <p>Facture Réf: <span className="font-bold">{activeInvoice.number}</span></p>
-                        <p>N°: <span className="font-bold">{previewDeliveryNote.bl_number}</span></p>
-                        <p>Date: {new Date(previewDeliveryNote.created_at).toLocaleDateString()}</p>
-                    </div>
-                    
-                    <table className="w-full text-left mb-4">
-                        <thead>
-                            <tr className="border-b border-dashed border-black">
-                                <th className="py-1">Désignation</th>
-                                <th className="py-1 text-right">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {invoiceItems.map(item => (
-                                <tr key={item.item_id}>
-                                    <td className="py-1">
-                                        <div className="font-bold">{item.name}</div>
-                                        <div className="text-[9pt]">{formatQuantity(item.quantity, item)}</div>
-                                    </td>
-                                    <td className="py-1 text-right font-bold">
-                                        {(item.total || calculateItemTotal(item)).toLocaleString()}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                          <div className="flex justify-end pt-4">
+                          <div className="w-80 space-y-2">
+                              <div className="flex justify-between text-base font-bold text-gray-700">
+                                  <span>TOTAL DES ARTICLES:</span>
+                                  <span>{(subtotal - lineDiscountsTotal).toLocaleString()} MGA</span>
+                              </div>
+                              {globalDiscountAmount > 0 && (
+                                  <div className="flex justify-between text-base font-bold text-red-600">
+                                      <span>REMISE GLOBALE:</span>
+                                      <span>-{globalDiscountAmount.toLocaleString()} MGA</span>
+                                  </div>
+                              )}
+                              <div className="flex justify-between text-2xl font-black text-emerald-800 border-t-4 border-emerald-600 pt-2 mt-2">
+                                  <span>NET À PAYER:</span>
+                                  <span>{parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</span>
+                              </div>
+                              {paymentMode === 'credit' && advanceAmount > 0 && (
+                                  <>
+                                    <div className="flex justify-between text-base font-bold text-emerald-600">
+                                        <span>AVANCE VERSÉE:</span>
+                                        <span>-{parseFloat(advanceAmount).toLocaleString()} MGA</span>
+                                    </div>
+                                    <div className="flex justify-between text-xl font-black text-orange-600 border-t border-dashed border-orange-200 pt-2">
+                                        <span>RESTE À PAYER:</span>
+                                        <span>{(parseFloat(previewInvoice.total_amount) - parseFloat(advanceAmount)).toLocaleString()} MGA</span>
+                                    </div>
+                                    <div className="text-[11px] font-bold text-gray-400 uppercase text-right mt-1">
+                                        Échéance: {new Date(dueDate).toLocaleDateString('fr-FR')}
+                                    </div>
+                                  </>
+                              )}
+                          </div>
+                          </div>
 
-                    <div className="border-t border-dashed border-black pt-2 text-right">
-                        <p className="font-bold">Total Brut: {subtotal.toLocaleString()} MGA</p>
-                        {lineDiscountsTotal > 0 && (
-                            <p className="font-bold text-red-600">Remise Partiel: -{lineDiscountsTotal.toLocaleString()} MGA</p>
-                        )}
-                        {globalDiscountAmount > 0 && (
-                            <p className="font-bold text-red-600">REMISE TOTAUX: -{globalDiscountAmount.toLocaleString()} MGA</p>
-                        )}
-                        <p className="font-black text-lg mt-2">NET À PAYER: {parseFloat(previewDeliveryNote.total_amount).toLocaleString()} MGA</p>
-                    </div>
+                      <div className="grid grid-cols-2 gap-12 mt-20">
+                          <div className="text-center">
+                              <p className="font-black text-xs uppercase text-gray-400 mb-16 underline">Signature du Client</p>
+                              <div className="border-t border-gray-300 w-full mx-auto"></div>
+                          </div>
+                          <div className="text-center">
+                              <p className="font-black text-xs uppercase text-gray-400 mb-16 underline">Signature & Cachet Ets</p>
+                              <div className="border-t border-gray-300 w-full mx-auto"></div>
+                          </div>
+                      </div>
+                  </div>
 
-                    <div className="text-center mt-6 text-sm">
-                        <p className="font-bold">Signature & Cachet</p>
-                        <div className="h-20 border-b border-black"></div>
-                    </div>
-                </div>
-              )}
-                
-              <div className="text-center mt-2 text-sm border-t border-dashed border-black pt-2">
-                  <p>Merci de votre confiance !</p>
+                  <div className="text-center text-[10px] text-white mt-12 bg-emerald-600 p-4 rounded-b-2xl">
+                      <p className="font-bold">Merci de votre confiance ! Cette facture est un engagement de paiement aux conditions de crédit mentionnées.</p>
+                  </div>
               </div>
-            </div>
+            ) : (
+              /* Ticket Format (80mm) for Cash Invoices */
+              <div className="text-[10pt] leading-tight border-2 border-dashed border-black p-2 space-y-8">
+                {previewInvoice && (
+                  <div id="printable-invoice">
+                      <div className="text-center mb-4 border-b border-dashed border-black pb-2">
+                          <h1 className="text-xl font-black uppercase text-emerald-600">{currentDepotInfo?.name || 'GESTOCK'}</h1>
+                          <p>{currentDepotInfo?.address || 'Antananarivo'}</p>
+                          <p>Tél: {currentDepotInfo?.phone || '---'}</p>
+                      </div>
+                      <div className="mb-4 border-b border-dashed border-black py-1">
+                          <p>Facture: <span className="font-bold">{previewInvoice.number}</span></p>
+                          <p>Date: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                          <p>Client: <span className="font-bold">{clientName || 'Anonyme'}</span></p>
+                      </div>
+                      <table className="w-full text-left mb-4">
+                          <thead>
+                              <tr className="border-b border-dashed border-black">
+                                  <th className="py-1">Désignation</th>
+                                  <th className="py-1 text-right">Total</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                              {invoiceItems.map(item => (
+                                  <React.Fragment key={item.item_id}>
+                                      <tr>
+                                          <td colSpan="2" className="pt-2 font-bold">{item.name}</td>
+                                      </tr>
+                                      <tr>
+                                          <td className="py-1 pl-2">
+                                              {formatQuantity(item.quantity, item)}
+                                              {item.discount && <div className="text-[9pt] italic text-gray-600">Remise: {item.discount.value}{item.discount.type}</div>}
+                                          </td>
+                                          <td className="py-1 text-right font-bold">
+                                              {(item.total || calculateItemTotal(item)).toLocaleString()}
+                                          </td>
+                                      </tr>
+                                  </React.Fragment>
+                              ))}
+                          </tbody>
+                      </table>
+                      <div className="border-t border-dashed border-black pt-2 text-right">
+                          <p className="font-bold">Total Brut: {subtotal.toLocaleString()} MGA</p>
+                          {lineDiscountsTotal > 0 && (
+                              <p className="font-bold text-red-600">Remise Partielle: -{lineDiscountsTotal.toLocaleString()} MGA</p>
+                          )}
+                          {globalDiscountAmount > 0 && (
+                              <p className="font-bold text-red-600">REMISE TOTAUX: -{globalDiscountAmount.toLocaleString()} MGA</p>
+                          )}
+                          <p className="font-black text-lg mt-2">NET À PAYER: {parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 mt-6 text-sm">
+                          <div className="text-center">
+                              <p className="font-bold">Client</p>
+                              <div className="h-16 border-b border-black"></div>
+                          </div>
+                          <div className="text-center">
+                              <p className="font-bold">Vendeur</p>
+                              <div className="h-16 border-b border-black"></div>
+                          </div>
+                      </div>
+                  </div>
+                )}
+                
+                {previewDeliveryNote && (
+                  <div id="printable-dn" className="border-t-2 border-solid border-black pt-8">
+                      <div className="text-center mb-4 border-b border-dashed border-black pb-2">
+                          <h1 className="text-xl font-black uppercase">BON DE SORTIE</h1>
+                          <p className="font-black">Dépôt Principal</p>
+                          <p>Tél: 0387060782</p>
+                          <p>Facture Réf: <span className="font-bold">{activeInvoice.number}</span></p>
+                          <p>N°: <span className="font-bold">{previewDeliveryNote.bl_number}</span></p>
+                          <p>Date: {new Date(previewDeliveryNote.created_at).toLocaleDateString()}</p>
+                      </div>
+                      
+                      <table className="w-full text-left mb-4">
+                          <thead>
+                              <tr className="border-b border-dashed border-black">
+                                  <th className="py-1">Désignation</th>
+                                  <th className="py-1 text-right">Total</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                              {invoiceItems.map(item => (
+                                  <tr key={item.item_id}>
+                                      <td className="py-1">
+                                          <div className="font-bold">{item.name}</div>
+                                          <div className="text-[9pt]">{formatQuantity(item.quantity, item)}</div>
+                                      </td>
+                                      <td className="py-1 text-right font-bold">
+                                          {(item.total || calculateItemTotal(item)).toLocaleString()}
+                                      </td>
+                                  </tr>
+                              ))}
+                          </tbody>
+                      </table>
+
+                      <div className="border-t border-dashed border-black pt-2 text-right">
+                          <p className="font-bold">Total Brut: {subtotal.toLocaleString()} MGA</p>
+                          {lineDiscountsTotal > 0 && (
+                              <p className="font-bold text-red-600">Remise Partiel: -{lineDiscountsTotal.toLocaleString()} MGA</p>
+                          )}
+                          {globalDiscountAmount > 0 && (
+                              <p className="font-bold text-red-600">REMISE TOTAUX: -{globalDiscountAmount.toLocaleString()} MGA</p>
+                          )}
+                          <p className="font-black text-lg mt-2">NET À PAYER: {parseFloat(previewDeliveryNote.total_amount).toLocaleString()} MGA</p>
+                      </div>
+
+                      <div className="text-center mt-6 text-sm">
+                          <p className="font-bold">Signature & Cachet</p>
+                          <div className="h-20 border-b border-black"></div>
+                      </div>
+                  </div>
+                )}
+                  
+                <div className="text-center mt-2 text-sm border-t border-dashed border-black pt-2">
+                    <p>Merci de votre confiance !</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

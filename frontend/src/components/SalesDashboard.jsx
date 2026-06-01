@@ -141,7 +141,7 @@ export default function SalesDashboard() {
       if (filterType === 'paid') {
           salesFiltered = salesFiltered.filter(s => s.type === 'COMPTANT');
       } else if (filterType === 'sent') {
-          salesFiltered = salesFiltered.filter(s => s.type === 'CREDIT');
+          salesFiltered = salesFiltered.filter(s => s.type === 'CRÉDIT');
       }
       return salesFiltered.filter(sale => sale.number.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [sales, searchTerm, filterType]);
@@ -188,7 +188,7 @@ export default function SalesDashboard() {
     return sales.reduce((acc, sale) => {
         const amount = sale.total_amount || 0;
         const avance = sale.totalAvance || 0;
-        if (sale.type === 'CREDIT') acc.credit += amount;
+        if (sale.type === 'CRÉDIT') acc.credit += amount;
         else acc.cash += amount;
         acc.daily += amount;
         acc.avances += avance;
@@ -431,7 +431,7 @@ const handleCancelInvoice = async (invoice) => {
                             </button>
                         </td>
                         <td className="p-4 uppercase font-black text-[16px]">
-                            {sale.type === 'CREDIT' ? (
+                            {sale.type === 'CRÉDIT' ? (
                                 <span className="text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">Crédit</span>
                             ) : (
                                 <span className="text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">Comptant</span>
