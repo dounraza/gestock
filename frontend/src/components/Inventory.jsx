@@ -1192,7 +1192,7 @@ export default function Inventory({ selectedDepotId }) {
                   )}
                   {!formData.unite_superieure && (
                     <div className="space-y-1">
-                        <label className="text-[14px] font-bold text-emerald-600 uppercase ml-1">Conversion Rapide</label>
+                        <label className="text-[14px] font-bold text-emerald-600 uppercase ml-1">Unité Standard</label>
                         <select 
                         className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none text-base font-black text-emerald-700" 
                         value={formData.unite_standard_id || ''} 
