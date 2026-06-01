@@ -16,6 +16,25 @@ export default function POS({ session, selectedDepotId }) {
   const [paymentMode, setPaymentMode] = useState('cash'); 
   const [dueDate, setDueDate] = useState(new Date().toISOString().split('T')[0]);
   const [creditType, setCreditType] = useState('mensuel');
+  const [isAdminAuthOpen, setIsAdminAuthOpen] = useState(false);
+  const [adminAuthCode, setAdminAuthCode] = useState('');
+  const [dbAdminCode, setDbAdminCode] = useState(null); // No fallback
+
+  useEffect(() => {
+    const fetchAdminCode = async () => {
+        const { data, error } = await supabase
+            .from('admin_settings')
+            .select('value')
+            .eq('key', 'admin_code')
+            .single();
+        if (error) {
+            console.error("Erreur récupération code admin :", error);
+        } else if (data) {
+            setDbAdminCode(data.value);
+        }
+    };
+    fetchAdminCode();
+  }, []);
   const [advanceAmount, setAdvanceAmount] = useState(0);
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [globalDiscount, setGlobalDiscount] = useState({ value: 0, type: '%' });
@@ -473,7 +492,13 @@ export default function POS({ session, selectedDepotId }) {
 
             <div className="grid grid-cols-2 gap-1 p-0.5 bg-emerald-900/50 rounded-lg border border-white/10">
                <button onClick={() => setPaymentMode('cash')} className={`py-1 rounded text-[14px] font-black ${paymentMode === 'cash' ? 'bg-emerald-500 text-white' : 'text-emerald-400'}`}>COMPTANT</button>
-               <button onClick={() => setPaymentMode('credit')} className={`py-1 rounded text-[14px] font-black ${paymentMode === 'credit' ? 'bg-orange-500 text-white' : 'text-emerald-400'}`}>CRÉDIT</button>
+               <button onClick={() => {
+                   if (paymentMode === 'cash') {
+                       setIsAdminAuthOpen(true);
+                   } else {
+                       setPaymentMode('cash');
+                   }
+               }} className={`py-1 rounded text-[14px] font-black ${paymentMode === 'credit' ? 'bg-orange-500 text-white' : 'text-emerald-400'}`}>CRÉDIT</button>
             </div>
 
             <div className="p-1.5 bg-emerald-900/30 rounded-lg flex flex-wrap items-center gap-2">
@@ -799,6 +824,33 @@ export default function POS({ session, selectedDepotId }) {
           </div>
         </div>
       )}
+      {isAdminAuthOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-emerald-950/60 backdrop-blur-sm p-4">
+                    <div className="bg-white p-8 rounded-3xl w-full max-w-sm space-y-6 shadow-2xl">
+                        <h3 className="text-2xl font-black text-gray-800 uppercase">Code Administrateur</h3>
+                        <input 
+                            type="password" 
+                            placeholder="Code secret" 
+                            className="w-full bg-emerald-50 border-2 border-emerald-100 rounded-2xl px-4 py-4 text-2xl font-black outline-none" 
+                            value={adminAuthCode} 
+                            onChange={e => setAdminAuthCode(e.target.value)} 
+                            autoFocus
+                        />
+                        <div className="flex gap-3">
+                            <button onClick={() => { setIsAdminAuthOpen(false); setAdminAuthCode(''); }} className="flex-1 py-4 font-bold text-gray-400">Annuler</button>
+                            <button onClick={() => {
+                                if (adminAuthCode === dbAdminCode) {
+                                    setPaymentMode('credit');
+                                    setIsAdminAuthOpen(false);
+                                    setAdminAuthCode('');
+                                } else {
+                                    alert("Code incorrect");
+                                }
+                            }} className="flex-1 py-4 bg-emerald-600 text-white font-black rounded-2xl">Valider</button>
+                        </div>
+                    </div>
+                </div>
+            )}
     </div>
   );
 }
