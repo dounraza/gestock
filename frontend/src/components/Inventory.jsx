@@ -1014,7 +1014,7 @@ export default function Inventory({ selectedDepotId }) {
               )}
             </div>
           ) : (
-            <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl overflow-hidden shadow-sm flex flex-col max-h-[calc(100vh-280px)]">
+            <div className="bg-white/60 backdrop-blur-md border border-emerald-100 rounded-3xl overflow-hidden shadow-sm flex flex-col max-h-100">
               <div className="overflow-auto flex-1">
                 <table className="w-full text-left border-collapse sticky-header">
                   <thead className="sticky top-0 z-20 bg-emerald-50 shadow-sm">
