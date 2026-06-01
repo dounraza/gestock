@@ -48,6 +48,8 @@ export default function POS({ session, selectedDepotId }) {
   const [previewInvoice, setPreviewInvoice] = useState(null);
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
+  const [clientAddress, setClientAddress] = useState('');
   const [tokens, setTokens] = useState([]);
   const [pendingProductIds, setPendingProductIds] = useState(new Set());
   const [currentDepotInfo, setCurrentDepotInfo] = useState(null); 
@@ -249,7 +251,40 @@ export default function POS({ session, selectedDepotId }) {
       console.log("Processing payment...");
       const total = netTotal;
       const advance = paymentMode === 'credit' ? parseFloat(advanceAmount) || 0 : 0;
-      
+      // 1. Handle Client Creation
+      let clientId = null;
+      if (clientName && clientPhone) {
+        // Try to find existing
+        const { data: existingClient } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('phone', clientPhone)
+            .maybeSingle();
+
+        if (existingClient) {
+            clientId = existingClient.id;
+        } else {
+            // Create new
+            const { data: newClient, error: clientError } = await supabase
+                .from('clients')
+                .insert([{ 
+                    name: clientName, 
+                    phone: clientPhone, 
+                    email: clientEmail, 
+                    address: clientAddress,
+                    user_id: session?.user?.id 
+                }])
+                .select('id')
+                .single();
+            if (clientError) {
+                console.error("Error creating client:", clientError);
+            } else if (newClient) {
+                clientId = newClient.id;
+            }
+        }
+      }
+
+      // 2. Update the invoice
       const { data: updatedInvoice, error: updateError } = await supabase.from('factures').update({
         total_amount: total,
         paid_amount: total - advance,
@@ -259,6 +294,7 @@ export default function POS({ session, selectedDepotId }) {
         advance_amount: advance,
         status: 'paid',
         depot_id: selectedDepotId,
+        client_id: clientId, // Link to client table
         guest_name: clientName,
         guest_contact: clientPhone
       }).eq('id', activeInvoice.id).select().single();
@@ -520,6 +556,8 @@ export default function POS({ session, selectedDepotId }) {
             <div className="grid grid-cols-2 gap-1.5 bg-emerald-900/30 p-1.5 rounded-lg border border-white/10">
                <input type="text" className="bg-emerald-950 border border-white/10 rounded p-1 text-[15px] font-black outline-none w-full text-white placeholder-emerald-400" placeholder="Nom Client" value={clientName} onChange={e => setClientName(e.target.value)} />
                <input type="text" className="bg-emerald-950 border border-white/10 rounded p-1 text-[15px] font-black outline-none w-full text-white placeholder-emerald-400" placeholder="Téléphone" value={clientPhone} onChange={e => setClientPhone(e.target.value)} />
+               <input type="hidden" className="bg-emerald-950 border border-white/10 rounded p-1 text-[15px] font-black outline-none w-full text-white placeholder-emerald-400" placeholder="Email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} />
+               <input type="hidden" className="bg-emerald-950 border border-white/10 rounded p-1 text-[15px] font-black outline-none w-full text-white placeholder-emerald-400" placeholder="Adresse" value={clientAddress} onChange={e => setClientAddress(e.target.value)} />
             </div>
 
             {paymentMode === 'credit' && (

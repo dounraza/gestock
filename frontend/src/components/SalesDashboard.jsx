@@ -232,7 +232,9 @@ const handleCancelInvoice = async (invoice) => {
             <p className="text-slate-500 font-bold text-lg">Aujourd'hui : {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
         <div className="flex gap-2">
-            <button onClick={initiateCloseDay} className="bg-red-600 text-white font-black px-4 py-2 rounded-xl shadow-lg hover:bg-red-700 transition-all uppercase text-base">Clôturer Journée</button>
+            {new Date().getHours() >= 18 && (
+                <button onClick={initiateCloseDay} className="bg-red-600 text-white font-black px-4 py-2 rounded-xl shadow-lg hover:bg-red-700 transition-all uppercase text-base">Clôturer Journée</button>
+            )}
             <input type="text" placeholder="Rechercher facture..." onChange={e => setSearchTerm(e.target.value)} className="p-2 rounded-xl border border-slate-200 text-lg" />
             <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="p-2 rounded-xl border border-slate-200" />
             <select value={filterType} onChange={e => setFilterType(e.target.value)} className="p-2 rounded-xl border border-slate-200">
