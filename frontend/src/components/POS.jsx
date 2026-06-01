@@ -351,6 +351,54 @@ export default function POS({ session, selectedDepotId }) {
         }
       }
 
+      // 3. Enregistrer les remises dans la table dédiée
+      console.log("Saving discounts...");
+      const now = new Date();
+      const current_date = now.toISOString().split('T')[0];
+      const current_month = now.getMonth() + 1;
+      const current_year = now.getFullYear();
+
+      // a. Remises par produit
+      for (const item of invoiceItems) {
+        if (item.discount && item.discount.value > 0) {
+          const lineBrut = Number(item.quantity) * Number(item.unit_price);
+          const montantCalcule = item.discount.type === '%' 
+            ? (lineBrut * (Number(item.discount.value) / 100)) 
+            : Number(item.discount.value);
+
+          await supabase.from('remises').insert([{
+            facture_id: activeInvoice.id,
+            facture_number: updatedInvoice.number,
+            produit_id: item.id,
+            facture_item_id: item.item_id,
+            type_remise: 'produit',
+            valeur: Number(item.discount.value),
+            type_valeur: item.discount.type,
+            montant_calcule: montantCalcule,
+            user_id: session?.user?.id,
+            date: current_date,
+            month: current_month,
+            year: current_year
+          }]);
+        }
+      }
+
+      // b. Remise globale
+      if (globalDiscount.value > 0) {
+        await supabase.from('remises').insert([{
+          facture_id: activeInvoice.id,
+          facture_number: updatedInvoice.number,
+          type_remise: 'global',
+          valeur: Number(globalDiscount.value),
+          type_valeur: globalDiscount.type,
+          montant_calcule: globalDiscountAmount,
+          user_id: session?.user?.id,
+          date: current_date,
+          month: current_month,
+          year: current_year
+        }]);
+      }
+
       // --- NEW: Handle B.Enlèvement (Withdrawal) & B.Livraison (Other) ---
       let generatedDN = null;
       if (isWithdrawal || isOther) {

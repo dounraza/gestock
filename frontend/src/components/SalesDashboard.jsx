@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
-import { Calendar, Filter, FileText, User, TrendingUp, ShoppingCart, Clock } from 'lucide-react';
+import { Calendar, Filter, FileText, User, TrendingUp, ShoppingCart, Clock, Tag } from 'lucide-react';
 import { logAction } from '../utils/audit';
 
 export default function SalesDashboard() {
@@ -162,7 +162,7 @@ export default function SalesDashboard() {
 
     let query = supabase
         .from('factures')
-        .select('*, clients(name), facture_items(*, produits(name, unite_base, unite_superieure, quantite_par_unite)), paiements(*)')
+        .select('*, clients(name), facture_items(*, produits(name, unite_base, unite_superieure, quantite_par_unite)), paiements(*), remises(*)')
         .gte('created_at', startOfDay.toISOString())
         .lte('created_at', endOfDay.toISOString())
         .neq('status', 'draft')
@@ -192,8 +192,16 @@ export default function SalesDashboard() {
         else acc.cash += amount;
         acc.daily += amount;
         acc.avances += avance;
+
+        // Calculate discounts from the linked remises table
+        if (sale.remises) {
+            sale.remises.forEach(r => {
+                acc.discounts += parseFloat(r.montant_calcule) || 0;
+            });
+        }
+
         return acc;
-    }, { cash: 0, credit: 0, daily: 0, avances: 0 });
+    }, { cash: 0, credit: 0, daily: 0, avances: 0, discounts: 0 });
   }, [sales]);
 const handleCancelInvoice = async (invoice) => {
   if (!window.confirm("Êtes-vous sûr de vouloir annuler cette facture ? Le stock sera restauré.")) return;
@@ -351,6 +359,9 @@ const handleCancelInvoice = async (invoice) => {
                 <div className="mt-1 pt-1 border-t border-slate-100 text-slate-800 font-black text-sm">
                     Total Dépenses: {dailyExpenses.total.toLocaleString()} Ar
                 </div>
+                <div className="mt-2 pt-1 border-t border-dashed border-emerald-100 text-emerald-600 font-black text-sm">
+                    Total Remises Sales: {totals.discounts.toLocaleString()} Ar
+                </div>
             </div>
         </div>
         
@@ -361,6 +372,20 @@ const handleCancelInvoice = async (invoice) => {
                 <div className="flex justify-between items-center">
                     <span className="text-emerald-400 text-xs uppercase font-black">Recettes (Ventes)</span>
                     <span className="text-lg font-black">{totals.daily.toLocaleString()} Ar</span>
+                </div>
+                <div className="pl-4 space-y-1">
+                    <div className="flex justify-between items-center text-[11px] font-bold text-emerald-300 uppercase">
+                        <span>• Ventes Comptant</span>
+                        <span>{totals.cash.toLocaleString()} Ar</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px] font-bold text-orange-400 uppercase">
+                        <span>• Ventes Crédit</span>
+                        <span>{totals.credit.toLocaleString()} Ar</span>
+                    </div>
+                </div>
+                <div className="flex justify-between items-center">
+                    <span className="text-orange-300 text-xs uppercase font-black">Remises Accordées</span>
+                    <span className="text-lg font-black">{totals.discounts.toLocaleString()} Ar</span>
                 </div>
                 <div className="flex justify-between items-center">
                     <span className="text-red-400 text-xs uppercase font-black">Dépenses</span>
@@ -478,14 +503,34 @@ const handleCancelInvoice = async (invoice) => {
                     </table>
                 </div>
                 
-                <div className="mt-8 pt-6 border-t border-slate-100">
-                    <div className="flex justify-between items-center mb-4 text-lg font-bold text-slate-700 bg-slate-100 p-3 rounded-xl">
+                <div className="mt-8 pt-6 border-t border-slate-100 space-y-4">
+                    {selectedInvoice.remises && selectedInvoice.remises.length > 0 && (
+                        <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
+                            <h4 className="text-orange-800 font-black uppercase text-sm mb-2 flex items-center gap-2">
+                                <Tag size={14} /> Détails des Remises
+                            </h4>
+                            <div className="space-y-1">
+                                {selectedInvoice.remises.map(r => (
+                                    <div key={r.id} className="flex justify-between text-sm font-bold text-orange-700">
+                                        <span>• {r.type_remise === 'global' ? 'Remise Globale' : `Remise Produit`}</span>
+                                        <span>-{parseFloat(r.montant_calcule).toLocaleString()} Ar</span>
+                                    </div>
+                                ))}
+                                <div className="pt-2 mt-1 border-t border-orange-200 flex justify-between font-black text-orange-900">
+                                    <span>TOTAL REMISES</span>
+                                    <span>-{selectedInvoice.remises.reduce((sum, r) => sum + (parseFloat(r.montant_calcule) || 0), 0).toLocaleString()} Ar</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex justify-between items-center text-lg font-bold text-slate-700 bg-slate-100 p-3 rounded-xl">
                         <span>Avances totales:</span>
                         <span className="font-black text-emerald-700">{selectedInvoice.totalAvance.toLocaleString()} Ar</span>
                     </div>
-                    <div className="flex justify-between items-center mb-4 text-lg font-bold text-slate-700 bg-slate-100 p-3 rounded-xl">
-                        <span>Versements totaux:</span>
-                        <span className="font-black text-blue-700">{selectedInvoice.totalVersement.toLocaleString()} Ar</span>
+                    <div className="flex justify-between items-center mb-4 text-lg font-bold text-slate-700 bg-emerald-100 p-3 rounded-xl border-2 border-emerald-200">
+                        <span>NET À PAYER (Total - Remise):</span>
+                        <span className="font-black text-emerald-800">{selectedInvoice.total_amount.toLocaleString()} Ar</span>
                     </div>
                     <button 
                         onClick={() => handleCancelInvoice(selectedInvoice)}
