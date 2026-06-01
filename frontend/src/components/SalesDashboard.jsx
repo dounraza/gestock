@@ -401,10 +401,46 @@ const handleCancelInvoice = async (invoice) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-4 overflow-y-auto max-h-[70vh]">
+      {/* Table Filters Bar */}
+      <div className="bg-white p-4 rounded-t-3xl border-x border-t border-slate-100 flex flex-wrap gap-4 items-center justify-between shadow-sm">
+          <div className="flex items-center gap-4 flex-1 min-w-[300px]">
+              <div className="relative flex-1">
+                  <FileText size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input 
+                      type="text" 
+                      placeholder="Rechercher par numéro de facture..." 
+                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                      onChange={e => setSearchTerm(e.target.value)} 
+                  />
+              </div>
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-xl">
+                  <Calendar size={18} className="text-emerald-600" />
+                  <input 
+                      type="date" 
+                      value={filterDate} 
+                      onChange={e => setFilterDate(e.target.value)} 
+                      className="bg-transparent font-black text-slate-700 outline-none py-1" 
+                  />
+              </div>
+          </div>
+          <div className="flex items-center gap-2">
+              <Filter size={18} className="text-slate-400" />
+              <select 
+                  value={filterType} 
+                  onChange={e => setFilterType(e.target.value)} 
+                  className="bg-slate-50 border border-slate-100 p-3 rounded-xl font-black text-slate-700 outline-none cursor-pointer hover:bg-slate-100 transition-colors"
+              >
+                  <option value="all">Toutes les ventes</option>
+                  <option value="paid">Vente directe</option>
+                  <option value="sent">Vente à Crédit</option>
+              </select>
+          </div>
+      </div>
+
+      <div className="bg-white rounded-b-3xl shadow-sm border border-slate-100 overflow-hidden overflow-y-auto max-h-[70vh]">
         <div className="min-w-[700px]">
         <table className="w-full text-left">
-            <thead className="bg-slate-50 text-slate-400 uppercase text-[16px] font-black">
+            <thead className="bg-slate-50 text-slate-400 uppercase text-[16px] font-black border-b border-slate-100">
                 <tr>
                     <th className="p-4">Facture</th>
                     <th className="p-4">Date</th>
