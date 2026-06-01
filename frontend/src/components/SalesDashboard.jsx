@@ -9,6 +9,9 @@ export default function SalesDashboard() {
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterType, setFilterType] = useState('all'); 
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [isAdminAuthOpen, setIsAdminAuthOpen] = useState(false);
+  const [adminAuthCode, setAdminAuthCode] = useState('');
+  const [dbAdminCode, setDbAdminCode] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -22,7 +25,17 @@ export default function SalesDashboard() {
   useEffect(() => {
     fetchSales();
     fetchFinancialStats();
+    fetchAdminCode();
   }, [filterDate]);
+
+  const fetchAdminCode = async () => {
+    const { data, error } = await supabase
+        .from('admin_settings')
+        .select('value')
+        .eq('key', 'admin_code')
+        .maybeSingle();
+    if (data) setDbAdminCode(data.value);
+  };
 
   const fetchFinancialStats = async () => {
     const today = new Date();
@@ -180,7 +193,16 @@ const handleCancelInvoice = async (invoice) => {
   }
 };
 
+  const initiateCloseDay = () => {
+    setIsAdminAuthOpen(true);
+  };
+
   const handleCloseDay = async () => {
+    if (adminAuthCode !== dbAdminCode) {
+        alert("Code administrateur incorrect");
+        return;
+    }
+    
     if (!window.confirm("Êtes-vous sûr de vouloir clôturer la journée du " + filterDate + " ? Cette action enregistrera les totaux actuels.")) return;
 
     try {
@@ -195,6 +217,8 @@ const handleCancelInvoice = async (invoice) => {
         }]);
         if (error) throw error;
         alert("Journée clôturée avec succès !");
+        setIsAdminAuthOpen(false);
+        setAdminAuthCode('');
     } catch (e) {
         alert("Erreur lors de la clôture : " + e.message);
     }
@@ -208,7 +232,7 @@ const handleCancelInvoice = async (invoice) => {
             <p className="text-slate-500 font-bold text-lg">Aujourd'hui : {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
         <div className="flex gap-2">
-            <button onClick={handleCloseDay} className="bg-red-600 text-white font-black px-4 py-2 rounded-xl shadow-lg hover:bg-red-700 transition-all uppercase text-base">Clôturer Journée</button>
+            <button onClick={initiateCloseDay} className="bg-red-600 text-white font-black px-4 py-2 rounded-xl shadow-lg hover:bg-red-700 transition-all uppercase text-base">Clôturer Journée</button>
             <input type="text" placeholder="Rechercher facture..." onChange={e => setSearchTerm(e.target.value)} className="p-2 rounded-xl border border-slate-200 text-lg" />
             <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="p-2 rounded-xl border border-slate-200" />
             <select value={filterType} onChange={e => setFilterType(e.target.value)} className="p-2 rounded-xl border border-slate-200">
@@ -218,6 +242,27 @@ const handleCancelInvoice = async (invoice) => {
             </select>
         </div>
       </div>
+      
+      {/* Admin Auth Modal */}
+      {isAdminAuthOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white p-8 rounded-3xl w-full max-w-sm space-y-6 shadow-2xl">
+                <h3 className="text-2xl font-black text-gray-800 uppercase">Autorisation Admin</h3>
+                <input 
+                    type="password" 
+                    placeholder="Code secret" 
+                    className="w-full bg-emerald-50 border-2 border-emerald-100 rounded-2xl px-4 py-4 text-2xl font-black outline-none" 
+                    value={adminAuthCode} 
+                    onChange={e => setAdminAuthCode(e.target.value)} 
+                    autoFocus
+                />
+                <div className="flex gap-3">
+                    <button onClick={() => { setIsAdminAuthOpen(false); setAdminAuthCode(''); }} className="flex-1 py-4 font-bold text-gray-400">Annuler</button>
+                    <button onClick={handleCloseDay} className="flex-1 py-4 bg-emerald-600 text-white font-black rounded-2xl">Valider</button>
+                </div>
+            </div>
+        </div>
+      )}
 
       {/* Financial Summaries */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
