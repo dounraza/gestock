@@ -121,11 +121,13 @@ export default function SalesDashboard() {
   const totals = useMemo(() => {
     return sales.reduce((acc, sale) => {
         const amount = sale.total_amount || 0;
+        const avance = sale.totalAvance || 0;
         if (sale.type === 'CREDIT') acc.credit += amount;
         else acc.cash += amount;
         acc.daily += amount;
+        acc.avances += avance;
         return acc;
-    }, { cash: 0, credit: 0, daily: 0 });
+    }, { cash: 0, credit: 0, daily: 0, avances: 0 });
   }, [sales]);
 const handleCancelInvoice = async (invoice) => {
   if (!window.confirm("Êtes-vous sûr de vouloir annuler cette facture ? Le stock sera restauré.")) return;
@@ -178,6 +180,26 @@ const handleCancelInvoice = async (invoice) => {
   }
 };
 
+  const handleCloseDay = async () => {
+    if (!window.confirm("Êtes-vous sûr de vouloir clôturer la journée du " + filterDate + " ? Cette action enregistrera les totaux actuels.")) return;
+
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { error } = await supabase.from('daily_closures').insert([{
+            closure_date: filterDate,
+            total_cash: totals.cash,
+            total_credit: totals.credit,
+            total_advances: totals.avances,
+            total_journalier: totals.daily,
+            user_id: user.id
+        }]);
+        if (error) throw error;
+        alert("Journée clôturée avec succès !");
+    } catch (e) {
+        alert("Erreur lors de la clôture : " + e.message);
+    }
+  };
+
   return (
     <div className="p-4 md:p-8 bg-slate-50 min-h-screen">
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
@@ -186,6 +208,7 @@ const handleCancelInvoice = async (invoice) => {
             <p className="text-slate-500 font-bold text-lg">Aujourd'hui : {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
         <div className="flex gap-2">
+            <button onClick={handleCloseDay} className="bg-red-600 text-white font-black px-4 py-2 rounded-xl shadow-lg hover:bg-red-700 transition-all uppercase text-base">Clôturer Journée</button>
             <input type="text" placeholder="Rechercher facture..." onChange={e => setSearchTerm(e.target.value)} className="p-2 rounded-xl border border-slate-200 text-lg" />
             <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="p-2 rounded-xl border border-slate-200" />
             <select value={filterType} onChange={e => setFilterType(e.target.value)} className="p-2 rounded-xl border border-slate-200">
@@ -197,80 +220,42 @@ const handleCancelInvoice = async (invoice) => {
       </div>
 
       {/* Financial Summaries */}
-      <div className="space-y-6 mb-8">
-        {/* Sales Summary */}
-        <div>
-          <h2 className="text-xl font-black text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <TrendingUp className="text-emerald-600" size={24} /> Résumé des Ventes
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-emerald-600 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <TrendingUp size={80} />
-                </div>
-                <h3 className="text-base uppercase font-black opacity-80">Ventes Globales</h3>
-                <p className="text-3xl font-black">{financialStats.sales.global.toLocaleString()} Ar</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* Sales */}
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-emerald-100">
+            <h3 className="text-[13px] font-black uppercase text-emerald-600 tracking-wider mb-2">Ventes (Global/Mois/Jour)</h3>
+            <p className="text-2xl font-black text-slate-800">{financialStats.sales.global.toLocaleString()} Ar</p>
+            <div className="flex gap-4 mt-2 text-[13px] font-bold text-slate-500">
+                <span>Mois: {financialStats.sales.monthly.toLocaleString()}</span>
+                <span>Jour: {financialStats.sales.daily.toLocaleString()}</span>
             </div>
-            <div className="bg-emerald-500 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <Calendar size={80} />
-                </div>
-                <h3 className="text-base uppercase font-black opacity-80">Ventes du Mois</h3>
-                <p className="text-3xl font-black">{financialStats.sales.monthly.toLocaleString()} Ar</p>
-            </div>
-            <div className="bg-emerald-400 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <Clock size={80} />
-                </div>
-                <h3 className="text-base uppercase font-black opacity-80">Ventes du Jour</h3>
-                <p className="text-3xl font-black">{financialStats.sales.daily.toLocaleString()} Ar</p>
-            </div>
-          </div>
         </div>
 
-        {/* Purchases Summary */}
-        <div>
-          <h2 className="text-xl font-black text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <ShoppingCart className="text-blue-600" size={24} /> Résumé des Achats (Appro)
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-blue-600 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <TrendingUp size={80} />
-                </div>
-                <h3 className="text-base uppercase font-black opacity-80">Achats Globaux</h3>
-                <p className="text-3xl font-black">{financialStats.purchases.global.toLocaleString()} Ar</p>
+        {/* Purchases */}
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-blue-100">
+            <h3 className="text-[13px] font-black uppercase text-blue-600 tracking-wider mb-2">Achats (Global/Mois/Jour)</h3>
+            <p className="text-2xl font-black text-slate-800">{financialStats.purchases.global.toLocaleString()} Ar</p>
+            <div className="flex gap-4 mt-2 text-[13px] font-bold text-slate-500">
+                <span>Mois: {financialStats.purchases.monthly.toLocaleString()}</span>
+                <span>Jour: {financialStats.purchases.daily.toLocaleString()}</span>
             </div>
-            <div className="bg-blue-500 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <Calendar size={80} />
-                </div>
-                <h3 className="text-base uppercase font-black opacity-80">Achats du Mois</h3>
-                <p className="text-3xl font-black">{financialStats.purchases.monthly.toLocaleString()} Ar</p>
-            </div>
-            <div className="bg-blue-400 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <Clock size={80} />
-                </div>
-                <h3 className="text-base uppercase font-black opacity-80">Achats du Jour</h3>
-                <p className="text-3xl font-black">{financialStats.purchases.daily.toLocaleString()} Ar</p>
-            </div>
-          </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-slate-800 text-white p-6 rounded-3xl shadow-lg">
-            <h3 className="text-base uppercase font-black opacity-80">Total Journalier ({new Date(filterDate).toLocaleDateString('fr-FR')})</h3>
+        {/* Filtered Context */}
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+            <h3 className="text-[13px] font-black uppercase text-slate-600 tracking-wider mb-2">Filtre (Détails)</h3>
+            <p className="text-2xl font-black text-slate-800">{totals.daily.toLocaleString()} Ar</p>
+            <div className="grid grid-cols-1 gap-1 mt-2 text-[12px] font-bold text-slate-500">
+                <span className="text-emerald-600 font-black">Comptant: {totals.cash.toLocaleString()} Ar</span>
+                <span className="text-orange-600 font-black">Crédit: {totals.credit.toLocaleString()} Ar</span>
+                <span className="text-blue-600 font-black">Avance: {totals.avances.toLocaleString()} Ar</span>
+            </div>
+        </div>
+        
+        {/* Today's Context */}
+        <div className="bg-emerald-900 text-white p-6 rounded-3xl shadow-lg">
+            <h3 className="text-[13px] font-black uppercase text-emerald-400 tracking-wider mb-2">Total Journalier</h3>
             <p className="text-3xl font-black">{totals.daily.toLocaleString()} Ar</p>
-        </div>
-        <div className="bg-slate-700 text-white p-6 rounded-3xl shadow-lg">
-            <h3 className="text-base uppercase font-black opacity-80">Comptant (Filtre)</h3>
-            <p className="text-3xl font-black">{totals.cash.toLocaleString()} Ar</p>
-        </div>
-        <div className="bg-orange-500 text-white p-6 rounded-3xl shadow-lg">
-            <h3 className="text-base uppercase font-black opacity-80">Crédit (Filtre)</h3>
-            <p className="text-3xl font-black">{totals.credit.toLocaleString()} Ar</p>
         </div>
       </div>
 
