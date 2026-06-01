@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { Search, ShoppingCart, Trash2, Package, CheckCircle, Loader2, Plus, Minus, Tag, Send } from 'lucide-react';
 import Calculator from './Calculator';
@@ -46,6 +46,7 @@ export default function POS({ session, selectedDepotId }) {
   const dragStart = useRef({ x: 0, y: 0 });
   const [currentPage, setCurrentPage] = useState(1);
   const [previewInvoice, setPreviewInvoice] = useState(null);
+  const [previewDeliveryNote, setPreviewDeliveryNote] = useState(null); // NEW
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [clientEmail, setClientEmail] = useState('');
@@ -350,6 +351,35 @@ export default function POS({ session, selectedDepotId }) {
         }
       }
 
+      // --- NEW: Handle B.Enlèvement (Withdrawal) & B.Livraison (Other) ---
+      let generatedDN = null;
+      if (isWithdrawal || isOther) {
+          const type = isWithdrawal ? 'bon_enlevement' : 'bon_livraison';
+          const { data: dn, error: dnError } = await supabase
+            .from('delivery_notes')
+            .insert([{
+                bl_number: `BL-${type.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`,
+                total_amount: netTotal,
+                user_id: session?.user?.id,
+                type: 'out' // Mark as outbound
+            }])
+            .select()
+            .single();
+
+          if (dnError) throw dnError;
+          generatedDN = dn;
+
+          for (const item of invoiceItems) {
+              await supabase.from('delivery_note_items').insert([{
+                  delivery_note_id: dn.id,
+                  product_id: item.id,
+                  quantity: Number(item.quantity),
+                  purchase_price_per_unit: item.unit_price, // Assuming selling price for now or adjust
+                  line_total_purchase: Number(item.total || calculateItemTotal(item))
+              }]);
+          }
+      }
+
       // Mise à jour du stock
       for (const item of invoiceItems) {
         // Update depot-specific stock
@@ -392,7 +422,13 @@ export default function POS({ session, selectedDepotId }) {
       
       if (printInvoice) {
           setPreviewInvoice(updatedInvoice);
-      } else {
+      } 
+      
+      if (generatedDN) {
+          setPreviewDeliveryNote(generatedDN);
+      }
+      
+      if (!printInvoice && !generatedDN) {
           window.location.reload();
       }
     } catch (e) {
@@ -645,219 +681,150 @@ export default function POS({ session, selectedDepotId }) {
         </div>
       )}
       
-      {/* Invoice Preview Modal */}
-      {previewInvoice && (
+      {/* Combined Preview Modal */}
+      {(previewInvoice || previewDeliveryNote) && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <style>{`
             @media print {
-              @page {
-                margin: 0 !important;
-                size: auto;
-              }
-              body, html {
-                margin: 0 !important;
-                padding: 0 !important;
-                visibility: hidden;
-              }
-              #printable-invoice-container {
+              @page { margin: 0 !important; size: 80mm auto; }
+              body, html { margin: 0 !important; padding: 0 !important; visibility: hidden; }
+              #printable-all-container {
                 visibility: visible !important;
                 display: block !important;
                 position: absolute !important;
                 left: 0 !important;
+                right: 0 !important;
                 top: 0 !important;
-                width: 100% !important;
-                padding: 20px !important;
-                border: none !important;
-                box-shadow: none !important;
-                background: white !important;
+                margin: 0 auto !important;
+                width: 72mm !important;
+                padding: 2mm !important;
+                font-family: 'Courier New', Courier, monospace !important;
+                font-size: 11pt !important;
                 color: black !important;
-                border-radius: 0 !important;
               }
-              #printable-invoice-container * {
-                visibility: visible !important;
-              }
-              .print\\:hidden {
-                display: none !important;
-              }
+              .print-hide { display: none !important; }
             }
           `}</style>
-          <div id="printable-invoice-container" className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex flex-wrap justify-between items-center bg-gray-50 print:hidden gap-3">
-              <h3 className="font-black text-gray-800 text-lg">Prévisualisation</h3>
-              <div className="flex flex-wrap gap-2 items-center">
-                <input type="text" placeholder="Nom client" className="px-3 py-1.5 border rounded-lg text-base w-32" value={clientName} onChange={(e) => setClientName(e.target.value)} />
-                <input type="text" placeholder="Tél" className="px-3 py-1.5 border rounded-lg text-base w-24" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} />
-                <button onClick={() => { setPreviewInvoice(null); window.location.reload(); }} className="px-3 py-1.5 text-base font-bold text-gray-500 bg-gray-100 rounded-lg">Fermer</button>
-                <button onClick={() => window.print()} className="px-4 py-1.5 bg-emerald-600 text-white font-black rounded-lg text-base">Imprimer</button>
+          <div id="printable-all-container" className="bg-white text-black max-h-[90vh] overflow-y-auto">
+            <div className="print-hide p-4 border-b border-gray-200 bg-gray-50 flex justify-between sticky top-0">
+              <h3 className="font-bold">Prévisualisation</h3>
+              <div className="flex gap-2">
+                <button onClick={() => { setPreviewInvoice(null); setPreviewDeliveryNote(null); window.location.reload(); }} className="px-3 py-1 bg-gray-200 rounded">Fermer</button>
+                <button onClick={() => window.print()} className="px-3 py-1 bg-emerald-600 text-white font-bold rounded">Imprimer</button>
               </div>
             </div>
-            <div className="p-10 overflow-y-auto flex-1 print:p-0">
-                <div id="printable-invoice" className="text-gray-800">
-                    <div className="flex justify-between items-start mb-6 pb-6 border-b border-gray-100">
-                        <div>
-                            <h1 className="text-3xl font-black text-emerald-800">{currentDepotInfo?.name || 'GESTOCK SARL'}</h1>
-                            <div className="text-base font-bold text-gray-500 mt-2">
-                                <p>{currentDepotInfo?.address || '123 Rue Principale, Antananarivo'}</p>
-                                <p>Tél: {currentDepotInfo?.phone || '+261 34 00 000 00'}</p>
-                            </div>
+            
+            <div className="text-[10pt] leading-tight border-2 border-dashed border-black p-2 space-y-8">
+              {previewInvoice && (
+                <div id="printable-invoice">
+                    <div className="text-center mb-4 border-b border-dashed border-black pb-2">
+                        <h1 className="text-xl font-black uppercase text-emerald-600">{currentDepotInfo?.name || 'GESTOCK'}</h1>
+                        <p>{currentDepotInfo?.address || 'Antananarivo'}</p>
+                        <p>Tél: {currentDepotInfo?.phone || '---'}</p>
+                    </div>
+                    <div className="mb-4 border-b border-dashed border-black py-1">
+                        <p>Facture: <span className="font-bold">{previewInvoice.number}</span></p>
+                        <p>Date: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                        <p>Client: <span className="font-bold">{clientName || 'Anonyme'}</span></p>
+                    </div>
+                    <table className="w-full text-left mb-4">
+                        <thead>
+                            <tr className="border-b border-dashed border-black">
+                                <th className="py-1">Désignation</th>
+                                <th className="py-1 text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {invoiceItems.map(item => (
+                                <React.Fragment key={item.item_id}>
+                                    <tr>
+                                        <td colSpan="2" className="pt-2 font-bold">{item.name}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-1 pl-2">
+                                            {formatQuantity(item.quantity, item)}
+                                            {item.discount && <div className="text-[9pt] italic text-gray-600">Remise: {item.discount.value}{item.discount.type}</div>}
+                                        </td>
+                                        <td className="py-1 text-right font-bold">
+                                            {(item.total || calculateItemTotal(item)).toLocaleString()}
+                                        </td>
+                                    </tr>
+                                </React.Fragment>
+                            ))}
+                        </tbody>
+                    </table>
+                    <div className="border-t border-dashed border-black pt-2 text-right">
+                        <p className="font-bold">Total Brut: {subtotal.toLocaleString()} MGA</p>
+                        <p className="font-black text-lg mt-2">NET À PAYER: {parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 mt-6 text-sm">
+                        <div className="text-center">
+                            <p className="font-bold">Client</p>
+                            <div className="h-16 border-b border-black"></div>
                         </div>
-                        <div className="text-right">
-                            <p className="text-lg font-bold uppercase">Client: {clientName || 'Non spécifié'}</p>
-                            <p className="text-lg font-bold">Tél: {clientPhone || '---'}</p>
+                        <div className="text-center">
+                            <p className="font-bold">Vendeur</p>
+                            <div className="h-16 border-b border-black"></div>
                         </div>
+                    </div>
+                </div>
+              )}
+              
+              {previewDeliveryNote && (
+                <div id="printable-dn" className="border-t-2 border-solid border-black pt-8">
+                    <div className="text-center mb-4 border-b border-dashed border-black pb-2">
+                        <h1 className="text-xl font-black uppercase">BON DE SORTIE</h1>
+                        <p className="font-black">Dépôt Principal</p>
+                        <p>Tél: 0387060782</p>
+                        <p>Facture Réf: <span className="font-bold">{activeInvoice.number}</span></p>
+                        <p>N°: <span className="font-bold">{previewDeliveryNote.bl_number}</span></p>
+                        <p>Date: {new Date(previewDeliveryNote.created_at).toLocaleDateString()}</p>
                     </div>
                     
-                    <h2 className="text-3xl font-black text-gray-800 mb-2">Facture # {previewInvoice.number}</h2>
-                    <p className="text-base font-bold text-gray-400 uppercase mb-4 tracking-widest">
-                        Date: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    </p>
-                    <div className="border-t border-b border-gray-200 py-4 mb-4">
-                        <table className="w-full text-left text-lg border-collapse">
-                            <thead>
-                                <tr className="border-b border-gray-200 text-gray-500 text-[16px] uppercase">
-                                    <th className="py-2">Désignation</th>
-                                    <th className="py-2 text-center">Qté</th>
-                                    <th className="py-2 text-right">P.U</th>
-                                    <th className="py-2 text-center">Remise</th>
-                                    <th className="py-2 text-right">Total</th>
+                    <table className="w-full text-left mb-4">
+                        <thead>
+                            <tr className="border-b border-dashed border-black">
+                                <th className="py-1">Désignation</th>
+                                <th className="py-1 text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {invoiceItems.map(item => (
+                                <tr key={item.item_id}>
+                                    <td className="py-1">
+                                        <div className="font-bold">{item.name}</div>
+                                        <div className="text-[9pt]">{formatQuantity(item.quantity, item)}</div>
+                                    </td>
+                                    <td className="py-1 text-right font-bold">
+                                        {(item.total || calculateItemTotal(item)).toLocaleString()}
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {invoiceItems.map(item => (
-                                    <tr key={item.item_id} className="border-b border-gray-50">
-                                        <td className="py-2 font-bold">{item.name}</td>
-                                        <td className="py-2 text-center text-base">({formatQuantity(item.quantity, item)})</td>
-                                        <td className="py-2 text-right text-base">
-                                            {item.unit_price.toLocaleString()} Ar
-                                            {item.price_superior && <div className="text-[15px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
-                                        </td>
-                                        <td className="py-2 text-center text-orange-600 font-bold">
-                                            {item.discount ? `${item.discount.value}` : '-'}
-                                        </td>
-                                        <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        <div className="flex justify-between font-black text-2xl pt-4">
-                            <span>Total</span>
-                            <span>{parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</span>
-                        </div>
+                            ))}
+                        </tbody>
+                    </table>
+
+                    <div className="border-t border-dashed border-black pt-2 text-right">
+                        <p className="font-bold">Total Brut: {subtotal.toLocaleString()} MGA</p>
+                        {lineDiscountsTotal > 0 && (
+                            <p className="font-bold text-red-600">Remise Partiel: -{lineDiscountsTotal.toLocaleString()} MGA</p>
+                        )}
+                        {globalDiscountAmount > 0 && (
+                            <p className="font-bold text-red-600">Remise Totaux: -{globalDiscountAmount.toLocaleString()} MGA</p>
+                        )}
+                        <p className="font-black text-lg mt-2">NET À PAYER: {parseFloat(previewDeliveryNote.total_amount).toLocaleString()} MGA</p>
                     </div>
 
-                    <div className="mt-12 grid grid-cols-2 gap-10 text-center">
-                        <div>
-                            <p className="text-[16px] font-black uppercase text-gray-400 mb-10">Signature Client</p>
-                            <div className="border-b border-gray-300 w-32 mx-auto"></div>
-                        </div>
-                        <div>
-                            <p className="text-[16px] font-black uppercase text-gray-400 mb-10">Signature GESTOCK / Cachet</p>
-                            <div className="border-b border-gray-300 w-32 mx-auto"></div>
-                        </div>
+                    <div className="text-center mt-6 text-sm">
+                        <p className="font-bold">Signature & Cachet</p>
+                        <div className="h-20 border-b border-black"></div>
                     </div>
-
-                    {isWithdrawal && (
-                      <div className="mt-10 break-before-page">
-                          <div className="flex justify-between items-start mb-6">
-                            <div>
-                                <h2 className="text-3xl font-black text-emerald-800">Bon d'enlèvement</h2>
-                                  {/* <p>Tél: +261 34 00 000 00</p> */}
-                                <p className="text-lg font-bold text-gray-600">N° BE-{previewInvoice.number.split('-')[1] || previewInvoice.number}</p>
-                            </div>
-                            <div className="text-right text-[16px] font-bold">
-                                <p>Client: {clientName || '---'}</p>
-                            </div>
-                          </div>
-                          <div className="border border-gray-200 rounded-lg p-4">
-                              <table className="w-full text-left text-lg border-collapse">
-                                  <thead>
-                                      <tr className="border-b border-gray-200 text-gray-500 text-[16px] uppercase">
-                                          <th className="py-2">Désignation</th>
-                                          <th className="py-2 text-center">Qté</th>
-                                          <th className="py-2 text-right">P.U / Sup</th>
-                                          <th className="py-2 text-center">Remise</th>
-                                          <th className="py-2 text-right">Total</th>
-                                      </tr>
-                                  </thead>
-                                  <tbody>
-                                      {invoiceItems.map(item => (
-                                          <tr key={item.item_id} className="border-b border-gray-50">
-                                              <td className="py-2 font-bold">{item.name}</td>
-                                              <td className="py-2 text-center text-base">({formatQuantity(item.quantity, item)})</td>
-                                              <td className="py-2 text-right text-base">
-                                                {item.unit_price.toLocaleString()} Ar
-                                                {item.price_superior && <div className="text-[15px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
-                                              </td>
-                                              <td className="py-2 text-center text-orange-600 font-bold">{item.discount ? `${item.discount.value}` : '-'}</td>
-                                              <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</td>
-                                          </tr>
-                                      ))}
-                                  </tbody>
-                              </table>
-                          </div>
-                          <div className="mt-4 font-black text-lg text-right">Total Remise: {totalDiscount.toLocaleString()} Ar</div>
-                          <div className="mt-1 font-black text-2xl text-right text-emerald-800">Total: {parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</div>
-                          <div className="mt-10 pt-6 border-t border-gray-100 text-center text-[16px] text-gray-500 font-bold">
-                            {currentDepotInfo?.address || '123 Rue Principale, Antananarivo'}
-                          </div>
-                          <div className="mt-6 grid grid-cols-2 gap-20 text-center text-[16px] font-bold">
-                            <div>Magasinier<br/><br/><br/>____________________</div>
-                            <div>Client<br/><br/><br/>____________________</div>
-                          </div>
-                      </div>
-                    )}
-
-                    {isOther && (
-                      <div className="mt-10 break-before-page">
-                          <div className="flex justify-between items-start mb-6">
-                            <div>
-                                <h2 className="text-3xl font-black text-emerald-800">Bon de livraison</h2>
-                                  <p>Tél: +261 34 00 000 00</p>
-                                <p className="text-lg font-bold text-gray-600">N° BL-{previewInvoice.number.split('-')[1] || previewInvoice.number}</p>
-                            </div>
-                            <div className="text-right text-[16px] font-bold">
-                                <p>Client: {clientName || '---'}</p>
-                            </div>
-                          </div>
-                          <div className="border border-gray-200 rounded-lg p-4">
-                              <table className="w-full text-left text-lg border-collapse">
-                                  <thead>
-                                      <tr className="border-b border-gray-200 text-gray-500 text-[16px] uppercase">
-                                          <th className="py-2">Désignation</th>
-                                          <th className="py-2 text-center">Qté</th>
-                                          <th className="py-2 text-right">P.U / Sup</th>
-                                          <th className="py-2 text-center">Remise</th>
-                                          <th className="py-2 text-right">Total</th>
-                                      </tr>
-                                  </thead>
-                                  <tbody>
-                                      {invoiceItems.map(item => (
-                                          <tr key={item.item_id} className="border-b border-gray-50">
-                                              <td className="py-2 font-bold">{item.name}</td>
-                                              <td className="py-2 text-center text-base">({formatQuantity(item.quantity, item)})</td>
-                                              <td className="py-2 text-right text-base">
-                                                {item.unit_price.toLocaleString()} Ar
-                                                {item.price_superior && <div className="text-[15px] text-gray-400">Sup: {item.price_superior.toLocaleString()} Ar</div>}
-                                              </td>
-                                              <td className="py-2 text-center text-orange-600 font-bold">{item.discount ? `${item.discount.value}` : '-'}</td>
-                                              <td className="py-2 text-right font-bold">{(item.total || calculateItemTotal(item)).toLocaleString()} Ar</td>
-                                          </tr>
-                                      ))}
-                                  </tbody>
-                              </table>
-                          </div>
-                          <div className="mt-4 font-black text-lg text-right">Total Remise: {totalDiscount.toLocaleString()} Ar</div>
-                          <div className="mt-1 font-black text-2xl text-right text-emerald-800">Total: {parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</div>
-                          <div className="mt-10 pt-6 border-t border-gray-100 text-center text-[16px] text-gray-500 font-bold">
-                            {currentDepotInfo?.address || '123 Rue Principale, Antananarivo'}
-                          </div>
-                          <div className="mt-6 grid grid-cols-2 gap-20 text-center text-[16px] font-bold">
-                            <div>Livreur<br/><br/><br/>____________________</div>
-                            <div>Client<br/><br/><br/>____________________</div>
-                          </div>
-                      </div>
-                    )}
                 </div>
+              )}
+                
+              <div className="text-center mt-2 text-sm border-t border-dashed border-black pt-2">
+                  <p>Merci de votre confiance !</p>
+              </div>
             </div>
           </div>
         </div>

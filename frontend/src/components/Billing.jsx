@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { Plus, Search, FileText, Trash2, Edit2, Calendar, User, DollarSign, Loader2, CheckCircle, Clock, XCircle, Eye, Download } from 'lucide-react';
 import { jsPDF } from 'jspdf';
@@ -783,112 +783,101 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
         </div>
       )}
       {viewingInvoice && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-900/20 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-              <h3 className="text-2xl font-bold text-gray-800">Détails Facture {viewingInvoice.number}</h3>
-              <button onClick={() => setViewingInvoice(null)} className="text-gray-400 hover:text-gray-600 text-3xl">&times;</button>
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <style>{`
+            @media print {
+              @page { margin: 0 !important; size: 80mm auto; }
+              body, html { margin: 0 !important; padding: 0 !important; visibility: hidden; }
+              #printable-invoice-container {
+                visibility: visible !important;
+                display: block !important;
+                position: absolute !important;
+                left: 0 !important;
+                right: 0 !important;
+                top: 0 !important;
+                margin: 0 auto !important;
+                width: 72mm !important;
+                padding: 2mm !important;
+                font-family: 'Courier New', Courier, monospace !important;
+                font-size: 11pt !important;
+                color: black !important;
+              }
+              .print-hide { display: none !important; }
+            }
+          `}</style>
+          <div id="printable-invoice-container" className="bg-white text-black">
+            <div className="print-hide p-4 border-b border-gray-200 bg-gray-50 flex justify-between">
+              <h3 className="font-bold">Facture {viewingInvoice.number}</h3>
+              <div className="flex gap-2">
+                <button onClick={() => setViewingInvoice(null)} className="px-3 py-1 bg-gray-200 rounded">Fermer</button>
+                <button onClick={() => window.print()} className="px-3 py-1 bg-emerald-600 text-white font-bold rounded">Imprimer</button>
+              </div>
             </div>
-            <div className="p-6 overflow-y-auto flex-1">
-               <div className="text-lg text-gray-600 mb-6">
-               <p><strong>Client:</strong> {viewingInvoice.clients?.name || viewingInvoice.guest_name || 'Client Direct'}</p>
-               <p><strong>Total:</strong> {viewingInvoice.total_amount.toLocaleString('fr-MG')} Ar</p>
-               <p><strong>Date & Heure:</strong> {new Date(viewingInvoice.created_at).toLocaleDateString('fr-FR')} {new Date(viewingInvoice.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</p>
-               </div>               <div className="overflow-x-auto">
-                <table className="w-full text-left text-base">
-                    <thead className="text-slate-400 uppercase font-black border-b border-slate-100">
-                        <tr>
-                            <th className="p-2">Désignation</th>
-                            <th className="p-2 text-center">Qté</th>
-                            <th className="p-2 text-center">Unités</th>
-                            <th className="p-2 text-center">Remise</th>
-                            <th className="p-2 text-right">P.U</th>
-                            <th className="p-2 text-right">Total</th>
+            
+            <div id="printable-invoice" className="text-[10pt] leading-tight border-2 border-dashed border-black p-2">
+                <div className="text-center mb-4 border-b border-dashed border-black pb-2">
+                    <h1 className="text-xl font-black uppercase text-emerald-600">GESTOCK</h1>
+                    <p>Facture: <span className="font-bold">{viewingInvoice.number}</span></p>
+                    <p>Date: {new Date(viewingInvoice.created_at).toLocaleDateString()} {new Date(viewingInvoice.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                    <p>Client: <span className="font-bold">{viewingInvoice.clients?.name || viewingInvoice.guest_name || 'Anonyme'}</span></p>
+                </div>
+
+                <table className="w-full text-left mb-4">
+                    <thead>
+                        <tr className="border-b border-dashed border-black">
+                            <th className="py-1">Désignation</th>
+                            <th className="py-1 text-right">Total</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody>
                         {viewingItems.map(item => {
                             const q = item.quantity || 0;
-                            const qpu = Number(item.produits?.quantite_par_unite) || 1;
+                            const p = item.produits || {};
+                            const qpu = Number(p.quantite_par_unite) || 1;
                             const superior = Math.floor(q / qpu);
                             const base = q % qpu;
-                            const qDisplay = item.produits && qpu > 1 
-                                ? `${superior > 0 ? `${superior} ${item.produits.unite_superieure || 'Ctn'} ` : ''}${base > 0 ? `+ ${base} ${item.produits.unite_base || 'Pce'}` : ''}`
-                                : `${q} ${item.produits?.unite_base || 'Pce'}`;
+                            const qDisplay = p && qpu > 1 
+                                ? `${superior > 0 ? `${superior} ${p.unite_superieure || 'Ctn'} ` : ''}${base > 0 ? `+ ${base} ${p.unite_base || 'Pce'}` : ''}`
+                                : `${q} ${p.unite_base || 'Pce'}`;
+                            const totalLine = item.total || 0;
                             
                             return (
-                                <tr key={item.id} className="text-slate-800 font-bold">
-                                    <td className="p-2 uppercase">{item.produits?.name || 'Inconnu'}</td>
-                                    <td className="p-2 text-center">{q}</td>
-                                    <td className="p-2 text-center text-[15px] text-slate-500 italic">
-                                        {qDisplay}
-                                    </td>
-                                    <td className="p-2 text-center text-orange-600">
-                                        {item.discount ? `${item.discount.value || 0}${item.discount.type || ''}` : '-'}
-                                    </td>
-                                    <td className="p-2 text-right text-[16px]">
-                                        <div>{ (item.unit_price || 0).toLocaleString() } Ar</div>
-                                        {item.produits?.price_superior > 0 && (
-                                            <div className="text-[15px] text-slate-400">Sup: {Number(item.produits.price_superior).toLocaleString()} Ar</div>
-                                        )}
-                                    </td>
-                                    <td className="p-2 text-right font-black">
-                                        {(() => {
-                                            const q = item.quantity || 0;
-                                            const qpu = Number(item.produits?.quantite_par_unite) || 1;
-                                            const superior = Math.floor(q / qpu);
-                                            const base = q % qpu;
-                                            const priceSup = Number(item.produits?.price_superior) || 0;
-                                            const priceBase = Number(item.unit_price) || 0;
-                                            
-                                            const totalBeforeDiscount = (superior * priceSup) + (base * priceBase);
-                                            const discountVal = item.discount ? (item.discount.type === '%' ? (totalBeforeDiscount * parseFloat(item.discount.value) / 100) : parseFloat(item.discount.value)) : 0;
-                                            return (totalBeforeDiscount - discountVal).toLocaleString();
-                                        })()} Ar
-                                    </td>
-                                </tr>
+                                <>
+                                    <tr>
+                                        <td colSpan="2" className="pt-2 font-bold">{p.name || 'Inconnu'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-1 pl-2">
+                                            {qDisplay}
+                                            {item.discount_value > 0 && <div className="text-[9pt] italic text-gray-600">Remise: {item.discount_value}{item.discount_type}</div>}
+                                        </td>
+                                        <td className="py-1 text-right font-bold">
+                                            {totalLine.toLocaleString()}
+                                        </td>
+                                    </tr>
+                                </>
                             );
                         })}
                     </tbody>
-                    <tfoot className="border-t-2 border-slate-200">
-                        <tr className="text-slate-800 font-black">
-                            <td colSpan="3" className="p-2 text-right uppercase">Totaux</td>
-                            <td className="p-2 text-center text-orange-600">
-                                {viewingItems.reduce((acc, item) => {
-                                    const q = item.quantity || 0;
-                                    const qpu = Number(item.produits?.quantite_par_unite) || 1;
-                                    const superior = Math.floor(q / qpu);
-                                    const base = q % qpu;
-                                    const priceSup = Number(item.produits?.price_superior) || 0;
-                                    const priceBase = Number(item.unit_price) || 0;
-                                    const totalLine = (superior * priceSup) + (base * priceBase);
-                                    const discountVal = item.discount ? (item.discount.type === '%' ? (totalLine * parseFloat(item.discount.value) / 100) : parseFloat(item.discount.value)) : 0;
-                                    return acc + discountVal;
-                                }, 0).toLocaleString()} Ar
-                            </td>
-                            <td></td>
-                            <td className="p-2 text-right">
-                                {viewingItems.reduce((acc, item) => {
-                                    const q = item.quantity || 0;
-                                    const qpu = Number(item.produits?.quantite_par_unite) || 1;
-                                    const superior = Math.floor(q / qpu);
-                                    const base = q % qpu;
-                                    const priceSup = Number(item.produits?.price_superior) || 0;
-                                    const priceBase = Number(item.unit_price) || 0;
-                                    const totalLine = (superior * priceSup) + (base * priceBase);
-                                    const discountVal = item.discount ? (item.discount.type === '%' ? (totalLine * parseFloat(item.discount.value) / 100) : parseFloat(item.discount.value)) : 0;
-                                    return acc + (totalLine - discountVal);
-                                }, 0).toLocaleString()} Ar
-                            </td>
-                        </tr>
-                    </tfoot>
                 </table>
-               </div>
-            </div>
-            <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end">
-                <button onClick={() => downloadPDF(viewingInvoice)} className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-blue-700 transition-all flex items-center gap-2">
-                    <Download size={18} /> Imprimer / PDF
-                </button>
+
+                <div className="border-t border-dashed border-black pt-2 text-right mb-4">
+                    <p className="font-black text-lg mt-2">NET À PAYER: {parseFloat(viewingInvoice.total_amount).toLocaleString()} MGA</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mt-4 pt-2 border-t border-dashed border-black">
+                    <div className="text-center">
+                        <p className="text-[8pt] font-bold">Client</p>
+                        <div className="h-12 border-b border-black"></div>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-[8pt] font-bold">Vendeur</p>
+                        <div className="h-12 border-b border-black"></div>
+                    </div>
+                </div>
+                <div className="text-center mt-2 text-sm">
+                    <p>Merci de votre confiance !</p>
+                </div>
             </div>
           </div>
         </div>
