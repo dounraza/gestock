@@ -523,7 +523,7 @@ export default function POS({ session, selectedDepotId }) {
       </div>
       
       <div className="flex-1 overflow-y-auto">
-        <div className="grid grid-cols-12 gap-3 h-[45%]">
+        <div className="grid grid-cols-12 gap-3 h-auto">
           {/* CART */}
           <div className="col-span-12 lg:col-span-8 bg-white rounded-xl shadow-sm border border-emerald-100 flex flex-col min-h-0 overflow-hidden">
             <div className="p-2 border-b border-emerald-50 bg-emerald-50/30 flex items-center justify-between">
@@ -625,14 +625,18 @@ export default function POS({ session, selectedDepotId }) {
                    </div>
                </div>
             )}
-            <button onClick={handleFinalize} disabled={isProcessing} className="w-full mt-4 py-1 bg-emerald-600 text-white font-black rounded-lg text-[15px] uppercase tracking-wider flex items-center justify-center gap-1">
+
+            <div className="flex-1" />
+
+            <button onClick={handleFinalize} disabled={isProcessing} className="w-full py-2 bg-emerald-600 text-white font-black rounded-lg text-[15px] uppercase tracking-wider flex items-center justify-center gap-1">
                {isProcessing ? <Loader2 className="animate-spin" size={12} /> : 'FINALISER'}
-            </button>          </div>        </div>
+            </button>
+          </div>        </div>
 
         {/* PRODUCTS LIST */}
         <div className="mt-16 bg-white rounded-xl p-2 shadow-sm border border-emerald-100">
            <input type="text" placeholder="Chercher produit..." className="w-full bg-emerald-50 p-2 rounded-lg text-base font-bold" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-           <div className="mt-4 h-64 overflow-y-auto">
+           <div className="mt-4 h-auto overflow-y-auto">
              <table className="w-full text-left">
                 <tbody className="divide-y divide-emerald-50">
                   {paginatedProducts.map(p => (
