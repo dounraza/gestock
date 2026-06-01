@@ -687,8 +687,8 @@ export default function Inventory({ selectedDepotId }) {
     return `${q} ${uBase}`;
   };
 
-  const globalTotalPurchase = products.reduce((acc, p) => acc + (parseFloat(p.purchase_price) || 0), 0);
-  const globalTotalSelling = products.reduce((acc, p) => {
+  const globalTotalPurchase = filteredProducts.reduce((acc, p) => acc + (parseFloat(p.purchase_price) || 0), 0);
+  const globalTotalSelling = filteredProducts.reduce((acc, p) => {
     const q = Number(p.stock_quantity) || 0;
     const qpu = Number(p.quantite_par_unite) || 1;
     const priceBase = Number(p.price) || 0;
@@ -701,7 +701,7 @@ export default function Inventory({ selectedDepotId }) {
     }
     return acc + (q * priceBase);
   }, 0);
-  const globalTotalStock = products.reduce((acc, p) => acc + (Number(p.stock_quantity) || 0), 0);
+  const globalTotalStock = filteredProducts.reduce((acc, p) => acc + (Number(p.stock_quantity) || 0), 0);
 
   const dailyTotalPurchase = stockMovements
     .filter(m => {
@@ -1072,6 +1072,16 @@ export default function Inventory({ selectedDepotId }) {
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot className="sticky bottom-0 z-20 bg-emerald-100/90 backdrop-blur-sm shadow-[0_-2px_10px_rgba(0,0,0,0.05)] font-black text-emerald-900 border-t-2 border-emerald-200">
+                    <tr>
+                        <td className="py-3 px-4 pl-6 uppercase tracking-wider">Total Filtré</td>
+                        <td className="py-3 px-4 text-[13px]">{filteredProducts.length} articles</td>
+                        <td className="py-3 px-4">{globalTotalStock.toLocaleString()} unités</td>
+                        <td className="py-3 px-4">-</td>
+                        <td className="py-3 px-4 text-lg">{globalTotalSelling.toLocaleString()} Ar</td>
+                        <td className="py-3 px-4 pr-6 text-right">-</td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </div>
