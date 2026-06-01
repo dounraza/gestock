@@ -334,6 +334,7 @@ const handleCancelInvoice = async (invoice) => {
                 <div className="flex justify-between items-center mb-6">
                     <div>
                         <h3 className="text-2xl font-black text-slate-800">Facture: {selectedInvoice.number}</h3>
+                        <p className="text-lg font-bold text-slate-600">Date: {new Date(selectedInvoice.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                         <p className="text-lg font-bold text-slate-600">Client: {selectedInvoice.clients?.name || selectedInvoice.guest_name || 'Anonyme'}</p>
                         <p className="text-lg font-bold text-slate-600">Contact: {selectedInvoice.guest_contact || 'Non renseigné'}</p>
                     </div>
