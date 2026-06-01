@@ -17,6 +17,13 @@ export default function SalesDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  const [dailyExpenses, setDailyExpenses] = useState({
+    decaissements: 0,
+    supplierPayments: 0,
+    blPayments: 0,
+    total: 0
+  });
+
   const [financialStats, setFinancialStats] = useState({
     sales: { global: 0, monthly: 0, daily: 0 },
     purchases: { global: 0, monthly: 0, daily: 0 }
@@ -26,7 +33,53 @@ export default function SalesDashboard() {
     fetchSales();
     fetchFinancialStats();
     fetchAdminCode();
+    fetchDailyExpenses(filterDate);
   }, [filterDate]);
+
+  const fetchDailyExpenses = async (date) => {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    try {
+        // 1. Decaissements
+        const { data: decData } = await supabase
+            .from('decaissements')
+            .select('montant')
+            .eq('date_decaissement', date);
+
+        // 2. Supplier Payments (Credits)
+        const { data: payData } = await supabase
+            .from('supplier_payments')
+            .select('amount')
+            .gte('created_at', startOfDay.toISOString())
+            .lte('created_at', endOfDay.toISOString());
+
+        // 3. Delivery Notes (Direct sales and advances)
+        const { data: blData } = await supabase
+            .from('delivery_notes')
+            .select('total_amount, advance_amount, payment_type')
+            .gte('bl_date', startOfDay.toISOString())
+            .lte('bl_date', endOfDay.toISOString());
+
+        const totalDec = decData?.reduce((sum, d) => sum + (parseFloat(d.montant) || 0), 0) || 0;
+        const totalPay = payData?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0;
+        const totalBL = blData?.reduce((sum, bl) => {
+            if (bl.payment_type === 'direct_sale') return sum + (parseFloat(bl.total_amount) || 0);
+            return sum + (parseFloat(bl.advance_amount) || 0);
+        }, 0) || 0;
+
+        setDailyExpenses({
+            decaissements: totalDec,
+            supplierPayments: totalPay,
+            blPayments: totalBL,
+            total: totalDec + totalPay + totalBL
+        });
+    } catch (err) {
+        console.error("Error fetching expenses:", err);
+    }
+  };
 
   const fetchAdminCode = async () => {
     const { data, error } = await supabase
@@ -60,19 +113,22 @@ export default function SalesDashboard() {
         if (s.created_at >= startOfToday && s.created_at <= endOfToday) salesStats.daily += amt;
       });
 
-      // PURCHASES (Calculé comme la simple somme des prix d'achat de tous les produits)
-      const { data: productData } = await supabase
-        .from('produits')
-        .select('purchase_price');
+      // PURCHASES (Somme des Bons de Livraison)
+      const { data: purchaseData } = await supabase
+        .from('delivery_notes')
+        .select('total_amount, created_at');
 
-      let totalPurchaseSum = 0;
-      productData?.forEach(p => {
-        totalPurchaseSum += parseFloat(p.purchase_price) || 0;
+      const purchaseStats = { global: 0, monthly: 0, daily: 0 };
+      purchaseData?.forEach(p => {
+        const amt = parseFloat(p.total_amount) || 0;
+        purchaseStats.global += amt;
+        if (p.created_at >= startOfMonth) purchaseStats.monthly += amt;
+        if (p.created_at >= startOfToday && p.created_at <= endOfToday) purchaseStats.daily += amt;
       });
 
       setFinancialStats({
         sales: salesStats,
-        purchases: { global: totalPurchaseSum, monthly: 0, daily: 0 } // Historique non disponible
+        purchases: purchaseStats
       });
     } catch (err) {
       console.error("Error fetching financial stats:", err);
@@ -285,21 +341,38 @@ const handleCancelInvoice = async (invoice) => {
             </div>
         </div>
 
-        {/* Filtered Context */}
+        {/* Filtered Context (Expenses) */}
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-            <h3 className="text-[13px] font-black uppercase text-slate-600 tracking-wider mb-2">Filtre (Détails)</h3>
-            <p className="text-2xl font-black text-slate-800">{totals.daily.toLocaleString()} Ar</p>
+            <h3 className="text-[13px] font-black uppercase text-slate-600 tracking-wider mb-2">Détails Dépenses (Filtre)</h3>
             <div className="grid grid-cols-1 gap-1 mt-2 text-[12px] font-bold text-slate-500">
-                <span className="text-emerald-600 font-black">Comptant: {totals.cash.toLocaleString()} Ar</span>
-                <span className="text-orange-600 font-black">Crédit: {totals.credit.toLocaleString()} Ar</span>
-                <span className="text-blue-600 font-black">Avance: {totals.avances.toLocaleString()} Ar</span>
+                <span className="text-red-500 font-black">Décaissements: {dailyExpenses.decaissements.toLocaleString()} Ar</span>
+                <span className="text-orange-500 font-black">Crédits Fourn.: {dailyExpenses.supplierPayments.toLocaleString()} Ar</span>
+                <span className="text-blue-500 font-black">Achats Directs/Avances: {dailyExpenses.blPayments.toLocaleString()} Ar</span>
+                <div className="mt-1 pt-1 border-t border-slate-100 text-slate-800 font-black text-sm">
+                    Total Dépenses: {dailyExpenses.total.toLocaleString()} Ar
+                </div>
             </div>
         </div>
         
-        {/* Today's Context */}
+        {/* Today's Context (Results) */}
         <div className="bg-emerald-900 text-white p-6 rounded-3xl shadow-lg">
-            <h3 className="text-[13px] font-black uppercase text-emerald-400 tracking-wider mb-2">Total Journalier</h3>
-            <p className="text-3xl font-black">{totals.daily.toLocaleString()} Ar</p>
+            <h3 className="text-[13px] font-black uppercase text-emerald-400 tracking-wider mb-2">Résultat du {new Date(filterDate).toLocaleDateString()}</h3>
+            <div className="space-y-2 mt-2">
+                <div className="flex justify-between items-center">
+                    <span className="text-emerald-400 text-xs uppercase font-black">Recettes (Ventes)</span>
+                    <span className="text-lg font-black">{totals.daily.toLocaleString()} Ar</span>
+                </div>
+                <div className="flex justify-between items-center">
+                    <span className="text-red-400 text-xs uppercase font-black">Dépenses</span>
+                    <span className="text-lg font-black">-{dailyExpenses.total.toLocaleString()} Ar</span>
+                </div>
+                <div className="pt-2 border-t border-emerald-800 flex justify-between items-center">
+                    <span className="text-emerald-400 text-[13px] font-black uppercase">Résultat Net</span>
+                    <span className={`text-2xl font-black ${totals.daily - dailyExpenses.total >= 0 ? 'text-white' : 'text-red-400'}`}>
+                        {(totals.daily - dailyExpenses.total).toLocaleString()} Ar
+                    </span>
+                </div>
+            </div>
         </div>
       </div>
 

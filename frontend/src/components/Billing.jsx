@@ -398,10 +398,52 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
     // Fetch items with product names and discounts for the invoice
     const { data: items } = await supabase
       .from('facture_items')
-      .select('quantity, unit_price, discount, unit_type, produits(name, price, price_superior, unite_base, unite_superieure, quantite_par_unite)')
+      .select('quantity, unit_price, discount, discount_value, discount_type, unit_type, produits(name, price, price_superior, unite_base, unite_superieure, quantite_par_unite)')
       .eq('facture_id', inv.id);
 
-    // ... (rest of itemsHtml mapping logic remains same)
+    let totalDiscount = 0;
+    const itemsHtml = (items || []).map(item => {
+        const p = item.produits || {};
+        const q = item.quantity || 0;
+        const qpu = Number(p.quantite_par_unite) || 1;
+        const superior = Math.floor(q / qpu);
+        const base = q % qpu;
+        const qDisplay = p && qpu > 1 
+            ? `${superior > 0 ? `${superior} ${p.unite_superieure || 'Ctn'} ` : ''}${base > 0 ? `+ ${base} ${p.unite_base || 'Pce'}` : ''}`
+            : `${q} ${p.unite_base || 'Pce'}`;
+        
+        const priceSup = Number(p.price_superior) || 0;
+        const priceBase = Number(item.unit_price) || 0;
+        const subtotalLine = (superior * priceSup) + (base * priceBase);
+        
+        // Use either stored discount object or individual columns
+        const discValue = item.discount?.value || item.discount_value || 0;
+        const discType = item.discount?.type || item.discount_type || 'Ar';
+        const discountVal = discType === '%' ? (subtotalLine * parseFloat(discValue) / 100) : parseFloat(discValue);
+        
+        totalDiscount += discountVal;
+        const total = subtotalLine - discountVal;
+
+        return `
+          <tr style="border-bottom: 1px solid #f3f4f6;">
+            <td style="padding: 15px 0;">
+              <p style="font-size: 14px; font-weight: 700; color: #1f2937; margin: 0;">${p.name || 'Produit Inconnu'}</p>
+            </td>
+            <td style="padding: 15px 0; text-align: center; font-size: 14px; font-weight: 700; color: #4b5563;">${qDisplay}</td>
+            <td style="padding: 15px 0; text-align: right; font-size: 14px; font-weight: 700; color: #ef4444;">${discountVal > 0 ? `-${discountVal.toLocaleString('fr-MG')}` : '-'}</td>
+            <td style="padding: 15px 0; text-align: right; font-size: 14px; font-weight: 900; color: #111827;">${total.toLocaleString('fr-MG')} Ar</td>
+          </tr>
+        `;
+    }).join('');
+
+    const clientInfo = `
+      <div style="flex: 1; padding: 20px; background: #f9fafb; border-radius: 12px;">
+        <p style="font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase; margin-bottom: 10px;">Informations Client</p>
+        <p style="font-size: 16px; font-weight: 900; color: #111827; margin: 0;">${inv.clients?.name || inv.guest_name || 'Client Direct'}</p>
+        <p style="font-size: 12px; color: #4b5563; margin: 5px 0;">${inv.clients?.address || inv.guest_contact || ''}</p>
+        <p style="font-size: 12px; color: #4b5563; margin: 0;">${inv.clients?.phone || ''}</p>
+      </div>
+    `;
 
     const isCredit = inv.status !== 'paid';
 
@@ -442,9 +484,15 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
             ${itemsHtml}
           </tbody>
           <tfoot>
-            <tr style="border-top: 2px solid #f3f4f6;">
-              <td colspan="3" style="padding: 20px 0; text-align: right; font-size: 14px; font-weight: 900; color: #6b7280; text-transform: uppercase;">TOTAL</td>
-              <td style="padding: 20px 0; text-align: right; font-size: 16px; font-weight: 900; color: #1f2937;">${inv.total_amount.toLocaleString('fr-MG')} MGA</td>
+            ${totalDiscount > 0 ? `
+            <tr>
+              <td colspan="3" style="padding: 15px 0 0 0; text-align: right; font-size: 14px; font-weight: 900; color: #ef4444; text-transform: uppercase;">REMISE TOTAUX</td>
+              <td style="padding: 15px 0 0 0; text-align: right; font-size: 14px; font-weight: 900; color: #ef4444;">-${totalDiscount.toLocaleString('fr-MG')} MGA</td>
+            </tr>
+            ` : ''}
+            <tr>
+              <td colspan="3" style="padding: 15px 0; text-align: right; font-size: 14px; font-weight: 900; color: #6b7280; text-transform: uppercase;">TOTAL NET À PAYER</td>
+              <td style="padding: 15px 0; text-align: right; font-size: 18px; font-weight: 900; color: #059669;">${inv.total_amount.toLocaleString('fr-MG')} MGA</td>
             </tr>
           </tfoot>
         </table>
@@ -862,6 +910,26 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                 </table>
 
                 <div className="border-t border-dashed border-black pt-2 text-right mb-4">
+                    {(() => {
+                        const totalDiscount = viewingItems.reduce((acc, item) => {
+                            const q = item.quantity || 0;
+                            const p = item.produits || {};
+                            const qpu = Number(p.quantite_par_unite) || 1;
+                            const superior = Math.floor(q / qpu);
+                            const base = q % qpu;
+                            const priceSup = Number(p.price_superior) || 0;
+                            const priceBase = Number(item.unit_price) || 0;
+                            const subtotalLine = (superior * priceSup) + (base * priceBase);
+                            
+                            const discValue = item.discount?.value || item.discount_value || 0;
+                            const discType = item.discount?.type || item.discount_type || 'Ar';
+                            return acc + (discType === '%' ? (subtotalLine * parseFloat(discValue) / 100) : parseFloat(discValue));
+                        }, 0);
+                        
+                        return totalDiscount > 0 ? (
+                            <p className="font-bold text-red-600">REMISE TOTAUX: -{totalDiscount.toLocaleString()} MGA</p>
+                        ) : null;
+                    })()}
                     <p className="font-black text-lg mt-2">NET À PAYER: {parseFloat(viewingInvoice.total_amount).toLocaleString()} MGA</p>
                 </div>
 
