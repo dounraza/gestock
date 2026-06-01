@@ -349,12 +349,16 @@ export default function Inventory({ selectedDepotId }) {
 
   const handleEdit = (product) => {
     setEditingProduct(product);
+    const q = product.stock_quantity || 0;
+    const qpu = product.quantite_par_unite || 1;
+    
     setFormData({
       name: product.name,
       price: product.price,
       price_superior: product.price_superior || '',
       purchase_price: product.purchase_price || '',
-      stock_quantity: product.stock_quantity,
+      stock_quantity: qpu > 1 ? Math.floor(q / qpu) : q,
+      stock_quantity_base: qpu > 1 ? (q % qpu) : 0,
       category_id: product.category_id || '',
       fournisseur_id: product.fournisseur_id || '',
       description: product.description || '',
@@ -1233,12 +1237,15 @@ export default function Inventory({ selectedDepotId }) {
                 </div>
               </div>
               
-              {formData.unite_standard_id && formData.stock_quantity && (
+              {(formData.stock_quantity || formData.stock_quantity_base) && formData.quantite_par_unite > 1 && (
                 <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-center">
-                  <p className="text-[13px] uppercase font-black text-emerald-600 tracking-widest">Conversion</p>
+                  <p className="text-[13px] uppercase font-black text-emerald-600 tracking-widest">Aperçu du Stock Initial</p>
                   <p className="text-xl font-black text-emerald-900">
-                    {parseInt(formData.stock_quantity) * (unites.find(u => u.id === formData.unite_standard_id)?.facteur || 1)} 
-                    <span className="text-base font-bold ml-1">{unites.find(u => u.id === formData.unite_standard_id)?.unite_mesure}</span>
+                    {(parseInt(formData.stock_quantity) || 0) * formData.quantite_par_unite + (parseInt(formData.stock_quantity_base) || 0)} 
+                    <span className="text-base font-bold ml-1">{formData.unite_base}</span>
+                  </p>
+                  <p className="text-base font-bold text-emerald-600">
+                    ({formData.stock_quantity || 0} {formData.unite_superieure || 'sup.'} + {formData.stock_quantity_base || 0} {formData.unite_base})
                   </p>
                 </div>
               )}
