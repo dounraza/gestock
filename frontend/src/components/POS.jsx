@@ -791,8 +791,9 @@ export default function POS({ session, selectedDepotId }) {
                   right: 0 !important;
                   top: 0 !important;
                   margin: 0 auto !important;
-                  width: 72mm !important;
-                  padding: 2mm !important;
+                  width: 70mm !important;
+                  padding: 1mm !important;
+                  box-sizing: border-box !important;
                   font-family: 'Courier New', Courier, monospace !important;
                   font-size: 11pt !important;
                   color: black !important;
