@@ -428,6 +428,9 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
           <tr style="border-bottom: 1px solid #f3f4f6;">
             <td style="padding: 15px 0;">
               <p style="font-size: 14px; font-weight: 700; color: #1f2937; margin: 0;">${p.name || 'Produit Inconnu'}</p>
+              <p style="font-size: 11px; color: #6b7280; margin: 2px 0;">
+                PU: ${priceBase.toLocaleString('fr-MG')} ${p.price_superior ? `(${priceSup.toLocaleString('fr-MG')})` : ''}
+              </p>
             </td>
             <td style="padding: 15px 0; text-align: center; font-size: 14px; font-weight: 700; color: #4b5563;">${qDisplay}</td>
             <td style="padding: 15px 0; text-align: right; font-size: 14px; font-weight: 700; color: #ef4444;">${discountVal > 0 ? `-${discountVal.toLocaleString('fr-MG')}` : '-'}</td>
@@ -474,7 +477,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
         <table style="width: 100%; border-collapse: collapse;">
           <thead>
             <tr style="border-bottom: 2px solid #f3f4f6;">
-              <th style="padding: 15px 0; text-align: left; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Produit</th>
+              <th style="padding: 15px 0; text-align: left; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Produit (PU)</th>
               <th style="padding: 15px 0; text-align: center; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Qté</th>
               <th style="padding: 15px 0; text-align: right; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Remise</th>
               <th style="padding: 15px 0; text-align: right; font-size: 11px; font-weight: 900; color: #9ca3af; text-transform: uppercase;">Total</th>
@@ -799,17 +802,34 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                             {viewingItems.map(item => (
                                 <tr key={item.id}>
                                     <td className="p-2 font-bold">{item.produits?.name || 'Inconnu'}</td>
-                                    <td className="p-2 text-right text-[15px] text-slate-500 italic">
+                                    <td className="p-2 text-right">
                                         {(() => {
                                             const q = item.quantity || 0;
                                             const p = item.produits || {};
                                             const qpu = Number(p.quantite_par_unite) || 1;
                                             const superior = Math.floor(q / qpu);
                                             const base = q % qpu;
-                                            const breakdown = p && qpu > 1 
-                                                ? ` (${superior > 0 ? `${superior} ${p.unite_superieure || 'Ctn'} ` : ''}${base > 0 ? `+ ${base} ${p.unite_base || 'Pce'}` : ''})`
-                                                : '';
-                                            return `${q} ${p.unite_base || 'Pce'}${breakdown}`;
+                                            
+                                            return (
+                                                <div className="flex flex-col items-end">
+                                                    <div className="text-[15px] font-black text-emerald-800">
+                                                        {qpu > 1 ? (
+                                                            <>
+                                                                {superior > 0 && <span>{superior} <span className="text-[11px] uppercase text-emerald-600">{p.unite_superieure || 'Ctn'}</span></span>}
+                                                                {superior > 0 && base > 0 && <span className="mx-1 text-gray-400">+</span>}
+                                                                {(base > 0 || superior === 0) && <span>{base} <span className="text-[11px] uppercase text-emerald-600">{p.unite_base || 'Pce'}</span></span>}
+                                                            </>
+                                                        ) : (
+                                                            <span>{q} <span className="text-[11px] uppercase text-emerald-600">{p.unite_base || 'Pce'}</span></span>
+                                                        )}
+                                                    </div>
+                                                    {qpu > 1 && (
+                                                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">
+                                                            Total: {q} {p.unite_base} | 1 {p.unite_superieure} = {qpu} {p.unite_base}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
                                         })()}
                                     </td>
                                     <td className="p-2 text-right">
@@ -839,25 +859,38 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <style>{`
             @media print {
-              @page { margin: 0 !important; size: 80mm auto; }
-              body, html { margin: 0 !important; padding: 0 !important; visibility: hidden; -webkit-print-color-adjust: exact !important; }
+              @page { 
+                margin: 0 !important; 
+                size: 80mm auto;
+              }
+              html, body {
+                height: auto !important;
+                min-height: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                visibility: hidden;
+                -webkit-print-color-adjust: exact !important;
+                overflow: visible !important;
+              }
               #printable-invoice-container {
                 visibility: visible !important;
                 display: block !important;
                 position: absolute !important;
+                top: 0 !important;
                 left: 0 !important;
                 right: 0 !important;
-                top: 0 !important;
                 margin: 0 auto !important;
                 width: 72mm !important;
+                padding: 1mm !important;
+                height: auto !important;
+                min-height: 0 !important;
                 max-height: none !important;
                 overflow: visible !important;
-                padding: 1mm !important;
-                box-sizing: border-box !important;
                 font-family: 'Courier New', Courier, monospace !important;
                 font-size: 11pt !important;
                 color: black !important;
                 background: white !important;
+                page-break-inside: avoid !important;
               }
               #printable-invoice-container * {
                 color: black !important;
@@ -875,7 +908,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
               </div>
             </div>
             
-            <div id="printable-invoice" className="text-[10pt] leading-tight border-2 border-dashed border-black p-2">
+            <div id="printable-invoice" className="text-[10pt] leading-tight p-2">
                 <div className="text-center mb-4 border-b border-dashed border-black pb-2">
                     <h1 className="text-xl font-black uppercase text-emerald-600">GESTOCK</h1>
                     <p>Facture: <span className="font-bold">{viewingInvoice.number}</span></p>
@@ -885,8 +918,8 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
 
                 <table className="w-full text-left mb-4">
                     <thead>
-                        <tr className="border-b border-dashed border-black">
-                            <th className="py-1">Désignation</th>
+                        <tr className="border-b border-dashed border-black text-[9pt] uppercase">
+                            <th className="py-1">Désignation (PU)</th>
                             <th className="py-1 text-right">Total</th>
                         </tr>
                     </thead>
@@ -902,22 +935,27 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                                 : '';
                             const qDisplay = `${q} ${p.unite_base || 'Pce'}${breakdown}`;
                             const totalLine = item.total || 0;
+                            const priceSup = Number(p.price_superior) || 0;
+                            const priceBase = Number(item.unit_price) || 0;
                             
                             return (
-                                <>
-                                    <tr>
-                                        <td colSpan="2" className="pt-2 font-bold">{p.name || 'Inconnu'}</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="py-1 pl-2">
-                                            {qDisplay}
-                                            {item.discount_value > 0 && <div className="text-[9pt] italic text-gray-600">Remise: {item.discount_value}{item.discount_type}</div>}
-                                        </td>
-                                        <td className="py-1 text-right font-bold">
-                                            {totalLine.toLocaleString()}
-                                        </td>
-                                    </tr>
-                                </>
+                                <tr key={item.id} className="border-b border-dashed border-gray-200">
+                                    <td className="py-2">
+                                        <div className="font-bold uppercase text-[10pt]">{p.name || 'Inconnu'}</div>
+                                        <div className="text-[9pt] text-gray-700">
+                                            {qDisplay} x {priceBase.toLocaleString()}
+                                            {p.price_superior && (
+                                                <span className="text-[8pt] text-gray-500 ml-1 italic">
+                                                    ({priceSup.toLocaleString()}/{p.unite_superieure || 'Ctn'})
+                                                </span>
+                                            )}
+                                        </div>
+                                        {item.discount_value > 0 && <div className="text-[8pt] italic text-gray-500">Remise: {item.discount_value}{item.discount_type}</div>}
+                                    </td>
+                                    <td className="py-2 text-right font-black align-top text-[10pt]">
+                                        {totalLine.toLocaleString()}
+                                    </td>
+                                </tr>
                             );
                         })}
                     </tbody>

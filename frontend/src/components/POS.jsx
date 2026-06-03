@@ -890,7 +890,14 @@ export default function POS({ session, selectedDepotId }) {
                                     <tr key={item.item_id}>
                                         <td className="p-3 font-bold uppercase">{item.name}</td>
                                         <td className="p-3 text-center font-bold">{formatQuantity(item.quantity, item)}</td>
-                                        <td className="p-3 text-right">{(item.unit_price).toLocaleString()}</td>
+                                        <td className="p-3 text-right">
+                                            <div className="font-bold">{(item.unit_price).toLocaleString()}</div>
+                                            {item.price_superior && (
+                                                <div className="text-[10px] text-gray-500 font-medium">
+                                                    {item.price_superior.toLocaleString()} / {item.unite_superieure || 'Ctn'}
+                                                </div>
+                                            )}
+                                        </td>
                                         <td className="p-3 text-right text-red-600">{lineDiscount > 0 ? `-${lineDiscount.toLocaleString()}` : '-'}</td>
                                         <td className="p-3 text-right font-black">{lineNetTotal.toLocaleString()}</td>
                                     </tr>
@@ -951,7 +958,7 @@ export default function POS({ session, selectedDepotId }) {
               </div>
             ) : (
               /* Ticket Format (80mm) for Cash Invoices */
-              <div className="text-[10pt] leading-tight border-2 border-dashed border-black p-2 space-y-8">
+              <div className="text-[10pt] leading-tight p-2 space-y-8">
                 {previewInvoice && (
                   <div id="printable-invoice">
                       <div className="text-center mb-4 border-b border-dashed border-black pb-2">
@@ -966,27 +973,30 @@ export default function POS({ session, selectedDepotId }) {
                       </div>
                       <table className="w-full text-left mb-4">
                           <thead>
-                              <tr className="border-b border-dashed border-black">
-                                  <th className="py-1">Désignation</th>
+                              <tr className="border-b border-dashed border-black text-[9pt] uppercase">
+                                  <th className="py-1">Désignation (PU)</th>
                                   <th className="py-1 text-right">Total</th>
                               </tr>
                           </thead>
                           <tbody>
                               {invoiceItems.map(item => (
-                                  <React.Fragment key={item.item_id}>
-                                      <tr>
-                                          <td colSpan="2" className="pt-2 font-bold">{item.name}</td>
-                                      </tr>
-                                      <tr>
-                                          <td className="py-1 pl-2">
-                                              {formatQuantity(item.quantity, item)}
-                                              {item.discount && <div className="text-[9pt] italic text-gray-600">Remise: {item.discount.value}{item.discount.type}</div>}
-                                          </td>
-                                          <td className="py-1 text-right font-bold">
-                                              {(item.total || calculateItemTotal(item)).toLocaleString()}
-                                          </td>
-                                      </tr>
-                                  </React.Fragment>
+                                  <tr key={item.item_id} className="border-b border-dashed border-gray-200">
+                                      <td className="py-2">
+                                          <div className="font-bold uppercase text-[10pt]">{item.name}</div>
+                                          <div className="text-[9pt] text-gray-700">
+                                              {formatQuantity(item.quantity, item)} x {item.unit_price.toLocaleString()}
+                                              {item.price_superior && (
+                                                  <span className="text-[8pt] text-gray-500 ml-1 italic">
+                                                      ({item.price_superior.toLocaleString()}/{item.unite_superieure || 'Ctn'})
+                                                  </span>
+                                              )}
+                                          </div>
+                                          {item.discount && <div className="text-[8pt] italic text-gray-500">Remise: {item.discount.value}{item.discount.type}</div>}
+                                      </td>
+                                      <td className="py-2 text-right font-black align-top text-[10pt]">
+                                          {(item.total || calculateItemTotal(item)).toLocaleString()}
+                                      </td>
+                                  </tr>
                               ))}
                           </tbody>
                       </table>
