@@ -839,7 +839,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
           <style>{`
             @media print {
               @page { margin: 0 !important; size: 80mm auto; }
-              body, html { margin: 0 !important; padding: 0 !important; visibility: hidden; }
+              body, html { margin: 0 !important; padding: 0 !important; visibility: hidden; -webkit-print-color-adjust: exact !important; }
               #printable-invoice-container {
                 visibility: visible !important;
                 display: block !important;
@@ -848,12 +848,19 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                 right: 0 !important;
                 top: 0 !important;
                 margin: 0 auto !important;
-                width: 70mm !important;
+                width: 72mm !important;
+                max-height: none !important;
+                overflow: visible !important;
                 padding: 1mm !important;
                 box-sizing: border-box !important;
                 font-family: 'Courier New', Courier, monospace !important;
                 font-size: 11pt !important;
                 color: black !important;
+                background: white !important;
+              }
+              #printable-invoice-container * {
+                color: black !important;
+                background-color: transparent !important;
               }
               .print-hide { display: none !important; }
             }
