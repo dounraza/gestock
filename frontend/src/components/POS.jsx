@@ -39,6 +39,7 @@ export default function POS({ session, selectedDepotId }) {
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [globalDiscount, setGlobalDiscount] = useState({ value: 0, type: '%' });
   const [printInvoice, setPrintInvoice] = useState(true);
+  const [showPreview, setShowPreview] = useState(false); // New state to control preview vs direct print
   const [isWithdrawal, setIsWithdrawal] = useState(false);
   const [isOther, setIsOther] = useState(false);
   const [calculatorPos, setCalculatorPos] = useState({ x: 0, y: 0 });
@@ -488,6 +489,15 @@ export default function POS({ session, selectedDepotId }) {
       if (generatedDN) {
           setPreviewDeliveryNote(generatedDN);
       }
+
+      // Handle Direct Printing (if PRÉVISU is unchecked)
+      if (!showPreview && (printInvoice || generatedDN)) {
+          setTimeout(() => {
+              window.print();
+              window.location.reload();
+          }, 500);
+          return;
+      }
       
       if (!printInvoice && !generatedDN) {
           window.location.reload();
@@ -646,6 +656,10 @@ export default function POS({ session, selectedDepotId }) {
                <label className="flex items-center gap-1 text-[13px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
                  <input type="checkbox" checked={printInvoice} onChange={() => setPrintInvoice(!printInvoice)} className="accent-emerald-500 scale-75" /> 
                  FACTURE
+               </label>
+               <label className="flex items-center gap-1 text-[13px] font-bold cursor-pointer hover:text-emerald-400 transition-colors" style={{ display: previewInvoice ? 'block' : 'none' }}>
+                 <input type="checkbox" checked={showPreview} onChange={() => setShowPreview(!showPreview)} className="accent-emerald-500 scale-75" /> 
+                 PRÉVISU
                </label>
                <label className="flex items-center gap-1 text-[13px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
                  <input type="checkbox" checked={isWithdrawal} onChange={() => setIsWithdrawal(!isWithdrawal)} className="accent-emerald-500 scale-75" /> 
