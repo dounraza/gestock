@@ -83,6 +83,22 @@ export default function CalculatorKeypad({ activeItem, onResult, onOpenDiscount,
                 </button>
             )}
         </div>
+
+        {/* PRICES INFO */}
+        {activeItem && (
+            <div className="mt-1 p-2 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-0.5">
+                <div className="flex justify-between items-center text-[13px]">
+                    <span className="font-bold text-slate-500 uppercase">Prix {activeItem.unite_base || 'Unité'} :</span>
+                    <span className="font-black text-emerald-700">{(activeItem.price || 0).toLocaleString()} Ar</span>
+                </div>
+                {activeItem.quantite_par_unite > 1 && activeItem.price_superior && (
+                    <div className="flex justify-between items-center text-[13px]">
+                        <span className="font-bold text-slate-500 uppercase">Prix {activeItem.unite_superieure || 'Unité'} :</span>
+                        <span className="font-black text-emerald-700">{(activeItem.price_superior || 0).toLocaleString()} Ar</span>
+                    </div>
+                )}
+            </div>
+        )}
     </div>
   );
 }
