@@ -613,7 +613,19 @@ export default function POS({ session, selectedDepotId }) {
             <div className="flex-1 overflow-y-auto p-1.5 space-y-1">
               {invoiceItems.map(item => (
                 <div key={item.item_id} onClick={() => { setActiveItemId(item.item_id); setIsCalculatorOpen(true); }} className="grid grid-cols-12 gap-1 items-center px-2 py-2 border-b border-gray-50 hover:bg-emerald-50 cursor-pointer">
-                  <div className="col-span-3 font-black text-[15px] uppercase truncate">{item.name}</div>
+                  <div className="col-span-3 flex flex-col min-w-0">
+                    <div className="font-black text-[14px] uppercase truncate">{item.name}</div>
+                    <div className="flex flex-col gap-0.5 mt-0.5">
+                      <div className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-1 rounded w-fit">
+                        {item.unit_price?.toLocaleString()} Ar / <span className="opacity-70">{item.unite_base || 'Pce'}</span>
+                      </div>
+                      {item.quantite_par_unite > 1 && item.price_superior && (
+                        <div className="text-[10px] font-bold text-orange-600 bg-orange-50 px-1 rounded w-fit">
+                          {item.price_superior.toLocaleString()} Ar / <span className="opacity-70">{item.unite_superieure || 'Unité'}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   <div className="col-span-2 text-center font-black text-[16px] bg-emerald-100 rounded">
                     {formatQuantity(item.quantity, item)}
                   </div>
@@ -723,14 +735,16 @@ export default function POS({ session, selectedDepotId }) {
                         </div>
                       </td>
                       <td className="p-2 text-right">
-                        <div className="text-[16px] font-black text-emerald-700">
-                          {p.price.toLocaleString()} Ar / {p.unite_base || 'pce'}
-                        </div>
-                        {p.price_superior && (
-                          <div className="text-[14px] font-bold text-gray-500">
-                            Sup: {p.price_superior.toLocaleString()} Ar / {p.unite_superieure || 'unité'}
+                        <div className="flex flex-col gap-0.5">
+                          <div className="text-[15px] font-black text-emerald-700">
+                            {p.price.toLocaleString()} Ar / <span className="text-[12px] uppercase text-emerald-600/70">{p.unite_base || 'Pce'}</span>
                           </div>
-                        )}
+                          {p.quantite_par_unite > 1 && p.price_superior && (
+                            <div className="text-[14px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-100 inline-block ml-auto">
+                              {p.price_superior.toLocaleString()} Ar / <span className="text-[11px] uppercase text-orange-500/70">{p.unite_superieure || 'Unité'}</span>
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="p-2 text-right"><Plus size={16} className="inline-block" /></td>
                     </tr>                  ))}
