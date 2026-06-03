@@ -74,6 +74,33 @@ export default function Dashboard({ session }) {
   const [deadlineSearchTerm, setDeadlineSearchTerm] = useState('');
   const [overdueList, setOverdueList] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [isAdminAuthOpen, setIsAdminAuthOpen] = useState(false);
+  const [adminAuthCode, setAdminAuthCode] = useState('');
+  const [dbAdminCode, setDbAdminCode] = useState(null);
+  const [pendingNavigation, setPendingNavigation] = useState(null);
+
+  useEffect(() => {
+    const fetchAdminCode = async () => {
+        const { data } = await supabase
+            .from('admin_settings')
+            .select('value')
+            .eq('key', 'admin_code')
+            .single();
+        if (data) setDbAdminCode(data.value);
+    };
+    fetchAdminCode();
+  }, []);
+
+  const handleProtectedNavigation = (path) => {
+    if (isAdminAuthenticated) {
+      navigate(path);
+      closeSidebar();
+    } else {
+      setPendingNavigation(path);
+      setIsAdminAuthOpen(true);
+    }
+  };
 
   const handleLogout = () => supabase.auth.signOut();
 
@@ -353,31 +380,31 @@ export default function Dashboard({ session }) {
                   {isInventoryOpen && (
                     <div className="ml-6 mt-1 space-y-1 border-l-2 border-emerald-100 pl-4">
                       <button 
-                        onClick={() => { navigate('/dashboard/products'); closeSidebar(); }}
+                        onClick={() => handleProtectedNavigation('/dashboard/products')}
                         className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'products' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                       >
                         Stock Principal
                       </button>
                       <button 
-                        onClick={() => { navigate('/dashboard/inventory'); closeSidebar(); }}
+                        onClick={() => handleProtectedNavigation('/dashboard/inventory')}
                         className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'inventory' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                       >
                         Stock par Dépôt
                       </button>
                       <button 
-                        onClick={() => { navigate('/dashboard/stock-entry'); closeSidebar(); }}
+                        onClick={() => handleProtectedNavigation('/dashboard/stock-entry')}
                         className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'stock-entry' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                       >
                         Entrée de Stock
                       </button>
                       <button 
-                        onClick={() => { navigate('/dashboard/historique'); closeSidebar(); }}
+                        onClick={() => handleProtectedNavigation('/dashboard/historique')}
                         className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'historique' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                       >
                         Historique
                       </button>
                       <button 
-                        onClick={() => { navigate('/dashboard/stock-transfer'); closeSidebar(); }}
+                        onClick={() => handleProtectedNavigation('/dashboard/stock-transfer')}
                         className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'stock-transfer' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                       >
                         Transfert
@@ -589,7 +616,7 @@ export default function Dashboard({ session }) {
                         : "Tout votre stock est actuellement suffisant."}
                     </p>
                     <button 
-                      onClick={() => navigate('/dashboard/inventory')}
+                      onClick={() => handleProtectedNavigation('/dashboard/inventory')}
                       className="w-full py-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-lg hover:bg-emerald-100 transition-colors"
                     >
                       Gérer l'inventaire
@@ -642,6 +669,57 @@ export default function Dashboard({ session }) {
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </div>
+
+        {/* Admin Auth Modal */}
+        {isAdminAuthOpen && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center bg-emerald-950/60 backdrop-blur-sm p-4">
+                <div className="bg-white p-8 rounded-3xl w-full max-w-sm space-y-6 shadow-2xl">
+                    <h3 className="text-2xl font-black text-gray-800 uppercase">Code Administrateur</h3>
+                    <p className="text-gray-500 font-bold">Veuillez saisir le code pour accéder à la gestion des stocks.</p>
+                    <input 
+                        type="password" 
+                        placeholder="Code secret" 
+                        className="w-full bg-emerald-50 border-2 border-emerald-100 rounded-2xl px-4 py-4 text-2xl font-black outline-none" 
+                        value={adminAuthCode} 
+                        onChange={e => setAdminAuthCode(e.target.value)} 
+                        autoFocus
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                if (adminAuthCode === dbAdminCode) {
+                                    setIsAdminAuthenticated(true);
+                                    setIsAdminAuthOpen(false);
+                                    setAdminAuthCode('');
+                                    if (pendingNavigation) {
+                                        navigate(pendingNavigation);
+                                        setPendingNavigation(null);
+                                        closeSidebar();
+                                    }
+                                } else {
+                                    alert("Code incorrect");
+                                }
+                            }
+                        }}
+                    />
+                    <div className="flex gap-3">
+                        <button onClick={() => { setIsAdminAuthOpen(false); setAdminAuthCode(''); setPendingNavigation(null); }} className="flex-1 py-4 font-bold text-gray-400">Annuler</button>
+                        <button onClick={() => {
+                            if (adminAuthCode === dbAdminCode) {
+                                setIsAdminAuthenticated(true);
+                                setIsAdminAuthOpen(false);
+                                setAdminAuthCode('');
+                                if (pendingNavigation) {
+                                    navigate(pendingNavigation);
+                                    setPendingNavigation(null);
+                                    closeSidebar();
+                                }
+                            } else {
+                                alert("Code incorrect");
+                            }
+                        }} className="flex-1 py-4 bg-emerald-600 text-white font-black rounded-2xl">Valider</button>
+                    </div>
+                </div>
+            </div>
+        )}
        
       </main>
     </div>
