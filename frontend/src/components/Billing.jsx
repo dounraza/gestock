@@ -429,7 +429,10 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
             <td style="padding: 15px 0;">
               <p style="font-size: 14px; font-weight: 700; color: #1f2937; margin: 0;">${p.name || 'Produit Inconnu'}</p>
               <p style="font-size: 11px; color: #6b7280; margin: 2px 0;">
-                PU: ${priceBase.toLocaleString('fr-MG')} ${p.price_superior ? `(${priceSup.toLocaleString('fr-MG')})` : ''}
+                ${p.price_superior > 0 
+                  ? `PU: ${priceBase.toLocaleString('fr-MG')}/${p.unite_base} et ${priceSup.toLocaleString('fr-MG')}/${p.unite_superieure}(${p.quantite_par_unite}PQT)`
+                  : `PU: ${priceBase.toLocaleString('fr-MG')}/${p.unite_base}`
+                }
               </p>
             </td>
             <td style="padding: 15px 0; text-align: center; font-size: 14px; font-weight: 700; color: #4b5563;">${qDisplay}</td>

@@ -1022,7 +1022,7 @@ export default function Inventory({ selectedDepotId }) {
                       <th className="py-2 px-4 pl-6">Produit</th>
                       <th className="py-2 px-4">Catégorie</th>
                       <th className="py-2 px-4">Stock</th>
-                      <th className="py-2 px-4">Prix</th>
+                      <th className="py-2 px-4">PU</th>
                       <th className="py-2 px-4">Valeur</th>
                       <th className="py-2 px-4 pr-6 text-right">Actions</th>
                     </tr>
@@ -1042,10 +1042,15 @@ export default function Inventory({ selectedDepotId }) {
                           </span>
                         </td>
                         <td className="py-2 px-4">
-                          <div className="font-bold text-gray-800 text-base">{Number(p.price).toLocaleString('fr-MG')} Ar <span className="text-[13px] text-gray-400">/{p.unite_base}</span></div>
-                          {p.price_superior > 0 && (
-                            <div className="text-[13px] font-bold text-emerald-600">{Number(p.price_superior).toLocaleString('fr-MG')} Ar <span className="text-[13px] text-gray-400">/{p.unite_superieure}</span></div>
-                          )}
+                          <div className="font-bold text-gray-800 text-base">
+                            {p.price_superior > 0 ? (
+                              <div className="text-[13px] font-bold">
+                                ({Number(p.price).toLocaleString('fr-MG')}/{p.unite_base} et {Number(p.price_superior).toLocaleString('fr-MG')}/{p.unite_superieure}({p.quantite_par_unite}PQT))
+                              </div>
+                            ) : (
+                              <div>{Number(p.price).toLocaleString('fr-MG')} Ar <span className="text-[13px] text-gray-400">/{p.unite_base}</span></div>
+                            )}
+                          </div>
                         </td>
                         <td className="py-2 px-4">
                           <div className="font-black text-emerald-700 text-base">
