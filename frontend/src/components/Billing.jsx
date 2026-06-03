@@ -150,7 +150,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
     // Fetch items
     const { data: items } = await supabase
         .from('facture_items')
-        .select('*, produits(name)')
+        .select('*, produits(*)')
         .eq('facture_id', invoice.id);
     setViewingItems(items || []);
     
@@ -806,9 +806,10 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                                             const qpu = Number(p.quantite_par_unite) || 1;
                                             const superior = Math.floor(q / qpu);
                                             const base = q % qpu;
-                                            return p && qpu > 1 
-                                                ? `${superior > 0 ? `${superior} ${p.unite_superieure || 'Ctn'} ` : ''}${base > 0 ? `+ ${base} ${p.unite_base || 'Pce'}` : ''}`
-                                                : `${q} ${p.unite_base || 'Pce'}`;
+                                            const breakdown = p && qpu > 1 
+                                                ? ` (${superior > 0 ? `${superior} ${p.unite_superieure || 'Ctn'} ` : ''}${base > 0 ? `+ ${base} ${p.unite_base || 'Pce'}` : ''})`
+                                                : '';
+                                            return `${q} ${p.unite_base || 'Pce'}${breakdown}`;
                                         })()}
                                     </td>
                                     <td className="p-2 text-right">
@@ -896,9 +897,10 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                             const qpu = Number(p.quantite_par_unite) || 1;
                             const superior = Math.floor(q / qpu);
                             const base = q % qpu;
-                            const qDisplay = p && qpu > 1 
-                                ? `${superior > 0 ? `${superior} ${p.unite_superieure || 'Ctn'} ` : ''}${base > 0 ? `+ ${base} ${p.unite_base || 'Pce'}` : ''}`
-                                : `${q} ${p.unite_base || 'Pce'}`;
+                            const breakdown = p && qpu > 1 
+                                ? ` (${superior > 0 ? `${superior} ${p.unite_superieure || 'Ctn'} ` : ''}${base > 0 ? `+ ${base} ${p.unite_base || 'Pce'}` : ''})`
+                                : '';
+                            const qDisplay = `${q} ${p.unite_base || 'Pce'}${breakdown}`;
                             const totalLine = item.total || 0;
                             
                             return (
