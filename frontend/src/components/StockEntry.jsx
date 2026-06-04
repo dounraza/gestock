@@ -398,7 +398,7 @@ export default function StockEntry() {
       setNewItem(prev => ({ ...prev, product_id: newProduct.id, purchase_price_per_unit: '' }));
       setShowProductModal(false);
       setProductFormData({
-        name: '', price: '', price_superior: '', category_id: '', fournisseur_id: '', description: '',
+        name: '', price: '', price_superior: '', purchase_price: '', category_id: '', fournisseur_id: '', description: '',
         unite_base: 'unité', unite_superieure: '', quantite_par_unite: 1,
         unite_standard_id: ''
       });
@@ -603,13 +603,13 @@ export default function StockEntry() {
                     <h4 className="text-base font-bold text-emerald-900 uppercase tracking-widest flex items-center gap-2">
                       <Plus size={14} className="text-emerald-500" /> Ajouter des articles
                     </h4>
-                    <button 
+                    {/* <button 
                       type="button"
                       onClick={() => setShowProductModal(true)}
                       className="text-[14px] font-black text-emerald-600 uppercase tracking-widest bg-white px-4 py-1.5 rounded-xl border border-emerald-100 shadow-sm hover:bg-emerald-50 transition-all"
                     >
                       + Nouveau Produit
-                    </button>
+                    </button> */}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                     <div className="md:col-span-2 space-y-1">
@@ -879,39 +879,55 @@ export default function StockEntry() {
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSaveProduct} className="p-8 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
+            <form onSubmit={handleSaveProduct} className="p-6 space-y-4 overflow-y-auto custom-scrollbar">
               <div className="space-y-1">
-                <label className="text-[15px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Nom du produit</label>
-                <input required placeholder="Ex: Riz Luxe" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-emerald-500/20 text-lg font-bold" value={productFormData.name} onChange={e => setProductFormData({...productFormData, name: e.target.value})} />
+                <label className="text-[14px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Désignation</label>
+                <input required placeholder="Nom du produit" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold" value={productFormData.name} onChange={e => setProductFormData({...productFormData, name: e.target.value})} />
               </div>
               
-              <div className="space-y-4">
-                <h4 className="text-[16px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-50 pb-2">Prix & Catégorie</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-3">
+                <h4 className="text-[14px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-50 pb-1">Configuration & Stock</h4>
+                <div className="space-y-1">
+                    <label className="text-[14px] font-bold text-emerald-600 uppercase ml-1">Unité Standard</label>
+                    <select 
+                    className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 outline-none text-base font-black text-emerald-700" 
+                    value={productFormData.unite_standard_id || ''} 
+                    onChange={e => handleUniteStandardChange(e.target.value)}
+                    >
+                    <option value="">Sélectionner conversion...</option>
+                    {unites.map(u => <option key={u.id} value={u.id}>{u.nom} ({u.facteur} {u.unite_mesure})</option>)}
+                    </select>
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-[14px] font-bold text-emerald-600 uppercase ml-1">Prix d'Achat (MGA)</label>
+                  <input type="number" placeholder="Prix d'achat" className="w-full bg-emerald-50/30 border border-emerald-100 rounded-xl px-4 py-3 outline-none font-black text-emerald-700" value={productFormData.purchase_price} onChange={e => setProductFormData({...productFormData, purchase_price: e.target.value})} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1">Prix Achat</label>
-                    <input required type="number" placeholder="0" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none font-bold text-emerald-700" value={productFormData.purchase_price} onChange={e => setProductFormData({...productFormData, purchase_price: e.target.value})} />
+                    <label className="text-[12px] font-bold text-gray-400 uppercase ml-1">
+                      Prix de vente (MGA) / {productFormData.unite_base || 'unité'}
+                    </label>
+                    <input required type="number" placeholder="Prix Unité" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold" value={productFormData.price} onChange={e => setProductFormData({...productFormData, price: e.target.value})} />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1">Prix Vente / Unité</label>
-                    <input required type="number" placeholder="0" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none font-bold" value={productFormData.price} onChange={e => setProductFormData({...productFormData, price: e.target.value})} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1">Prix Vente / Sup.</label>
-                    <input type="number" placeholder="0" className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none font-bold text-emerald-600" value={productFormData.price_superior} onChange={e => setProductFormData({...productFormData, price_superior: e.target.value})} />
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">
+                      Prix de vente (MGA)/ {productFormData.unite_superieure || 'sup.'}
+                    </label>
+                    <input type="number" placeholder="Prix Supérieur" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold text-emerald-600" value={productFormData.price_superior} onChange={e => setProductFormData({...productFormData, price_superior: e.target.value})} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1">Catégorie</label>
-                    <select className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none text-base font-bold text-gray-600" value={productFormData.category_id} onChange={e => setProductFormData({...productFormData, category_id: e.target.value})}>
+                    <label className="text-[14px] font-bold text-gray-400 uppercase ml-1">Catégorie</label>
+                    <select className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none text-base font-bold text-gray-600" value={productFormData.category_id} onChange={e => setProductFormData({...productFormData, category_id: e.target.value})}>
                       <option value="">Sélectionner...</option>
                       {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1">Fournisseur</label>
-                    <select className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none text-base font-bold text-gray-600" value={productFormData.fournisseur_id} onChange={e => setProductFormData({...productFormData, fournisseur_id: e.target.value})}>
+                    <label className="text-[14px] font-bold text-gray-400 uppercase ml-1">Fournisseur</label>
+                    <select className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none text-base font-bold text-gray-600" value={productFormData.fournisseur_id} onChange={e => setProductFormData({...productFormData, fournisseur_id: e.target.value})}>
                       <option value="">Sélectionner...</option>
                       {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
@@ -919,33 +935,45 @@ export default function StockEntry() {
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4">
-                <h4 className="text-[16px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-50 pb-2">Conditionnement</h4>
-                <div className="space-y-1 mb-4">
-                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1">Unité Standard (Optionnel)</label>
-                    <select className="w-full bg-gray-50 border-0 rounded-2xl px-5 py-4 outline-none text-base font-bold text-gray-600" value={productFormData.unite_standard_id || ''} onChange={e => handleUniteStandardChange(e.target.value)}>
-                      <option value="">Aucune (Manuel)</option>
-                      {unites.map(u => <option key={u.id} value={u.id}>{u.nom}</option>)}
-                    </select>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[13px] font-bold text-gray-400 uppercase ml-1">Qté/unité</label>
-                    <input type="number" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold" value={productFormData.quantite_par_unite} onChange={e => setProductFormData({...productFormData, quantite_par_unite: e.target.value})} />
+              {/* Units & Conversion - Improved style like ProductList */}
+              <div className="bg-orange-50/50 p-6 rounded-3xl border border-orange-100 space-y-4">
+                  <h4 className="text-orange-700 font-black uppercase text-sm tracking-widest flex items-center gap-2">
+                      <Package size={16} /> Configuration des Unités (Colisage)
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                          <label className="text-[12px] font-black text-orange-600/70 uppercase ml-1">Qté par unité supérieure ({productFormData.unite_superieure || 'CARTON'})</label>
+                          <input 
+                              type="number" required min="1"
+                              className="w-full bg-white border border-orange-200 rounded-xl px-4 py-3 font-black text-xl text-orange-700 outline-none"
+                              value={productFormData.quantite_par_unite}
+                              onChange={e => setProductFormData({...productFormData, quantite_par_unite: e.target.value})}
+                          />
+                      </div>
+                      <div className="space-y-1">
+                          <label className="text-[12px] font-black text-orange-600/70 uppercase ml-1">Nom Unité Sup.</label>
+                          <input 
+                              className="w-full bg-white border border-orange-200 rounded-xl px-4 py-3 font-bold uppercase outline-none"
+                              value={productFormData.unite_superieure}
+                              onChange={e => setProductFormData({...productFormData, unite_superieure: e.target.value.toUpperCase()})}
+                          />
+                      </div>
+                      <div className="space-y-1">
+                          <label className="text-[12px] font-black text-orange-600/70 uppercase ml-1">Nom Unité Base</label>
+                          <input 
+                              className="w-full bg-white border border-orange-200 rounded-xl px-4 py-3 font-bold uppercase outline-none"
+                              value={productFormData.unite_base}
+                              onChange={e => setProductFormData({...productFormData, unite_base: e.target.value.toUpperCase()})}
+                          />
+                      </div>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[13px] font-bold text-gray-400 uppercase ml-1">Unité base</label>
-                    <input type="text" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold" value={productFormData.unite_base} onChange={e => setProductFormData({...productFormData, unite_base: e.target.value})} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[13px] font-bold text-gray-400 uppercase ml-1">Unité sup</label>
-                    <input type="text" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold" value={productFormData.unite_superieure} onChange={e => setProductFormData({...productFormData, unite_superieure: e.target.value})} />
-                  </div>
-                </div>
+                  <p className="text-orange-600/60 text-[11px] font-bold italic px-1">
+                      * 1 {productFormData.unite_superieure || 'CARTON'} contient {productFormData.quantite_par_unite} {productFormData.unite_base || 'PCE'}
+                  </p>
               </div>
               
-              <button type="submit" disabled={isSubmitting} className="w-full bg-emerald-600 text-white font-black py-5 rounded-2xl shadow-lg shadow-emerald-100 mt-4 active:scale-[0.98] transition-all uppercase tracking-[0.2em]">
-                {isSubmitting ? <Loader2 className="animate-spin mx-auto" size={24} /> : "Créer le Produit"}
+              <button type="submit" disabled={isSubmitting} className="w-full bg-emerald-600 text-white font-black py-4 rounded-xl shadow-lg shadow-emerald-100 mt-2 active:scale-[0.98] transition-all uppercase tracking-widest text-base">
+                {isSubmitting ? <Loader2 className="animate-spin mx-auto" size={20} /> : "Enregistrer"}
               </button>
             </form>
           </div>
