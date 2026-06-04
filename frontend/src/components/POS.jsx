@@ -975,33 +975,29 @@ export default function POS({ session, selectedDepotId }) {
                       <table className="w-full text-left mb-4">
                           <thead>
                               <tr className="border-b border-dashed border-black text-[8pt] uppercase font-black">
-                                  <th className="py-1 w-[45%]">Désignation</th>
-                                  <th className="py-1 text-center w-[30%]">PU</th>
-                                  <th className="py-1 text-right w-[25%]">Montant</th>
+                                  <th className="py-1 w-[40%]text-[7pt]">Désignation</th>
+                                  <th className="py-1 text-center w-[10%] text-[7pt]">Qté</th>
+                                  <th className="py-1 text-center w-[25%] text-[7pt]">PU</th>
+                                  <th className="py-1 text-right w-[25%]text-[7pt]">Montant</th>
                               </tr>
                           </thead>
                           <tbody>
                               {invoiceItems.map(item => (
                                   <tr key={item.item_id} className="border-b border-dashed border-gray-200 align-top">
-                                      <td className="py-2 pr-1">
-                                          <div className="font-black uppercase text-[8pt] leading-tight mb-1">{item.name}</div>
-                                          <div className="text-[8pt] font-black bg-gray-100 px-1 rounded inline-block">
-                                              {formatQuantity(item.quantity, item)}
-                                          </div>
-                                          {item.discount && <div className="text-[7pt] italic text-gray-500 mt-1">Remise: {item.discount.value}{item.discount.type}</div>}
+                                      <td className="py-2 text-[6pt] font-black uppercase">{item.name}</td>
+                                      <td className="py-2 text-[4pt] text-center font-bold">{formatQuantity(item.quantity, item)}</td>
+                                      <td className="py-2 text-[5px] text-center font-bold leading-tight">
+                                        <div style={{ fontSize: '5px' }}>
+                                            P/{item.unite_base || 'Pce'}: {item.unit_price.toLocaleString('fr-MG')} ar
+                                        </div>
+                                        {item.price_superior > 0 && (
+                                            <div style={{ fontSize: '5px' }}>
+                                                P/{item.unite_superieure || 'Ctn'}: {item.price_superior.toLocaleString('fr-MG')} ar
+                                            </div>
+                                        )}
                                       </td>
-                                      <td className="py-2 text-center px-1">
-                                          <div className="text-[7pt] leading-tight text-gray-700 font-bold">
-                                              {item.unit_price.toLocaleString()} / {item.unite_base || 'Pce'}
-                                              {item.price_superior && (
-                                                  <div className="text-[6.5pt] text-gray-500 italic border-t border-gray-100 mt-0.5 pt-0.5">
-                                                      et {item.price_superior.toLocaleString()} / {item.unite_superieure || 'Sac'}
-                                                  </div>
-                                              )}
-                                          </div>
-                                      </td>
-                                      <td className="py-2 text-right font-black text-[9pt]">
-                                          {(item.total || calculateItemTotal(item)).toLocaleString()}
+                                      <td className="py-2 text-right font-black text-[6pt]">
+                                          {(item.total || item.quantity * item.unit_price).toLocaleString()}
                                       </td>
                                   </tr>
                               ))}
@@ -1013,9 +1009,9 @@ export default function POS({ session, selectedDepotId }) {
                               <p className="font-bold text-red-600">Remise Partielle: -{lineDiscountsTotal.toLocaleString()} MGA</p>
                           )}
                           {globalDiscountAmount > 0 && (
-                              <p className="font-bold text-red-600">REMISE TOTAUX: -{globalDiscountAmount.toLocaleString()} MGA</p>
+                              <p className="font-bold text-red-600">Remise Totaux: -{globalDiscountAmount.toLocaleString()} MGA</p>
                           )}
-                          <p className="font-black text-lg mt-2">NET À PAYER: {parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</p>
+                          <p className="font-black text-lg mt-2 ">Net à payer: {parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</p>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 mt-6 text-sm">

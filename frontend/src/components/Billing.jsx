@@ -921,41 +921,36 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
 
                 <table className="w-full text-left mb-4">
                     <thead>
-                        <tr className="border-b border-dashed border-black text-[9pt] uppercase">
-                            <th className="py-1">Désignation (PU)</th>
-                            <th className="py-1 text-right">Total</th>
+                        <tr className="border-b border-dashed border-black text-[8pt] uppercase font-black">
+                            <th className="py-1 w-[40%]">Désignation</th>
+                            <th className="py-1 text-center w-[10%] text-[7pt]">Qté</th>
+                            <th className="py-1 text-center w-[25%] text-[7pt]">PU</th>
+                            <th className="py-1 text-right w-[25%]">Montant</th>
                         </tr>
                     </thead>
                     <tbody>
                         {viewingItems.map(item => {
                             const q = item.quantity || 0;
                             const p = item.produits || {};
-                            const qpu = Number(p.quantite_par_unite) || 1;
-                            const superior = Math.floor(q / qpu);
-                            const base = q % qpu;
-                            const breakdown = p && qpu > 1 
-                                ? ` (${superior > 0 ? `${superior} ${p.unite_superieure || 'Ctn'} ` : ''}${base > 0 ? `+ ${base} ${p.unite_base || 'Pce'}` : ''})`
-                                : '';
-                            const qDisplay = `${q} ${p.unite_base || 'Pce'}${breakdown}`;
                             const totalLine = item.total || 0;
                             const priceSup = Number(p.price_superior) || 0;
                             const priceBase = Number(item.unit_price) || 0;
                             
                             return (
-                                <tr key={item.id} className="border-b border-dashed border-gray-200">
-                                    <td className="py-2">
-                                        <div className="font-bold uppercase text-[10pt]">{p.name || 'Inconnu'}</div>
-                                        <div className="text-[9pt] text-gray-700">
-                                            {qDisplay} x {priceBase.toLocaleString()}
-                                            {p.price_superior && (
-                                                <span className="text-[8pt] text-gray-500 ml-1 italic">
-                                                    ({priceSup.toLocaleString()}/{p.unite_superieure || 'Ctn'})
-                                                </span>
-                                            )}
+                                <tr key={item.id} className="border-b border-dashed border-gray-200 align-top">
+                                    <td className="py-2 text-[8pt] font-black uppercase">{p.name || 'Inconnu'}</td>
+                                    <td className="py-2 text-[7pt] text-center font-bold">{q}</td>
+                                    <td className="py-2 text-[4px] text-center font-bold leading-tight">
+                                        <div style={{ fontSize: '5px' }}>
+                                            P/{p.unite_base}: {priceBase.toLocaleString('fr-MG')} ar
                                         </div>
-                                        {item.discount_value > 0 && <div className="text-[8pt] italic text-gray-500">Remise: {item.discount_value}{item.discount_type}</div>}
+                                        {p.price_superior > 0 && (
+                                            <div style={{ fontSize: '5px' }}>
+                                                P/{p.unite_superieure}: {priceSup.toLocaleString('fr-MG')} ar
+                                            </div>
+                                        )}
                                     </td>
-                                    <td className="py-2 text-right font-black align-top text-[10pt]">
+                                    <td className="py-2 text-right font-black text-[8pt]">
                                         {totalLine.toLocaleString()}
                                     </td>
                                 </tr>
