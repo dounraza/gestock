@@ -408,32 +408,28 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
         const qpu = Number(p.quantite_par_unite) || 1;
         const superior = Math.floor(q / qpu);
         const base = q % qpu;
-        const qDisplay = p && qpu > 1 
-            ? `${superior > 0 ? `${superior} ${p.unite_superieure || 'Ctn'} ` : ''}${base > 0 ? `+ ${base} ${p.unite_base || 'Pce'}` : ''}`
-            : `${q} ${p.unite_base || 'Pce'}`;
         
-        const priceSup = Number(p.price_superior) || 0;
-        const priceBase = Number(item.unit_price) || 0;
-        const subtotalLine = (superior * priceSup) + (base * priceBase);
-        
-        // Use either stored discount object or individual columns
-        const discValue = item.discount?.value || item.discount_value || 0;
-        const discType = item.discount?.type || item.discount_type || 'Ar';
-        const discountVal = discType === '%' ? (subtotalLine * parseFloat(discValue) / 100) : parseFloat(discValue);
-        
-        totalDiscount += discountVal;
-        const total = subtotalLine - discountVal;
+        // Logique PU :
+        let puDisplay = '';
+        if (superior > 0 && base > 0) {
+            // Règle 1: Mixte (Carton + Paquet)
+            puDisplay = `<div style="font-size: 4px;">P/${p.unite_base}: ${priceBase.toLocaleString('fr-MG')} ar</div>
+                         <div style="font-size: 4px;">P/${p.unite_superieure}: ${priceSup.toLocaleString('fr-MG')} ar</div>`;
+        } else if (superior > 0 && base === 0) {
+            // Règle 2: Unité supérieure seulement
+            puDisplay = `<div style="font-size: 4px;">P/${p.unite_superieure}: ${priceSup.toLocaleString('fr-MG')} ar</div>`;
+        } else {
+            // Règle 3: Unité de base seulement
+            puDisplay = `<div style="font-size: 4px;">P/${p.unite_base}: ${priceBase.toLocaleString('fr-MG')} ar</div>`;
+        }
 
         return `
           <tr style="border-bottom: 1px solid #f3f4f6;">
             <td style="padding: 15px 0;">
               <p style="font-size: 14px; font-weight: 700; color: #1f2937; margin: 0;">${p.name || 'Produit Inconnu'}</p>
-              <p style="font-size: 11px; color: #6b7280; margin: 2px 0;">
-                ${p.price_superior > 0 
-                  ? `PU: ${priceBase.toLocaleString('fr-MG')}/${p.unite_base} et ${priceSup.toLocaleString('fr-MG')}/${p.unite_superieure}(${p.quantite_par_unite}PQT)`
-                  : `PU: ${priceBase.toLocaleString('fr-MG')}/${p.unite_base}`
-                }
-              </p>
+              <div style="margin: 2px 0;">
+                ${puDisplay}
+              </div>
             </td>
             <td style="padding: 15px 0; text-align: center; font-size: 14px; font-weight: 700; color: #4b5563;">${qDisplay}</td>
             <td style="padding: 15px 0; text-align: right; font-size: 14px; font-weight: 700; color: #ef4444;">${discountVal > 0 ? `-${discountVal.toLocaleString('fr-MG')}` : '-'}</td>
@@ -922,10 +918,11 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                 <table className="w-full text-left mb-4">
                     <thead>
                         <tr className="border-b border-dashed border-black text-[8pt] uppercase font-black">
-                            <th className="py-1 w-[40%]">Désignation</th>
+                            <th className="py-1 w-[35%]">Désignation</th>
+                            <th className="py-1 text-center w-[15%] text-[7pt]">Unité</th>
                             <th className="py-1 text-center w-[10%] text-[7pt]">Qté</th>
-                            <th className="py-1 text-center w-[25%] text-[7pt]">PU</th>
-                            <th className="py-1 text-right w-[25%]">Montant</th>
+                            <th className="py-1 text-center w-[20%] text-[7pt]">PU</th>
+                            <th className="py-1 text-right w-[20%]">Montant</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -939,16 +936,17 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                             return (
                                 <tr key={item.id} className="border-b border-dashed border-gray-200 align-top">
                                     <td className="py-2 text-[8pt] font-black uppercase">{p.name || 'Inconnu'}</td>
-                                    <td className="py-2 text-[7pt] text-center font-bold">{q}</td>
-                                    <td className="py-2 text-[4px] text-center font-bold leading-tight">
-                                        <div style={{ fontSize: '5px' }}>
-                                            P/{p.unite_base}: {priceBase.toLocaleString('fr-MG')} ar
-                                        </div>
-                                        {p.price_superior > 0 && (
-                                            <div style={{ fontSize: '5px' }}>
-                                                P/{p.unite_superieure}: {priceSup.toLocaleString('fr-MG')} ar
-                                            </div>
-                                        )}
+                                    <td className="py-2 text-[7pt] text-center">
+                                        {superior > 0 && <div>{superior} {p.unite_superieure || 'Ctn'}</div>}
+                                        {base > 0 && <div>{base} {p.unite_base || 'Pce'}</div>}
+                                    </td>
+                                    <td className="py-2 text-[7pt] text-center">
+                                        {superior > 0 && <div>{p.unite_superieure || 'Ctn'}</div>}
+                                        {base > 0 && <div>{p.unite_base || 'Pce'}</div>}
+                                    </td>
+                                    <td className="py-2 text-[4px] text-center leading-tight">
+                                        {superior > 0 && <div style={{ fontSize: '4px' }}>P/{p.unite_superieure}: {priceSup.toLocaleString('fr-MG')}</div>}
+                                        {base > 0 && <div style={{ fontSize: '4px' }}>P/{p.unite_base}: {priceBase.toLocaleString('fr-MG')}</div>}
                                     </td>
                                     <td className="py-2 text-right font-black text-[8pt]">
                                         {totalLine.toLocaleString()}

@@ -974,27 +974,66 @@ export default function POS({ session, selectedDepotId }) {
                       </div>
                       <table className="w-full text-left mb-4">
                           <thead>
-                              <tr className="border-b border-dashed border-black text-[8pt] uppercase font-black">
-                                  <th className="py-1 w-[40%]text-[7pt]">Désignation</th>
-                                  <th className="py-1 text-center w-[10%] text-[7pt]">Qté</th>
-                                  <th className="py-1 text-center w-[25%] text-[7pt]">PU</th>
-                                  <th className="py-1 text-right w-[25%]text-[7pt]">Montant</th>
+                              <tr className="border-b border-dashed border-black text-[7pt] uppercase font-black">
+                                  <th className="py-1 w-[35%]">Lib.</th>
+                                  <th className="py-1 text-center w-[15%] text-[6pt]">Qté</th>
+                                  <th className="py-1 text-center w-[10%] text-[6pt]">Unité</th>
+                                  <th className="py-1 text-center w-[20%] text-[6pt]">PU(MGA)</th>
+                                  <th className="py-1 text-right w-[20%]">Montant</th>
                               </tr>
                           </thead>
                           <tbody>
                               {invoiceItems.map(item => (
                                   <tr key={item.item_id} className="border-b border-dashed border-gray-200 align-top">
-                                      <td className="py-2 text-[6pt] font-black uppercase">{item.name}</td>
-                                      <td className="py-2 text-[4pt] text-center font-bold">{formatQuantity(item.quantity, item)}</td>
-                                      <td className="py-2 text-[5px] text-center font-bold leading-tight">
-                                        <div style={{ fontSize: '5px' }}>
-                                            P/{item.unite_base || 'Pce'}: {item.unit_price.toLocaleString('fr-MG')} ar
-                                        </div>
-                                        {item.price_superior > 0 && (
-                                            <div style={{ fontSize: '5px' }}>
-                                                P/{item.unite_superieure || 'Ctn'}: {item.price_superior.toLocaleString('fr-MG')} ar
-                                            </div>
-                                        )}
+                                      <td className="py-2 text-[5pt] font-black uppercase">{item.name}</td>
+                                      <td className="py-2 text-[4pt] text-center">
+                                          {(() => {
+                                            const q = Number(item.quantity) || 0;
+                                            const qpu = Number(item.quantite_par_unite) || 1;
+                                            const superior = Math.floor(q / qpu);
+                                            const base = q % qpu;
+                                            const uniteBase = item.unite_base || 'Pce';
+                                            const uniteSup = item.unite_superieure || 'Ctn';
+                                            return (
+                                                <>
+                                                    {superior > 0 && <div>{superior}</div>}
+                                                    {base > 0 && <div>{base} </div>}
+                                                </>
+                                            );
+                                        })()}
+                                      </td>
+                                      <td className="py-2 text-[4pt] text-center">
+                                        {(() => {
+                                            const q = Number(item.quantity) || 0;
+                                            const qpu = Number(item.quantite_par_unite) || 1;
+                                            const superior = Math.floor(q / qpu);
+                                            const base = q % qpu;
+                                            const uniteBase = item.unite_base || 'Pce';
+                                            const uniteSup = item.unite_superieure || 'Ctn';
+                                            return (
+                                                <>
+                                                    {superior > 0 && <div>{uniteSup}</div>}
+                                                    {base > 0 && <div>{uniteBase}</div>}
+                                                </>
+                                            );
+                                        })()}
+                                      </td>
+                                      <td className="py-2 text-[5px] text-center leading-tight">
+                                        {(() => {
+                                            const q = Number(item.quantity) || 0;
+                                            const qpu = Number(item.quantite_par_unite) || 1;
+                                            const superior = Math.floor(q / qpu);
+                                            const base = q % qpu;
+                                            const priceSup = Number(item.price_superior) || 0;
+                                            const priceBase = Number(item.unit_price) || 0;
+                                            
+                                            return (
+                                                <>
+                                                    {superior > 0 && <div style={{ fontSize: '5px' }}>{priceSup.toLocaleString('fr-MG')}</div>}
+                                                    {base > 0 && <div style={{ fontSize: '5px' }}> {priceBase.toLocaleString('fr-MG')}</div>}
+                                                </>
+                                            );
+                                        })()}
                                       </td>
                                       <td className="py-2 text-right font-black text-[6pt]">
                                           {(item.total || item.quantity * item.unit_price).toLocaleString()}
