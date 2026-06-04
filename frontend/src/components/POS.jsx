@@ -102,7 +102,7 @@ export default function POS({ session, selectedDepotId }) {
   }, [isDragging]);
 
   const handleCalculatorResult = (quantity, addedTotal) => {
-    console.log("POS - handleCalculatorResult received:", { quantity, addedTotal });
+    // console.log("POS - handleCalculatorResult received:", { quantity, addedTotal });
     if (activeItemId) {
         updateItem(activeItemId, quantity, addedTotal);
         setIsCalculatorOpen(false);
@@ -111,7 +111,7 @@ export default function POS({ session, selectedDepotId }) {
 
   const updateItem = async (itemId, quantity, totalAmount) => {
 
-    console.log("POS - updateItem called:", { itemId, quantity, totalAmount });
+    // console.log("POS - updateItem called:", { itemId, quantity, totalAmount });
     if (quantity < 0) quantity = 0;
 
     setInvoiceItems(prevItems => {
