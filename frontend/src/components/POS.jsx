@@ -1002,7 +1002,7 @@ export default function POS({ session, selectedDepotId }) {
                                             );
                                         })()}
                                       </td>
-                                      <td className="py-2 text-[4pt] text-center">
+                                      <td className="font-bold py-2 text-[4pt] text-center">
                                         {(() => {
                                             const q = Number(item.quantity) || 0;
                                             const qpu = Number(item.quantite_par_unite) || 1;
