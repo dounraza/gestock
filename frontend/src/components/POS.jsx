@@ -811,8 +811,10 @@ export default function POS({ session, selectedDepotId }) {
                 @page { size: A4; margin: 20mm; }
                 #root { display: none !important; }
                 body, html { 
-                  margin: 0 auto !important; 
-                  padding: 0 !important; 
+                  margin: 0 auto !important;
+                  padding-left: 0 !important;
+                  padding-right: 0 !important;
+                  overflow: visible !important;
                   height: auto !important;
                   min-height: 0 !important;
                   background: white !important;
@@ -837,8 +839,10 @@ export default function POS({ session, selectedDepotId }) {
                 @page { margin: 0 !important; size: 80mm auto; }
                 #root { display: none !important; }
                 body, html { 
-                  margin: 0 auto !important; 
-                  padding: 0 !important; 
+                  margin: 0 auto !important;
+                  padding-left: 0 !important;
+                  padding-right: 0 !important;
+                  overflow: visible !important;
                   height: auto !important;
                   min-height: 0 !important;
                   background: white !important;
@@ -1009,11 +1013,11 @@ export default function POS({ session, selectedDepotId }) {
                       <table className="w-full text-left mb-4">
                           <thead>
                               <tr className="border-b border-dashed border-black text-[7pt] uppercase font-black">
-                                  <th className="py-1 w-[35%]">Lib.</th>
-                                  <th className="py-1 text-center w-[15%] text-[6pt]">Qté</th>
+                                  <th className="py-1 w-[40%]">Lib.</th>
+                                  <th className="py-1 text-center w-[10%] text-[6pt]">Qté</th>
                                   <th className="py-1 text-center w-[10%] text-[6pt]">Unité</th>
-                                  <th className="py-1 text-center w-[20%] text-[6pt]">PU(MGA)</th>
-                                  <th className="py-1 text-right w-[20%]">Montant</th>
+                                  <th className="py-1 text-center w-[15%] text-[6pt]">PU(MGA)</th>
+                                  <th className="py-1 text-right w-[25%]">Montant</th>
                               </tr>
                           </thead>
                           <tbody>

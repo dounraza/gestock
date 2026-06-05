@@ -1075,11 +1075,11 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                     <table className="w-full text-left mb-4">
                         <thead>
                             <tr className="border-b border-dashed border-black text-[7pt] uppercase font-black">
-                                <th className="py-1 w-[35%]">Lib.</th>
-                                <th className="py-1 text-center w-[15%] text-[6pt]">Qté</th>
+                                <th className="py-1 w-[40%]">Lib.</th>
+                                <th className="py-1 text-center w-[10%] text-[6pt]">Qté</th>
                                 <th className="py-1 text-center w-[10%] text-[6pt]">Unité</th>
-                                <th className="py-1 text-center w-[20%] text-[6pt]">PU(MGA)</th>
-                                <th className="py-1 text-right w-[20%]">Montant</th>
+                                <th className="py-1 text-center w-[15%] text-[6pt]">PU(MGA)</th>
+                                <th className="py-1 text-right w-[25%]">Montant</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1095,18 +1095,18 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
 
                                 return (
                                     <tr key={item.id} className="border-b border-dashed border-gray-200 align-top">
-                                        <td className="py-2 text-[5pt] font-black uppercase">{p.name}</td>
-                                        <td className="py-2 text-[4pt] text-center font-black">
+                                        <td className="py-2 text-[6pt] font-black uppercase">{p.name}</td>
+                                        <td className="py-2 text-[6pt] text-center font-black">
                                             {superior > 0 && <div>{superior}</div>}
                                             {base > 0 && <div>{base} </div>}
                                         </td>
-                                        <td className="font-black py-2 text-[4pt] text-center">
+                                        <td className="font-black py-2 text-[6pt] text-center">
                                             {superior > 0 && <div>{p.unite_superieure || 'Ctn'}</div>}
                                             {base > 0 && <div>{p.unite_base || 'Pce'}</div>}
                                         </td>
-                                        <td className="py-2 text-[5px] text-center leading-tight font-black">
-                                            {superior > 0 && <div style={{ fontSize: '5px' }}>{priceSup.toLocaleString('fr-MG')}</div>}
-                                            {base > 0 && <div style={{ fontSize: '5px' }}> {priceBase.toLocaleString('fr-MG')}</div>}
+                                        <td className="py-2 text-[6pt] text-center leading-tight font-black">
+                                            {superior > 0 && <div style={{ fontSize: '6pt' }}>{priceSup.toLocaleString('fr-MG')}</div>}
+                                            {base > 0 && <div style={{ fontSize: '6pt' }}> {priceBase.toLocaleString('fr-MG')}</div>}
                                         </td>
                                         <td className="py-2 text-right font-black text-[6pt]">
                                             {totalLine.toLocaleString()}
