@@ -871,8 +871,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                 @page { size: A4; margin: 20mm; }
                 #root { display: none !important; }
                 body, html { 
-                  margin: 0 !important;
-                  padding-left: 2mm !important; 
+                  margin: 0 auto !important; 
                   padding: 0 !important; 
                   height: auto !important;
                   min-height: 0 !important;
@@ -898,8 +897,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                 @page { margin: 0 !important; size: 80mm auto; }
                 #root { display: none !important; }
                 body, html { 
-                  margin: 0 !important;
-                  padding-left: 2mm !important; 
+                  margin: 0 auto !important; 
                   padding: 0 !important; 
                   height: auto !important;
                   min-height: 0 !important;
@@ -909,15 +907,14 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                   visibility: visible !important;
                   display: block !important;
                   position: relative !important;
-                  margin: 0 !important;
-                  padding-left: 2mm !important;
+                  margin: 0 auto !important;
                   width: 76mm !important;
                   max-height: none !important;
                   overflow: visible !important;
                   padding: 0 !important;
                   box-sizing: border-box !important;
                   font-family: 'Courier New', Courier, monospace !important;
-                  font-size: 12pt !important;
+                  font-size: 14pt !important;
                   color: black !important;
                   background: white !important;
                 }
