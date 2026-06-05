@@ -681,7 +681,7 @@ export default function POS({ session, selectedDepotId }) {
                    FACTURE
                  </label>
                  <label className="flex items-center gap-1 text-[13px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
-                   <input type="checkbox" checked={showPreview} onChange={() => setShowPreview(!showPreview)} className="accent-emerald-500 scale-75" /> 
+                   <input type="hidden" checked={showPreview} onChange={() => setShowPreview(!showPreview)} className="accent-emerald-500 scale-75" /> 
                    PRÉVISU
                  </label>
                  <label className="flex items-center gap-1 text-[13px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
