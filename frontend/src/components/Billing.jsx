@@ -1095,20 +1095,20 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
 
                                 return (
                                     <tr key={item.id} className="border-b border-dashed border-gray-200 align-top">
-                                        <td className="py-2 text-[6pt] font-black uppercase">{p.name}</td>
-                                        <td className="py-2 text-[6pt] text-center font-black">
+                                        <td className="py-2 text-[8pt] font-black uppercase">{p.name}</td>
+                                        <td className="py-2 text-[8pt] text-center font-black">
                                             {superior > 0 && <div>{superior}</div>}
                                             {base > 0 && <div>{base} </div>}
                                         </td>
-                                        <td className="font-black py-2 text-[6pt] text-center">
+                                        <td className="font-black py-2 text-[8pt] text-center">
                                             {superior > 0 && <div>{p.unite_superieure || 'Ctn'}</div>}
                                             {base > 0 && <div>{p.unite_base || 'Pce'}</div>}
                                         </td>
-                                        <td className="py-2 text-[6pt] text-center leading-tight font-black">
-                                            {superior > 0 && <div style={{ fontSize: '6pt' }}>{priceSup.toLocaleString('fr-MG')}</div>}
-                                            {base > 0 && <div style={{ fontSize: '6pt' }}> {priceBase.toLocaleString('fr-MG')}</div>}
+                                        <td className="py-2 text-[8pt] text-center leading-tight font-black">
+                                            {superior > 0 && <div style={{ fontSize: '8pt' }}>{priceSup.toLocaleString('fr-MG')}</div>}
+                                            {base > 0 && <div style={{ fontSize: '8pt' }}> {priceBase.toLocaleString('fr-MG')}</div>}
                                         </td>
-                                        <td className="py-2 text-right font-black text-[6pt]">
+                                        <td className="py-2 text-right font-black text-[8pt]">
                                             {totalLine.toLocaleString()}
                                         </td>
                                     </tr>

@@ -1023,8 +1023,8 @@ export default function POS({ session, selectedDepotId }) {
                           <tbody>
                               {invoiceItems.map(item => (
                                   <tr key={item.item_id} className="border-b border-dashed border-gray-200 align-top">
-                                      <td className="py-2 text-[5pt] font-black uppercase">{item.name}</td>
-                                      <td className="py-2 text-[4pt] text-center font-black">
+                                      <td className="py-2 text-[8pt] font-black uppercase">{item.name}</td>
+                                      <td className="py-2 text-[8pt] text-center font-black">
                                           {(() => {
                                             const q = Number(item.quantity) || 0;
                                             const qpu = Number(item.quantite_par_unite) || 1;
@@ -1038,7 +1038,7 @@ export default function POS({ session, selectedDepotId }) {
                                             );
                                         })()}
                                       </td>
-                                      <td className="font-black py-2 text-[4pt] text-center">
+                                      <td className="font-black py-2 text-[8pt] text-center">
                                         {(() => {
                                             const q = Number(item.quantity) || 0;
                                             const qpu = Number(item.quantite_par_unite) || 1;
@@ -1054,7 +1054,7 @@ export default function POS({ session, selectedDepotId }) {
                                             );
                                         })()}
                                       </td>
-                                      <td className="py-2 text-[5px] text-center leading-tight font-black">
+                                      <td className="py-2 text-[8pt] text-center leading-tight font-black">
                                         {(() => {
                                             const q = Number(item.quantity) || 0;
                                             const qpu = Number(item.quantite_par_unite) || 1;
@@ -1065,13 +1065,13 @@ export default function POS({ session, selectedDepotId }) {
                                             
                                             return (
                                                 <>
-                                                    {superior > 0 && <div style={{ fontSize: '5px' }}>{priceSup.toLocaleString('fr-MG')}</div>}
-                                                    {base > 0 && <div style={{ fontSize: '5px' }}> {priceBase.toLocaleString('fr-MG')}</div>}
+                                                    {superior > 0 && <div style={{ fontSize: '8pt' }}>{priceSup.toLocaleString('fr-MG')}</div>}
+                                                    {base > 0 && <div style={{ fontSize: '8pt' }}> {priceBase.toLocaleString('fr-MG')}</div>}
                                                 </>
                                             );
                                         })()}
                                       </td>
-                                      <td className="py-2 text-right font-black text-[6pt]">
+                                      <td className="py-2 text-right font-black text-[8pt]">
                                           {(item.total || item.quantity * item.unit_price).toLocaleString()}
                                       </td>
                                   </tr>
