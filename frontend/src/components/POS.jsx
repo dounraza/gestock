@@ -49,6 +49,15 @@ export default function POS({ session, selectedDepotId }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [previewInvoice, setPreviewInvoice] = useState(null);
   const [previewDeliveryNote, setPreviewDeliveryNote] = useState(null); // NEW
+  const [printFormat, setPrintFormat] = useState('auto'); // 'auto', 'A4', or 'ticket'
+
+  // Helper to get effective format
+  const getEffectiveFormat = () => {
+    if (printFormat !== 'auto') return printFormat;
+    return previewInvoice?.type === 'CRÉDIT' ? 'A4' : 'ticket';
+  };
+
+  const effectiveFormat = getEffectiveFormat();
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [clientEmail, setClientEmail] = useState('');
@@ -665,23 +674,32 @@ export default function POS({ session, selectedDepotId }) {
                }} className={`py-1 rounded text-[14px] font-black ${paymentMode === 'credit' ? 'bg-orange-500 text-white' : 'text-emerald-400'}`}>CRÉDIT</button>
             </div>
 
-            <div className="p-1.5 bg-emerald-900/30 rounded-lg flex flex-wrap items-center gap-2">
-               <label className="flex items-center gap-1 text-[13px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
-                 <input type="checkbox" checked={printInvoice} onChange={() => setPrintInvoice(!printInvoice)} className="accent-emerald-500 scale-75" /> 
-                 FACTURE
-               </label>
-               <label className="flex items-center gap-1 text-[13px] font-bold cursor-pointer hover:text-emerald-400 transition-colors" style={{ display: previewInvoice ? 'block' : 'none' }}>
-                 <input type="checkbox" checked={showPreview} onChange={() => setShowPreview(!showPreview)} className="accent-emerald-500 scale-75" /> 
-                 PRÉVISU
-               </label>
-               <label className="flex items-center gap-1 text-[13px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
-                 <input type="checkbox" checked={isWithdrawal} onChange={() => setIsWithdrawal(!isWithdrawal)} className="accent-emerald-500 scale-75" /> 
-                 B. ENLÈVEMENT
-               </label>
-               <label className="flex items-center gap-1 text-[13px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
-                 <input type="checkbox" checked={isOther} onChange={() => setIsOther(!isOther)} className="accent-emerald-500 scale-75" /> 
-                 B. LIVRAISON
-               </label>
+            <div className="p-1.5 bg-emerald-900/30 rounded-lg flex flex-col gap-2">
+               <div className="flex flex-wrap items-center gap-2">
+                 <label className="flex items-center gap-1 text-[13px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
+                   <input type="checkbox" checked={printInvoice} onChange={() => setPrintInvoice(!printInvoice)} className="accent-emerald-500 scale-75" /> 
+                   FACTURE
+                 </label>
+                 <label className="flex items-center gap-1 text-[13px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
+                   <input type="checkbox" checked={showPreview} onChange={() => setShowPreview(!showPreview)} className="accent-emerald-500 scale-75" /> 
+                   PRÉVISU
+                 </label>
+                 <label className="flex items-center gap-1 text-[13px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
+                   <input type="checkbox" checked={isWithdrawal} onChange={() => setIsWithdrawal(!isWithdrawal)} className="accent-emerald-500 scale-75" /> 
+                   B. ENLÈVEMENT
+                 </label>
+                 <label className="flex items-center gap-1 text-[13px] font-bold cursor-pointer hover:text-emerald-400 transition-colors">
+                   <input type="checkbox" checked={isOther} onChange={() => setIsOther(!isOther)} className="accent-emerald-500 scale-75" /> 
+                   B. LIVRAISON
+                 </label>
+               </div>
+               
+               {printInvoice && (
+                 <div className="flex gap-1 p-0.5 bg-emerald-950/50 rounded-lg border border-white/5">
+                   <button onClick={() => setPrintFormat('ticket')} className={`flex-1 py-1 rounded text-[11px] font-black transition-all ${effectiveFormat === 'ticket' ? 'bg-emerald-600 text-white' : 'text-emerald-400 hover:bg-white/5'}`}>TICKET 80mm</button>
+                   <button onClick={() => setPrintFormat('A4')} className={`flex-1 py-1 rounded text-[11px] font-black transition-all ${effectiveFormat === 'A4' ? 'bg-emerald-600 text-white' : 'text-emerald-400 hover:bg-white/5'}`}>FORMAT A4</button>
+                 </div>
+               )}
             </div>
 
             {/* Client Info */}
@@ -787,7 +805,7 @@ export default function POS({ session, selectedDepotId }) {
       {/* Combined Preview Modal */}
       {(previewInvoice || previewDeliveryNote) && createPortal(
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          {previewInvoice?.type === 'CRÉDIT' ? (
+          {effectiveFormat === 'A4' ? (
             <style>{`
               @media print {
                 @page { size: A4; margin: 20mm; }
@@ -830,10 +848,10 @@ export default function POS({ session, selectedDepotId }) {
                   display: block !important;
                   position: relative !important;
                   margin: 0 auto !important;
-                  width: 72mm !important;
+                  width: 76mm !important;
                   max-height: none !important;
                   overflow: visible !important;
-                  padding: 1mm !important;
+                  padding: 0mm !important;
                   box-sizing: border-box !important;
                   font-family: 'Courier New', Courier, monospace !important;
                   font-size: 11pt !important;
@@ -849,16 +867,22 @@ export default function POS({ session, selectedDepotId }) {
             `}</style>
           )}
           
-          <div id="printable-all-container" className={`bg-white text-black max-h-[90vh] overflow-y-auto ${previewInvoice?.type === 'CRÉDIT' ? 'w-[210mm] p-[20mm]' : ''}`}>
-            <div className="print-hide p-4 border-b border-gray-200 bg-gray-50 flex justify-between sticky top-0">
-              <h3 className="font-bold">Prévisualisation {previewInvoice?.type === 'CRÉDIT' ? '(Format A4)' : '(Format Ticket)'}</h3>
+          <div id="printable-all-container" className={`bg-white text-black max-h-[90vh] overflow-y-auto ${effectiveFormat === 'A4' ? 'w-[210mm] p-[20mm]' : ''}`}>
+            <div className="print-hide p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center sticky top-0">
+              <div className="flex flex-col">
+                <h3 className="font-bold">Prévisualisation</h3>
+                <div className="flex gap-2 mt-1">
+                  <button onClick={() => setPrintFormat('ticket')} className={`px-2 py-0.5 text-xs rounded border ${effectiveFormat === 'ticket' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-300'}`}>TICKET (80mm)</button>
+                  <button onClick={() => setPrintFormat('A4')} className={`px-2 py-0.5 text-xs rounded border ${effectiveFormat === 'A4' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-300'}`}>A4</button>
+                </div>
+              </div>
               <div className="flex gap-2">
                 <button onClick={() => { setPreviewInvoice(null); setPreviewDeliveryNote(null); window.location.reload(); }} className="px-3 py-1 bg-gray-200 rounded">Fermer</button>
                 <button onClick={() => window.print()} className="px-3 py-1 bg-emerald-600 text-white font-bold rounded">Imprimer</button>
               </div>
             </div>
             
-            {previewInvoice?.type === 'CRÉDIT' ? (
+            {effectiveFormat === 'A4' ? (
               /* A4 Format for Credit Invoices */
               <div id="printable-invoice" className="space-y-6">
                   <div className="flex justify-between items-start bg-emerald-600 p-8 rounded-t-2xl text-white">

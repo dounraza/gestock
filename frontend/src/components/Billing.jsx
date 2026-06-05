@@ -19,6 +19,14 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
   const [viewingInvoice, setViewingInvoice] = useState(null);
   const [viewingItems, setViewingItems] = useState([]);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [printFormat, setPrintFormat] = useState('auto'); // 'auto', 'A4', or 'ticket'
+
+  const getEffectiveFormat = () => {
+    if (printFormat !== 'auto') return printFormat;
+    return viewingInvoice?.type === 'CRÉDIT' ? 'A4' : 'ticket';
+  };
+
+  const effectiveFormat = getEffectiveFormat();
 
   const openViewModal = async (inv) => {
     setViewingInvoice(inv);
@@ -857,7 +865,7 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
       )}
       {viewingInvoice && createPortal(
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          {viewingInvoice?.type === 'CRÉDIT' ? (
+          {effectiveFormat === 'A4' ? (
             <style>{`
               @media print {
                 @page { size: A4; margin: 20mm; }
@@ -900,10 +908,10 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                   display: block !important;
                   position: relative !important;
                   margin: 0 auto !important;
-                  width: 72mm !important;
+                  width: 76mm !important;
                   max-height: none !important;
                   overflow: visible !important;
-                  padding: 1mm !important;
+                  padding: 0mm !important;
                   box-sizing: border-box !important;
                   font-family: 'Courier New', Courier, monospace !important;
                   font-size: 11pt !important;
@@ -919,16 +927,22 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
             `}</style>
           )}
           
-          <div id="printable-invoice-container" className={`bg-white text-black max-h-[90vh] overflow-y-auto ${viewingInvoice?.type === 'CRÉDIT' ? 'w-[210mm] p-[20mm]' : ''}`}>
-            <div className="print-hide p-4 border-b border-gray-200 bg-gray-50 flex justify-between sticky top-0">
-              <h3 className="font-bold">Prévisualisation {viewingInvoice?.type === 'CRÉDIT' ? '(Format A4)' : '(Format Ticket)'}</h3>
+          <div id="printable-invoice-container" className={`bg-white text-black max-h-[90vh] overflow-y-auto ${effectiveFormat === 'A4' ? 'w-[210mm] p-[20mm]' : ''}`}>
+            <div className="print-hide p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center sticky top-0">
+              <div className="flex flex-col">
+                <h3 className="font-bold">Prévisualisation</h3>
+                <div className="flex gap-2 mt-1">
+                  <button onClick={() => setPrintFormat('ticket')} className={`px-2 py-0.5 text-xs rounded border ${effectiveFormat === 'ticket' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-300'}`}>TICKET (80mm)</button>
+                  <button onClick={() => setPrintFormat('A4')} className={`px-2 py-0.5 text-xs rounded border ${effectiveFormat === 'A4' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-300'}`}>A4</button>
+                </div>
+              </div>
               <div className="flex gap-2">
                 <button onClick={() => setViewingInvoice(null)} className="px-3 py-1 bg-gray-200 rounded">Fermer</button>
                 <button onClick={() => window.print()} className="px-3 py-1 bg-emerald-600 text-white font-bold rounded">Imprimer</button>
               </div>
             </div>
             
-            {viewingInvoice?.type === 'CRÉDIT' ? (
+            {effectiveFormat === 'A4' ? (
               /* A4 Format for Credit Invoices */
               <div id="printable-invoice" className="space-y-6">
                   <div className="flex justify-between items-start bg-emerald-600 p-8 rounded-t-2xl text-white">
