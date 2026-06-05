@@ -891,7 +891,7 @@ export default function POS({ session, selectedDepotId }) {
               <div id="printable-invoice" className="space-y-6">
                   <div className="flex justify-between items-start bg-emerald-600 p-8 rounded-t-2xl text-white">
                       <div>
-                          <h1 className="text-3xl font-black uppercase text-white">{currentDepotInfo?.name || 'GESTOCK'}</h1>
+                          <h1 className="text-3xl font-black uppercase text-white">{currentDepotInfo?.name || 'Tranombarotra Hugo'}</h1>
                           <p className="text-sm font-bold opacity-90">{currentDepotInfo?.address || 'Antananarivo'}</p>
                           <p className="text-sm opacity-90">Tél: {currentDepotInfo?.phone || '---'}</p>
                       </div>
@@ -1001,7 +1001,7 @@ export default function POS({ session, selectedDepotId }) {
                 {previewInvoice && (
                   <div id="printable-invoice">
                       <div className="text-center mb-4 border-b border-dashed border-black pb-2">
-                          <h1 className="text-xl font-black uppercase text-emerald-600">{currentDepotInfo?.name || 'GESTOCK'}</h1>
+                          <h1 className="text-xl font-black uppercase text-emerald-600">{'Tranombarotra Hugo' || 'Tranombarotra Hugo'}</h1>
                           <p>{currentDepotInfo?.address || 'Antananarivo'}</p>
                           <p>Tél: {currentDepotInfo?.phone || '---'}</p>
                       </div>
@@ -1106,7 +1106,7 @@ export default function POS({ session, selectedDepotId }) {
                   <div id="printable-dn" className="border-t-2 border-solid border-black pt-8">
                       <div className="text-center mb-4 border-b border-dashed border-black pb-2">
                           <h1 className="text-xl font-black uppercase">BON DE SORTIE</h1>
-                          <p className="font-black">Dépôt Principal</p>
+                          <p className="font-black">Tranombarotra Hugo</p>
                           <p>Tél: 0387060782</p>
                           <p>Facture Réf: <span className="font-bold">{activeInvoice.number}</span></p>
                           <p>N°: <span className="font-bold">{previewDeliveryNote.bl_number}</span></p>
