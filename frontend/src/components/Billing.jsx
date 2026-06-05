@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../supabaseClient';
 import { Plus, Search, FileText, Trash2, Edit2, Calendar, User, DollarSign, Loader2, CheckCircle, Clock, XCircle, Eye, Download } from 'lucide-react';
 import { jsPDF } from 'jspdf';
@@ -854,149 +855,276 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
           </div>
         </div>
       )}
-      {viewingInvoice && (
+      {viewingInvoice && createPortal(
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <style>{`
-            @media print {
-              @page { 
-                margin: 0 !important; 
-                size: 80mm auto;
+          {viewingInvoice?.type === 'CRÉDIT' ? (
+            <style>{`
+              @media print {
+                @page { size: A4; margin: 20mm; }
+                #root { display: none !important; }
+                body, html { 
+                  margin: 0 !important; 
+                  padding: 0 !important; 
+                  height: auto !important;
+                  min-height: 0 !important;
+                  background: white !important;
+                }
+                #printable-invoice-container {
+                  visibility: visible !important;
+                  display: block !important;
+                  position: relative !important;
+                  width: 210mm !important;
+                  padding: 20mm !important;
+                  font-family: Arial, sans-serif !important;
+                  color: black !important;
+                  border: none !important;
+                  background: white !important;
+                }
+                .print-hide { display: none !important; }
               }
-              html, body {
-                height: auto !important;
-                min-height: 0 !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                visibility: hidden;
-                -webkit-print-color-adjust: exact !important;
-                overflow: visible !important;
+            `}</style>
+          ) : (
+            <style>{`
+              @media print {
+                @page { margin: 0 !important; size: 80mm auto; }
+                #root { display: none !important; }
+                body, html { 
+                  margin: 0 !important; 
+                  padding: 0 !important; 
+                  height: auto !important;
+                  min-height: 0 !important;
+                  background: white !important;
+                }
+                #printable-invoice-container {
+                  visibility: visible !important;
+                  display: block !important;
+                  position: relative !important;
+                  margin: 0 auto !important;
+                  width: 72mm !important;
+                  max-height: none !important;
+                  overflow: visible !important;
+                  padding: 1mm !important;
+                  box-sizing: border-box !important;
+                  font-family: 'Courier New', Courier, monospace !important;
+                  font-size: 11pt !important;
+                  color: black !important;
+                  background: white !important;
+                }
+                #printable-invoice-container * {
+                  color: black !important;
+                  background-color: transparent !important;
+                }
+                .print-hide { display: none !important; }
               }
-              #printable-invoice-container {
-                visibility: visible !important;
-                display: block !important;
-                position: absolute !important;
-                top: 0 !important;
-                left: 0 !important;
-                right: 0 !important;
-                margin: 0 auto !important;
-                width: 72mm !important;
-                padding: 1mm !important;
-                height: auto !important;
-                min-height: 0 !important;
-                max-height: none !important;
-                overflow: visible !important;
-                font-family: 'Courier New', Courier, monospace !important;
-                font-size: 11pt !important;
-                color: black !important;
-                background: white !important;
-                page-break-inside: avoid !important;
-              }
-              #printable-invoice-container * {
-                color: black !important;
-                background-color: transparent !important;
-              }
-              .print-hide { display: none !important; }
-            }
-          `}</style>
-          <div id="printable-invoice-container" className="bg-white text-black">
-            <div className="print-hide p-4 border-b border-gray-200 bg-gray-50 flex justify-between">
-              <h3 className="font-bold">Facture {viewingInvoice.number}</h3>
+            `}</style>
+          )}
+          
+          <div id="printable-invoice-container" className={`bg-white text-black max-h-[90vh] overflow-y-auto ${viewingInvoice?.type === 'CRÉDIT' ? 'w-[210mm] p-[20mm]' : ''}`}>
+            <div className="print-hide p-4 border-b border-gray-200 bg-gray-50 flex justify-between sticky top-0">
+              <h3 className="font-bold">Prévisualisation {viewingInvoice?.type === 'CRÉDIT' ? '(Format A4)' : '(Format Ticket)'}</h3>
               <div className="flex gap-2">
                 <button onClick={() => setViewingInvoice(null)} className="px-3 py-1 bg-gray-200 rounded">Fermer</button>
                 <button onClick={() => window.print()} className="px-3 py-1 bg-emerald-600 text-white font-bold rounded">Imprimer</button>
               </div>
             </div>
             
-            <div id="printable-invoice" className="text-[10pt] leading-tight p-2">
-                <div className="text-center mb-4 border-b border-dashed border-black pb-2">
-                    <h1 className="text-xl font-black uppercase text-emerald-600">GESTOCK</h1>
-                    <p>Facture: <span className="font-bold">{viewingInvoice.number}</span></p>
-                    <p>Date: {new Date(viewingInvoice.created_at).toLocaleDateString()} {new Date(viewingInvoice.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                    <p>Client: <span className="font-bold">{viewingInvoice.clients?.name || viewingInvoice.guest_name || 'Anonyme'}</span></p>
-                </div>
+            {viewingInvoice?.type === 'CRÉDIT' ? (
+              /* A4 Format for Credit Invoices */
+              <div id="printable-invoice" className="space-y-6">
+                  <div className="flex justify-between items-start bg-emerald-600 p-8 rounded-t-2xl text-white">
+                      <div>
+                          <h1 className="text-3xl font-black uppercase text-white">GESTOCK</h1>
+                          <p className="text-sm font-bold opacity-90">Antananarivo</p>
+                      </div>
+                      <div className="text-right">
+                          <h2 className="text-2xl font-black uppercase opacity-80">FACTURE DE CRÉDIT</h2>
+                          <p className="text-xl font-bold">N° {viewingInvoice.number}</p>
+                          <p className="text-sm opacity-90">Date: {new Date(viewingInvoice.created_at).toLocaleDateString('fr-FR')}</p>
+                      </div>
+                  </div>
 
-                <table className="w-full text-left mb-4">
-                    <thead>
-                        <tr className="border-b border-dashed border-black text-[8pt] uppercase font-black">
-                            <th className="py-1 w-[35%]">Désignation</th>
-                            <th className="py-1 text-center w-[15%] text-[7pt]">Unité</th>
-                            <th className="py-1 text-center w-[10%] text-[7pt]">Qté</th>
-                            <th className="py-1 text-center w-[20%] text-[7pt]">PU</th>
-                            <th className="py-1 text-right w-[20%]">Montant</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {viewingItems.map(item => {
-                            const q = item.quantity || 0;
-                            const p = item.produits || {};
-                            const totalLine = item.total || 0;
-                            const priceSup = Number(p.price_superior) || 0;
-                            const priceBase = Number(item.unit_price) || 0;
-                            
-                            return (
-                                <tr key={item.id} className="border-b border-dashed border-gray-200 align-top">
-                                    <td className="py-2 text-[8pt] font-black uppercase">{p.name || 'Inconnu'}</td>
-                                    <td className="py-2 text-[7pt] text-center">
-                                        {superior > 0 && <div>{superior} {p.unite_superieure || 'Ctn'}</div>}
-                                        {base > 0 && <div>{base} {p.unite_base || 'Pce'}</div>}
-                                    </td>
-                                    <td className="py-2 text-[7pt] text-center">
-                                        {superior > 0 && <div>{p.unite_superieure || 'Ctn'}</div>}
-                                        {base > 0 && <div>{p.unite_base || 'Pce'}</div>}
-                                    </td>
-                                    <td className="py-2 text-[4px] text-center leading-tight">
-                                        {superior > 0 && <div style={{ fontSize: '4px' }}>P/{p.unite_superieure}: {priceSup.toLocaleString('fr-MG')}</div>}
-                                        {base > 0 && <div style={{ fontSize: '4px' }}>P/{p.unite_base}: {priceBase.toLocaleString('fr-MG')}</div>}
-                                    </td>
-                                    <td className="py-2 text-right font-black text-[8pt]">
-                                        {totalLine.toLocaleString()}
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+                  <div className="px-8 space-y-6">
+                      <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                          <h3 className="text-xs font-black uppercase text-gray-400 mb-2">Informations Client</h3>
+                          <p className="text-lg font-black">{viewingInvoice.clients?.name || viewingInvoice.guest_name || 'Client Inconnu'}</p>
+                          {(viewingInvoice.clients?.phone || viewingInvoice.guest_contact) && <p className="text-sm">Tél: {viewingInvoice.clients?.phone || viewingInvoice.guest_contact}</p>}
+                          {viewingInvoice.clients?.address && <p className="text-sm">Adresse: {viewingInvoice.clients.address}</p>}
+                      </div>
 
-                <div className="border-t border-dashed border-black pt-2 text-right mb-4">
-                    {(() => {
-                        const totalDiscount = viewingItems.reduce((acc, item) => {
-                            const q = item.quantity || 0;
-                            const p = item.produits || {};
-                            const qpu = Number(p.quantite_par_unite) || 1;
-                            const superior = Math.floor(q / qpu);
-                            const base = q % qpu;
-                            const priceSup = Number(p.price_superior) || 0;
-                            const priceBase = Number(item.unit_price) || 0;
-                            const subtotalLine = (superior * priceSup) + (base * priceBase);
-                            
-                            const discValue = item.discount?.value || item.discount_value || 0;
-                            const discType = item.discount?.type || item.discount_type || 'Ar';
-                            return acc + (discType === '%' ? (subtotalLine * parseFloat(discValue) / 100) : parseFloat(discValue));
-                        }, 0);
-                        
-                        return totalDiscount > 0 ? (
-                            <p className="font-bold text-red-600">REMISE TOTAUX: -{totalDiscount.toLocaleString()} MGA</p>
-                        ) : null;
-                    })()}
-                    <p className="font-black text-lg mt-2">NET À PAYER: {parseFloat(viewingInvoice.total_amount).toLocaleString()} MGA</p>
-                </div>
+                      <table className="w-full border-collapse">
+                          <thead>
+                              <tr className="bg-emerald-600 text-white">
+                                  <th className="p-3 text-left uppercase text-xs font-black">Désignation</th>
+                                  <th className="p-3 text-center uppercase text-xs font-black">Quantité</th>
+                                  <th className="p-3 text-right uppercase text-xs font-black">Prix Unitaire</th>
+                                  <th className="p-3 text-right uppercase text-xs font-black">Remise</th>
+                                  <th className="p-3 text-right uppercase text-xs font-black">Montant</th>
+                              </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 border-b-2 border-gray-100">
+                              {viewingItems.map(item => {
+                                  const q = Number(item.quantity) || 0;
+                                  const p = item.produits || {};
+                                  const qpu = Number(p.quantite_par_unite) || 1;
+                                  const superior = Math.floor(q / qpu);
+                                  const base = q % qpu;
+                                  const priceSup = Number(p.price_superior) || 0;
+                                  const priceBase = Number(item.unit_price) || 0;
+                                  const lineBrutTotal = (superior * priceSup) + (base * priceBase);
+                                  
+                                  const discValue = item.discount?.value || item.discount_value || 0;
+                                  const discType = item.discount?.type || item.discount_type || 'Ar';
+                                  const lineDiscount = discType === '%' ? (lineBrutTotal * parseFloat(discValue) / 100) : parseFloat(discValue);
+                                  const lineNetTotal = lineBrutTotal - lineDiscount;
 
-                <div className="grid grid-cols-2 gap-2 mt-4 pt-2 border-t border-dashed border-black">
-                    <div className="text-center">
-                        <p className="text-[8pt] font-bold">Client</p>
-                        <div className="h-12 border-b border-black"></div>
+                                  return (
+                                    <tr key={item.id}>
+                                        <td className="p-3 font-bold uppercase">{p.name}</td>
+                                        <td className="p-3 text-center font-bold">
+                                            {qpu > 1 ? (
+                                                <>
+                                                    {superior > 0 && <span>{superior} {p.unite_superieure || 'Ctn'}</span>}
+                                                    {superior > 0 && base > 0 && <span className="mx-1">+</span>}
+                                                    {base > 0 && <span>{base} {p.unite_base || 'Pce'}</span>}
+                                                </>
+                                            ) : (
+                                                <span>{q} {p.unite_base || 'Pce'}</span>
+                                            )}
+                                        </td>
+                                        <td className="p-3 text-right">
+                                            <div className="font-bold">{priceBase.toLocaleString()}</div>
+                                            {priceSup > 0 && (
+                                                <div className="text-[10px] text-gray-500 font-medium">
+                                                    {priceSup.toLocaleString()} / {p.unite_superieure || 'Ctn'}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="p-3 text-right text-red-600">{lineDiscount > 0 ? `-${lineDiscount.toLocaleString()}` : '-'}</td>
+                                        <td className="p-3 text-right font-black">{lineNetTotal.toLocaleString()}</td>
+                                    </tr>
+                                  );
+                              })}
+                          </tbody>
+                      </table>
+
+                      <div className="flex justify-end pt-4">
+                          <div className="w-80 space-y-2">
+                              <div className="flex justify-between text-2xl font-black text-emerald-800 border-t-4 border-emerald-600 pt-2 mt-2">
+                                  <span>NET À PAYER:</span>
+                                  <span>{parseFloat(viewingInvoice.total_amount).toLocaleString()} MGA</span>
+                              </div>
+                              {viewingInvoice.advance_amount > 0 && (
+                                  <>
+                                    <div className="flex justify-between text-base font-bold text-emerald-600">
+                                        <span>AVANCE VERSÉE:</span>
+                                        <span>-{parseFloat(viewingInvoice.advance_amount).toLocaleString()} MGA</span>
+                                    </div>
+                                    <div className="flex justify-between text-xl font-black text-orange-600 border-t border-dashed border-orange-200 pt-2">
+                                        <span>RESTE À PAYER:</span>
+                                        <span>{(parseFloat(viewingInvoice.total_amount) - parseFloat(viewingInvoice.advance_amount)).toLocaleString()} MGA</span>
+                                    </div>
+                                    <div className="text-[11px] font-bold text-gray-400 uppercase text-right mt-1">
+                                        Échéance: {new Date(viewingInvoice.due_date).toLocaleDateString('fr-FR')}
+                                    </div>
+                                  </>
+                              )}
+                          </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-12 mt-20">
+                          <div className="text-center">
+                              <p className="font-black text-xs uppercase text-gray-400 mb-16 underline">Signature du Client</p>
+                              <div className="border-t border-gray-300 w-full mx-auto"></div>
+                          </div>
+                          <div className="text-center">
+                              <p className="font-black text-xs uppercase text-gray-400 mb-16 underline">Signature & Cachet Ets</p>
+                              <div className="border-t border-gray-300 w-full mx-auto"></div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div className="text-center text-[10px] text-white mt-12 bg-emerald-600 p-4 rounded-b-2xl">
+                      <p className="font-bold">Merci de votre confiance ! Cette facture est un engagement de paiement aux conditions de crédit mentionnées.</p>
+                  </div>
+              </div>
+            ) : (
+              /* Ticket Format (80mm) for Cash Invoices */
+              <div className="text-[10pt] leading-tight p-2 space-y-8">
+                <div id="printable-invoice">
+                    <div className="text-center mb-4 border-b border-dashed border-black pb-2">
+                        <h1 className="text-xl font-black uppercase text-emerald-600">GESTOCK</h1>
+                        <p>Facture: <span className="font-bold">{viewingInvoice.number}</span></p>
+                        <p>Date: {new Date(viewingInvoice.created_at).toLocaleDateString()} {new Date(viewingInvoice.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                        <p>Client: <span className="font-bold">{viewingInvoice.clients?.name || viewingInvoice.guest_name || 'Anonyme'}</span></p>
                     </div>
-                    <div className="text-center">
-                        <p className="text-[8pt] font-bold">Vendeur</p>
-                        <div className="h-12 border-b border-black"></div>
+
+                    <table className="w-full text-left mb-4">
+                        <thead>
+                            <tr className="border-b border-dashed border-black text-[7pt] uppercase font-black">
+                                <th className="py-1 w-[35%]">Lib.</th>
+                                <th className="py-1 text-center w-[15%] text-[6pt]">Qté</th>
+                                <th className="py-1 text-center w-[10%] text-[6pt]">Unité</th>
+                                <th className="py-1 text-center w-[20%] text-[6pt]">PU(MGA)</th>
+                                <th className="py-1 text-right w-[20%]">Montant</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {viewingItems.map(item => {
+                                const q = Number(item.quantity) || 0;
+                                const p = item.produits || {};
+                                const qpu = Number(p.quantite_par_unite) || 1;
+                                const superior = Math.floor(q / qpu);
+                                const base = q % qpu;
+                                const priceSup = Number(p.price_superior) || 0;
+                                const priceBase = Number(item.unit_price) || 0;
+                                const totalLine = Number(item.total) || 0;
+
+                                return (
+                                    <tr key={item.id} className="border-b border-dashed border-gray-200 align-top">
+                                        <td className="py-2 text-[5pt] font-black uppercase">{p.name}</td>
+                                        <td className="py-2 text-[4pt] text-center">
+                                            {superior > 0 && <div>{superior}</div>}
+                                            {base > 0 && <div>{base} </div>}
+                                        </td>
+                                        <td className="font-bold py-2 text-[4pt] text-center">
+                                            {superior > 0 && <div>{p.unite_superieure || 'Ctn'}</div>}
+                                            {base > 0 && <div>{p.unite_base || 'Pce'}</div>}
+                                        </td>
+                                        <td className="py-2 text-[5px] text-center leading-tight">
+                                            {superior > 0 && <div style={{ fontSize: '5px' }}>{priceSup.toLocaleString('fr-MG')}</div>}
+                                            {base > 0 && <div style={{ fontSize: '5px' }}> {priceBase.toLocaleString('fr-MG')}</div>}
+                                        </td>
+                                        <td className="py-2 text-right font-black text-[6pt]">
+                                            {totalLine.toLocaleString()}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                    <div className="border-t border-dashed border-black pt-2 text-right">
+                        <p className="font-black text-lg mt-2 ">Net à payer: {parseFloat(viewingInvoice.total_amount).toLocaleString()} MGA</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 mt-6 text-sm">
+                        <div className="text-center">
+                            <p className="font-bold">Client</p>
+                            <div className="h-16 border-b border-black"></div>
+                        </div>
+                        <div className="text-center">
+                            <p className="font-bold">Vendeur</p>
+                            <div className="h-16 border-b border-black"></div>
+                        </div>
+                    </div>
+                    <div className="text-center mt-2 text-sm border-t border-dashed border-black pt-2">
+                        <p>Merci de votre confiance !</p>
                     </div>
                 </div>
-                <div className="text-center mt-2 text-sm">
-                    <p>Merci de votre confiance !</p>
-                </div>
-            </div>
+              </div>
+            )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

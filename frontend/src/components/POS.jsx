@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../supabaseClient';
 import { Search, ShoppingCart, Trash2, Package, CheckCircle, Loader2, Plus, Minus, Tag, Send } from 'lucide-react';
 import Calculator from './Calculator';
@@ -784,25 +785,30 @@ export default function POS({ session, selectedDepotId }) {
       )}
       
       {/* Combined Preview Modal */}
-      {(previewInvoice || previewDeliveryNote) && (
+      {(previewInvoice || previewDeliveryNote) && createPortal(
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           {previewInvoice?.type === 'CRÉDIT' ? (
             <style>{`
               @media print {
                 @page { size: A4; margin: 20mm; }
-                body, html { visibility: hidden; }
+                #root { display: none !important; }
+                body, html { 
+                  margin: 0 !important; 
+                  padding: 0 !important; 
+                  height: auto !important;
+                  min-height: 0 !important;
+                  background: white !important;
+                }
                 #printable-all-container {
                   visibility: visible !important;
                   display: block !important;
-                  position: absolute !important;
-                  left: 0 !important;
-                  top: 0 !important;
+                  position: relative !important;
                   width: 210mm !important;
-                  height: 297mm !important;
                   padding: 20mm !important;
                   font-family: Arial, sans-serif !important;
                   color: black !important;
                   border: none !important;
+                  background: white !important;
                 }
                 .print-hide { display: none !important; }
               }
@@ -811,14 +817,18 @@ export default function POS({ session, selectedDepotId }) {
             <style>{`
               @media print {
                 @page { margin: 0 !important; size: 80mm auto; }
-                body, html { margin: 0 !important; padding: 0 !important; visibility: hidden; -webkit-print-color-adjust: exact !important; }
+                #root { display: none !important; }
+                body, html { 
+                  margin: 0 !important; 
+                  padding: 0 !important; 
+                  height: auto !important;
+                  min-height: 0 !important;
+                  background: white !important;
+                }
                 #printable-all-container {
                   visibility: visible !important;
                   display: block !important;
-                  position: absolute !important;
-                  left: 0 !important;
-                  right: 0 !important;
-                  top: 0 !important;
+                  position: relative !important;
                   margin: 0 auto !important;
                   width: 72mm !important;
                   max-height: none !important;
@@ -1123,7 +1133,8 @@ export default function POS({ session, selectedDepotId }) {
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       {isAdminAuthOpen && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-emerald-950/60 backdrop-blur-sm p-4">
