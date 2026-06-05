@@ -811,7 +811,8 @@ export default function POS({ session, selectedDepotId }) {
                 @page { size: A4; margin: 20mm; }
                 #root { display: none !important; }
                 body, html { 
-                  margin: 0 !important; 
+                  margin: 0 !important;
+                  padding-left: 2mm !important; 
                   padding: 0 !important; 
                   height: auto !important;
                   min-height: 0 !important;
@@ -837,7 +838,8 @@ export default function POS({ session, selectedDepotId }) {
                 @page { margin: 0 !important; size: 80mm auto; }
                 #root { display: none !important; }
                 body, html { 
-                  margin: 0 !important; 
+                  margin: 0 !important;
+                  padding-left: 2mm !important; 
                   padding: 0 !important; 
                   height: auto !important;
                   min-height: 0 !important;
@@ -847,14 +849,15 @@ export default function POS({ session, selectedDepotId }) {
                   visibility: visible !important;
                   display: block !important;
                   position: relative !important;
-                  margin: 0 auto !important;
+                  margin: 0 !important;
+                  padding-left: 2mm !important;
                   width: 76mm !important;
                   max-height: none !important;
                   overflow: visible !important;
-                  padding: 0mm !important;
+                  padding: 0 !important;
                   box-sizing: border-box !important;
                   font-family: 'Courier New', Courier, monospace !important;
-                  font-size: 11pt !important;
+                  font-size: 12pt !important;
                   color: black !important;
                   background: white !important;
                 }
@@ -1020,14 +1023,12 @@ export default function POS({ session, selectedDepotId }) {
                               {invoiceItems.map(item => (
                                   <tr key={item.item_id} className="border-b border-dashed border-gray-200 align-top">
                                       <td className="py-2 text-[5pt] font-black uppercase">{item.name}</td>
-                                      <td className="py-2 text-[4pt] text-center">
+                                      <td className="py-2 text-[4pt] text-center font-black">
                                           {(() => {
                                             const q = Number(item.quantity) || 0;
                                             const qpu = Number(item.quantite_par_unite) || 1;
                                             const superior = Math.floor(q / qpu);
                                             const base = q % qpu;
-                                            const uniteBase = item.unite_base || 'Pce';
-                                            const uniteSup = item.unite_superieure || 'Ctn';
                                             return (
                                                 <>
                                                     {superior > 0 && <div>{superior}</div>}
@@ -1036,7 +1037,7 @@ export default function POS({ session, selectedDepotId }) {
                                             );
                                         })()}
                                       </td>
-                                      <td className="font-bold py-2 text-[4pt] text-center">
+                                      <td className="font-black py-2 text-[4pt] text-center">
                                         {(() => {
                                             const q = Number(item.quantity) || 0;
                                             const qpu = Number(item.quantite_par_unite) || 1;
@@ -1052,7 +1053,7 @@ export default function POS({ session, selectedDepotId }) {
                                             );
                                         })()}
                                       </td>
-                                      <td className="py-2 text-[5px] text-center leading-tight">
+                                      <td className="py-2 text-[5px] text-center leading-tight font-black">
                                         {(() => {
                                             const q = Number(item.quantity) || 0;
                                             const qpu = Number(item.quantite_par_unite) || 1;
