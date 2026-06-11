@@ -35,6 +35,14 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
         .select('*, produits(name, price, price_superior, unite_base, unite_superieure, quantite_par_unite)')
         .eq('facture_id', inv.id);
     setViewingItems(items || []);
+    
+    // Fetch remises
+    const { data: remises } = await supabase
+        .from('remises')
+        .select('*')
+        .eq('facture_id', inv.id);
+    
+    setViewingInvoice({ ...inv, remises: remises || [] });
   };
 
   useEffect(() => {
@@ -410,27 +418,47 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
       .select('quantity, unit_price, discount, discount_value, discount_type, unit_type, produits(name, price, price_superior, unite_base, unite_superieure, quantite_par_unite)')
       .eq('facture_id', inv.id);
 
-    let totalDiscount = 0;
+    let totalBrut = 0;
+    let totalRemisePartielle = 0;
+
     const itemsHtml = (items || []).map(item => {
         const p = item.produits || {};
         const q = item.quantity || 0;
         const qpu = Number(p.quantite_par_unite) || 1;
         const superior = Math.floor(q / qpu);
         const base = q % qpu;
+        const priceSup = Number(p.price_superior) || 0;
+        const priceBase = Number(item.unit_price) || 0;
+
+        const lineBrut = (superior * priceSup) + (base * priceBase);
+        totalBrut += lineBrut;
+
+        // Correctly handle discount fields
+        // Checking for nested object or flat fields
+        const discValue = item.discount?.value || item.discount_value || item.discount || 0;
+        const discType = item.discount?.type || item.discount_type || '%'; 
         
+        // Ensure discount is treated correctly based on type
+        const discountVal = (discType === '%' || discType === 'percentage') 
+            ? (lineBrut * parseFloat(discValue) / 100) 
+            : parseFloat(discValue);
+        
+        totalRemisePartielle += discountVal;
+
+        const totalLineNet = lineBrut - discountVal;
+
         // Logique PU :
         let puDisplay = '';
         if (superior > 0 && base > 0) {
-            // Règle 1: Mixte (Carton + Paquet)
-            puDisplay = `<div style="font-size: 4px;">P/${p.unite_base}: ${priceBase.toLocaleString('fr-MG')} ar</div>
-                         <div style="font-size: 4px;">P/${p.unite_superieure}: ${priceSup.toLocaleString('fr-MG')} ar</div>`;
+            puDisplay = `<div style="font-size: 8px;">P/${p.unite_base}: ${priceBase.toLocaleString('fr-MG')} ar</div>
+                         <div style="font-size: 8px;">P/${p.unite_superieure}: ${priceSup.toLocaleString('fr-MG')} ar</div>`;
         } else if (superior > 0 && base === 0) {
-            // Règle 2: Unité supérieure seulement
-            puDisplay = `<div style="font-size: 4px;">P/${p.unite_superieure}: ${priceSup.toLocaleString('fr-MG')} ar</div>`;
+            puDisplay = `<div style="font-size: 8px;">P/${p.unite_superieure}: ${priceSup.toLocaleString('fr-MG')} ar</div>`;
         } else {
-            // Règle 3: Unité de base seulement
-            puDisplay = `<div style="font-size: 4px;">P/${p.unite_base}: ${priceBase.toLocaleString('fr-MG')} ar</div>`;
+            puDisplay = `<div style="font-size: 8px;">P/${p.unite_base}: ${priceBase.toLocaleString('fr-MG')} ar</div>`;
         }
+
+        const qDisplay = `${superior > 0 ? superior + ' ' + (p.unite_superieure || 'Ctn') : ''} ${base > 0 ? base + ' ' + (p.unite_base || 'Pce') : ''}`;
 
         return `
           <tr style="border-bottom: 1px solid #f3f4f6;">
@@ -442,10 +470,13 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
             </td>
             <td style="padding: 15px 0; text-align: center; font-size: 14px; font-weight: 700; color: #4b5563;">${qDisplay}</td>
             <td style="padding: 15px 0; text-align: right; font-size: 14px; font-weight: 700; color: #ef4444;">${discountVal > 0 ? `-${discountVal.toLocaleString('fr-MG')}` : '-'}</td>
-            <td style="padding: 15px 0; text-align: right; font-size: 14px; font-weight: 900; color: #111827;">${total.toLocaleString('fr-MG')} Ar</td>
+            <td style="padding: 15px 0; text-align: right; font-size: 14px; font-weight: 900; color: #111827;">${totalLineNet.toLocaleString('fr-MG')} Ar</td>
           </tr>
         `;
     }).join('');
+
+    const totalRemiseGlobale = (totalBrut - totalRemisePartielle) - Number(inv.total_amount);
+    const totalRemiseTotale = totalBrut - Number(inv.total_amount);
 
     const clientInfo = `
       <div style="flex: 1; padding: 20px; background: #f9fafb; border-radius: 12px;">
@@ -494,16 +525,32 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
           <tbody>
             ${itemsHtml}
           </tbody>
-          <tfoot>
-            ${totalDiscount > 0 ? `
+          <tfoot style="border-top: 2px solid #e5e7eb;">
+            {totalRemiseTotale > 0 ? (
+                <>
+                <tr>
+                  <td colspan="3" style="padding: 15px 0 5px 0; text-align: right; font-size: 14px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Total Brut</td>
+                  <td style="padding: 15px 0 5px 0; text-align: right; font-size: 14px; font-weight: 700; color: #111827;">${totalBrut.toLocaleString('fr-MG')} MGA</td>
+                </tr>
+                ${totalRemisePartielle > 0 ? `
+                <tr>
+                  <td colspan="3" style="padding: 2px 0; text-align: right; font-size: 12px; font-weight: 600; color: #ef4444; text-transform: uppercase;">Remise Partielle (Articles)</td>
+                  <td style="padding: 2px 0; text-align: right; font-size: 12px; font-weight: 600; color: #ef4444;">-${totalRemisePartielle.toLocaleString('fr-MG')} MGA</td>
+                </tr>` : ''}
+                ${totalRemiseGlobale > 0 ? `
+                <tr>
+                  <td colspan="3" style="padding: 2px 0; text-align: right; font-size: 12px; font-weight: 600; color: #ef4444; text-transform: uppercase;">Remise Globale</td>
+                  <td style="padding: 2px 0; text-align: right; font-size: 12px; font-weight: 600; color: #ef4444;">-${totalRemiseGlobale.toLocaleString('fr-MG')} MGA</td>
+                </tr>` : ''}
+                <tr>
+                  <td colspan="3" style="padding: 5px 0 15px 0; text-align: right; font-size: 14px; font-weight: 800; color: #ef4444; text-transform: uppercase; border-top: 1px dashed #ef4444;">Remise Totale</td>
+                  <td style="padding: 5px 0 15px 0; text-align: right; font-size: 14px; font-weight: 800; color: #ef4444; border-top: 1px dashed #ef4444;">-${totalRemiseTotale.toLocaleString('fr-MG')} MGA</td>
+                </tr>
+                </>
+            ) : ''}
             <tr>
-              <td colspan="3" style="padding: 15px 0 0 0; text-align: right; font-size: 14px; font-weight: 900; color: #ef4444; text-transform: uppercase;">REMISE TOTAUX</td>
-              <td style="padding: 15px 0 0 0; text-align: right; font-size: 14px; font-weight: 900; color: #ef4444;">-${totalDiscount.toLocaleString('fr-MG')} MGA</td>
-            </tr>
-            ` : ''}
-            <tr>
-              <td colspan="3" style="padding: 15px 0; text-align: right; font-size: 14px; font-weight: 900; color: #6b7280; text-transform: uppercase;">TOTAL NET À PAYER</td>
-              <td style="padding: 15px 0; text-align: right; font-size: 18px; font-weight: 900; color: #059669;">${inv.total_amount.toLocaleString('fr-MG')} MGA</td>
+              <td colspan="3" style="padding: 15px 0; text-align: right; font-size: 16px; font-weight: 900; color: #6b7280; text-transform: uppercase; border-top: 2px solid #e5e7eb;">TOTAL NET À PAYER</td>
+              <td style="padding: 15px 0; text-align: right; font-size: 20px; font-weight: 900; color: #059669; border-top: 2px solid #e5e7eb;">${inv.total_amount.toLocaleString('fr-MG')} MGA</td>
             </tr>
           </tfoot>
         </table>
@@ -1116,7 +1163,60 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                             })}
                         </tbody>
                     </table>
+                    {viewingInvoice.remises && viewingInvoice.remises.length > 0 && (
+                        <div className="bg-orange-50 p-2 rounded-lg border border-orange-100 mb-4 text-[8pt]">
+                            <h4 className="text-orange-800 font-black uppercase mb-1">Détails des Remises</h4>
+                            <div className="space-y-0.5">
+                                {viewingInvoice.remises.map(r => (
+                                    <div key={r.id} className="flex justify-between font-bold text-orange-700">
+                                        <span>• {r.type_remise === 'global' ? 'Remise Globale' : `Remise Produit`}</span>
+                                        <span>-{parseFloat(r.montant_calcule).toLocaleString()} Ar</span>
+                                    </div>
+                                ))}
+                                <div className="pt-1 mt-0.5 border-t border-orange-200 flex justify-between font-black text-orange-900">
+                                    <span>TOTAL REMISES</span>
+                                    <span>-{viewingInvoice.remises.reduce((sum, r) => sum + (parseFloat(r.montant_calcule) || 0), 0).toLocaleString()} Ar</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                     <div className="border-t border-dashed border-black pt-2 text-right">
+                        {(() => {
+                            let totalBrut = 0;
+                            let totalRemisePartielle = 0;
+                            
+                            viewingItems.forEach(i => {
+                                const q = i.quantity || 0;
+                                const p = i.produits || {};
+                                const qpu = Number(p.quantite_par_unite) || 1;
+                                const superior = Math.floor(q / qpu);
+                                const base = q % qpu;
+                                const priceSup = Number(p.price_superior) || 0;
+                                const priceBase = Number(i.unit_price) || 0;
+                                
+                                const totalLineBrut = (superior * priceSup) + (base * priceBase);
+                                totalBrut += totalLineBrut;
+                                
+                                const discVal = i.discount ? (i.discount.type === '%' ? (totalLineBrut * parseFloat(i.discount.value) / 100) : parseFloat(i.discount.value)) : 0;
+                                totalRemisePartielle += discVal;
+                            });
+                            
+                            const totalRemiseGlobale = (totalBrut - totalRemisePartielle) - Number(viewingInvoice.total_amount);
+                            const totalRemiseTotale = totalBrut - Number(viewingInvoice.total_amount);
+                            
+                            return (
+                                <>
+                                    <p className="font-bold">Total Brut: {totalBrut.toLocaleString()} MGA</p>
+                                    {totalRemisePartielle > 0 && (
+                                        <p className="font-bold text-red-600">Remise Partielle: -{totalRemisePartielle.toLocaleString()} MGA</p>
+                                    )}
+                                    {totalRemiseGlobale > 0 && (
+                                        <p className="font-bold text-red-600"></p>
+                                    )}
+                                  
+                                </>
+                            );
+                        })()}
                         <p className="font-black text-lg mt-2 ">Net à payer: {parseFloat(viewingInvoice.total_amount).toLocaleString()} MGA</p>
                     </div>
 

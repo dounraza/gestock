@@ -1084,7 +1084,10 @@ export default function POS({ session, selectedDepotId }) {
                               <p className="font-bold text-red-600">Remise Partielle: -{lineDiscountsTotal.toLocaleString()} MGA</p>
                           )}
                           {globalDiscountAmount > 0 && (
-                              <p className="font-bold text-red-600">Remise Totaux: -{globalDiscountAmount.toLocaleString()} MGA</p>
+                              <p className="font-bold text-red-600">Remise Globale: -{globalDiscountAmount.toLocaleString()} MGA</p>
+                          )}
+                          {(lineDiscountsTotal + globalDiscountAmount) > 0 && (
+                              <p className="font-bold text-red-600 border-t border-dashed border-red-200 pt-1 mt-1">Remise Totale: -{(lineDiscountsTotal + globalDiscountAmount).toLocaleString()} MGA</p>
                           )}
                           <p className="font-black text-lg mt-2 ">Net à payer: {parseFloat(previewInvoice.total_amount).toLocaleString()} MGA</p>
                       </div>
@@ -1138,10 +1141,13 @@ export default function POS({ session, selectedDepotId }) {
                       <div className="border-t border-dashed border-black pt-2 text-right">
                           <p className="font-bold">Total Brut: {subtotal.toLocaleString()} MGA</p>
                           {lineDiscountsTotal > 0 && (
-                              <p className="font-bold text-red-600">Remise Partiel: -{lineDiscountsTotal.toLocaleString()} MGA</p>
+                              <p className="font-bold text-red-600">Remise Partielle: -{lineDiscountsTotal.toLocaleString()} MGA</p>
                           )}
                           {globalDiscountAmount > 0 && (
-                              <p className="font-bold text-red-600">REMISE TOTAUX: -{globalDiscountAmount.toLocaleString()} MGA</p>
+                              <p className="font-bold text-red-600">Remise Globale: -{globalDiscountAmount.toLocaleString()} MGA</p>
+                          )}
+                          {(lineDiscountsTotal + globalDiscountAmount) > 0 && (
+                              <p className="font-bold text-red-600 border-t border-dashed border-red-200 pt-1 mt-1">Remise Totale: -{(lineDiscountsTotal + globalDiscountAmount).toLocaleString()} MGA</p>
                           )}
                           <p className="font-black text-lg mt-2">NET À PAYER: {parseFloat(previewDeliveryNote.total_amount).toLocaleString()} MGA</p>
                       </div>
