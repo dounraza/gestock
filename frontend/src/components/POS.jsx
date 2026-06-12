@@ -266,7 +266,7 @@ export default function POS({ session, selectedDepotId }) {
             item_id: item.id,
             quantity: item.quantity,
             unit_price: item.unit_price,
-            discount: item.discount_value ? { value: item.discount_value, type: item.discount_type } : null,
+            discount: item.discount_value ? (typeof item.discount_value === 'string' ? JSON.parse(item.discount_value) : item.discount_value) : null,
             total: item.total
         }));
 
@@ -294,18 +294,20 @@ export default function POS({ session, selectedDepotId }) {
     const priceSup = Number(item.price_superior) || 0;
     const priceBase = Number(item.unit_price) || 0;
 
-    let baseTotal = 0;
-    if (qpu > 1 && priceSup > 0) {
-        const superior = Math.floor(q / qpu);
-        const base = q % qpu;
-        baseTotal = (superior * priceSup) + (base * priceBase);
-    } else {
-        baseTotal = q * priceBase;
-    }
+    const superior = Math.floor(q / qpu);
+    const base = q % qpu;
 
-    if (!item.discount) return baseTotal;
-    const disc = parseFloat(item.discount.value) || 0;
-    return item.discount.type === '%' ? baseTotal - (baseTotal * (disc / 100)) : baseTotal - disc;
+    const baseTotalBrut = (superior * priceSup) + (base * priceBase);
+    
+    // Safety check: ensure discount object exists and has valid numbers
+    if (!item.discount || (typeof item.discount !== 'object')) return baseTotalBrut;
+
+    const baseDisc = parseFloat(item.discount.baseDiscount) || 0;
+    const supDisc = parseFloat(item.discount.superiorDiscount) || 0;
+    
+    const totalDiscount = (superior * (isNaN(supDisc) ? 0 : supDisc)) + (base * (isNaN(baseDisc) ? 0 : baseDisc));
+    
+    return baseTotalBrut - totalDiscount;
   }
 
   const updateInvoiceGuestInfo = (field, value) => setActiveInvoice(prev => ({ ...prev, [field]: value }));
@@ -315,14 +317,24 @@ export default function POS({ session, selectedDepotId }) {
   };
 
   const applyDiscount = async (itemId, type, value) => {
-    const numericValue = parseFloat(value);
-    if (isNaN(numericValue)) return alert("Valeur invalide.");
     if (itemId === 'global') {
+        const numericValue = parseFloat(value);
+        if (isNaN(numericValue)) return alert("Valeur invalide.");
         setGlobalDiscount({ value: numericValue, type: type });
         setDiscountModal(null);
     } else {
-        setInvoiceItems(prev => prev.map(item => item.item_id === itemId ? { ...item, discount: { value: numericValue, type: type } } : item));
-        await supabase.from('facture_items').update({ discount_value: numericValue, discount_type: type }).eq('id', itemId);
+        const baseDiscount = parseFloat(value.baseDiscount) || 0;
+        const superiorDiscount = parseFloat(value.superiorDiscount) || 0;
+        
+        setInvoiceItems(prev => prev.map(item => item.item_id === itemId ? { 
+            ...item, 
+            discount: { baseDiscount, superiorDiscount } 
+        } : item));
+        
+        await supabase.from('facture_items').update({ 
+            discount_value: JSON.stringify({ baseDiscount, superiorDiscount }),
+            discount_type: 'custom' // Use a special type to indicate structured discount
+        }).eq('id', itemId);
         setDiscountModal(null);
     }
   };
@@ -645,16 +657,52 @@ export default function POS({ session, selectedDepotId }) {
     setFilteredProducts(term ? products.filter(p => p.name.toLowerCase().includes(term)) : products);
   }, [searchTerm, products]);
 
-  const subtotal = useMemo(() => invoiceItems.reduce((acc, item) => acc + (item.total || (item.quantity * item.unit_price)), 0), [invoiceItems]);
-  const lineDiscountsTotal = useMemo(() => invoiceItems.reduce((acc, item) => item.discount ? acc + (item.discount.type === '%' ? (item.quantity * item.unit_price) * (item.discount.value / 100) : item.discount.value) : acc, 0), [invoiceItems]);
-  const globalDiscountAmount = useMemo(() => globalDiscount.value > 0 ? (globalDiscount.type === '%' ? (subtotal - lineDiscountsTotal) * (globalDiscount.value / 100) : globalDiscount.value) : 0, [subtotal, lineDiscountsTotal, globalDiscount]);
+  const subtotal = useMemo(() => invoiceItems.reduce((acc, item) => {
+      const itemTotal = Number(item.total) || Number(calculateItemTotal(item)) || 0;
+      return acc + itemTotal;
+  }, 0), [invoiceItems]);
+
+  const lineDiscountsTotal = useMemo(() => invoiceItems.reduce((acc, item) => {
+      if (!item.discount) return acc;
+      const baseDisc = Number(item.discount.baseDiscount) || 0;
+      const supDisc = Number(item.discount.superiorDiscount) || 0;
+      const q = Number(item.quantity) || 0;
+      const qpu = Number(item.quantite_par_unite) || 1;
+      const superior = Math.floor(q / qpu);
+      const base = q % qpu;
+      return acc + (superior * supDisc) + (base * baseDisc);
+  }, 0), [invoiceItems]);
+
+  const globalDiscountAmount = useMemo(() => {
+      const val = Number(globalDiscount.value) || 0;
+      if (val === 0) return 0;
+      return globalDiscount.type === '%' ? (subtotal - lineDiscountsTotal) * (val / 100) : val;
+  }, [subtotal, lineDiscountsTotal, globalDiscount]);
+  
   const netTotal = useMemo(() => Math.max(0, subtotal - lineDiscountsTotal - globalDiscountAmount), [subtotal, lineDiscountsTotal, globalDiscountAmount]);
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
   const paginatedProducts = useMemo(() => filteredProducts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [filteredProducts, currentPage]);
 
   const openDiscountModalForItem = (item) => {
-    if (!item || item.isGlobal) setDiscountModal({ itemId: 'global', name: 'Globale', isGlobal: true, value: globalDiscount.value, type: 'Ar' });
-    else setDiscountModal({ itemId: item.item_id, name: item.name, isGlobal: false, value: item.discount?.value || 0, type: item.discount?.type || 'Ar' });
+    if (!item || item.isGlobal) {
+        setDiscountModal({ 
+            itemId: 'global', 
+            name: 'Globale', 
+            isGlobal: true, 
+            value: globalDiscount.value, 
+            type: 'Ar' 
+        });
+    } else {
+        setDiscountModal({ 
+            itemId: item.item_id, 
+            name: item.name, 
+            isGlobal: false, 
+            baseDiscount: item.discount?.baseDiscount || 0,
+            superiorDiscount: item.discount?.superiorDiscount || 0,
+            uniteBase: item.unite_base || 'Pce',
+            uniteSuperieure: item.unite_superieure || 'Ctn'
+        });
+    }
   };
 
   const totalDiscount = useMemo(() => {
@@ -751,7 +799,18 @@ export default function POS({ session, selectedDepotId }) {
                   </div>
                   <div className="col-span-2 text-center">
                     <button onClick={(e) => { e.stopPropagation(); openDiscountModalForItem(item); }} className="px-2 py-1 text-[13px] font-black text-orange-600 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors">
-                      {item.discount ? `${item.discount.value}` : '+ Remise'}
+                      {(() => {
+                          if (!item.discount) return '+ Remise';
+                          const q = Number(item.quantity) || 0;
+                          const qpu = Number(item.quantite_par_unite) || 1;
+                          const superior = Math.floor(q / qpu);
+                          const base = q % qpu;
+                          const baseDisc = parseFloat(item.discount.baseDiscount || 0) || 0;
+                          const supDisc = parseFloat(item.discount.superiorDiscount || 0) || 0;
+                          const totalDisc = (superior * supDisc) + (base * baseDisc);
+                          
+                          return totalDisc > 0 ? `${totalDisc.toLocaleString()} Ar` : '+ Remise';
+                      })()}
                     </button>
                   </div>
                   <div className="col-span-2 text-right font-black text-[14px]">{(item.total || calculateItemTotal(item)).toLocaleString()}</div>
@@ -896,18 +955,31 @@ export default function POS({ session, selectedDepotId }) {
       {discountModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-emerald-950/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[2rem] shadow-2xl p-8 w-full max-w-sm">
-            <h3 className="text-2xl font-black text-gray-800 mb-2 uppercase">{discountModal.isGlobal ? 'Remise Globale' : `Remise sur ${discountModal.name}`}</h3>
-            <div className="space-y-4">
-              <div className="flex bg-gray-100 p-1 rounded-xl">
-                <button onClick={() => setDiscountModal({...discountModal, type: 'Ar'})} className={`flex-1 py-2 rounded-lg text-base font-black transition-all ${discountModal.type === 'Ar' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}>Ar</button>
-              {/* <button class="flex-1 py-2 rounded-lg text-base font-black transition-all bg-white text-emerald-600 shadow-sm">%</button>  <button onClick={() => setDiscountModal({...discountModal, type: '%'})} className={`flex-1 py-2 rounded-lg text-base font-black transition-all ${discountModal.type === '%' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}>%</button> */}
-              </div>
-              <input autoFocus type="number" className="w-full bg-emerald-50 border-2 border-emerald-100 rounded-xl py-4 px-6 text-3xl font-black outline-none" value={discountModal.value || ''} onChange={(e) => setDiscountModal({...discountModal, value: e.target.value})} />
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => setDiscountModal(null)} className="py-3 text-base font-bold text-gray-400 uppercase">Annuler</button>
-                <button onClick={() => applyDiscount(discountModal.isGlobal ? 'global' : discountModal.itemId, discountModal.type, discountModal.value)} className="bg-emerald-600 text-white py-3 rounded-xl text-base font-black shadow-lg">Appliquer</button>
-              </div>
-            </div>
+            <h3 className="text-2xl font-black text-gray-800 mb-6 uppercase">{discountModal.isGlobal ? 'Remise Globale' : `Remise sur ${discountModal.name}`}</h3>
+            {discountModal.isGlobal ? (
+                <div className="space-y-4">
+                    <input autoFocus type="number" className="w-full bg-emerald-50 border-2 border-emerald-100 rounded-xl py-4 px-6 text-3xl font-black outline-none" value={discountModal.value || ''} onChange={(e) => setDiscountModal({...discountModal, value: e.target.value})} />
+                    <div className="grid grid-cols-2 gap-3">
+                        <button onClick={() => setDiscountModal(null)} className="py-3 text-base font-bold text-gray-400 uppercase">Annuler</button>
+                        <button onClick={() => applyDiscount('global', 'Ar', discountModal.value)} className="bg-emerald-600 text-white py-3 rounded-xl text-base font-black shadow-lg">Appliquer</button>
+                    </div>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    <div>
+                        <label className="text-sm font-bold text-gray-500 uppercase">Remise par {discountModal.uniteBase}</label>
+                        <input type="number" className="w-full bg-emerald-50 border-2 border-emerald-100 rounded-xl py-3 px-4 text-xl font-black outline-none" value={discountModal.baseDiscount || ''} onChange={(e) => setDiscountModal({...discountModal, baseDiscount: e.target.value})} />
+                    </div>
+                    <div>
+                        <label className="text-sm font-bold text-gray-500 uppercase">Remise par {discountModal.uniteSuperieure}</label>
+                        <input type="number" className="w-full bg-emerald-50 border-2 border-emerald-100 rounded-xl py-3 px-4 text-xl font-black outline-none" value={discountModal.superiorDiscount || ''} onChange={(e) => setDiscountModal({...discountModal, superiorDiscount: e.target.value})} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mt-4">
+                        <button onClick={() => setDiscountModal(null)} className="py-3 text-base font-bold text-gray-400 uppercase">Annuler</button>
+                        <button onClick={() => applyDiscount(discountModal.itemId, 'Ar', { baseDiscount: discountModal.baseDiscount, superiorDiscount: discountModal.superiorDiscount })} className="bg-emerald-600 text-white py-3 rounded-xl text-base font-black shadow-lg">Appliquer</button>
+                    </div>
+                </div>
+            )}
           </div>
         </div>
       )}
