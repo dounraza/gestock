@@ -114,15 +114,21 @@ useEffect(() => {
 
 const logCashierEntry = async (userId) => {
     const today = new Date().toISOString().split('T')[0];
-    const { data: existingLog } = await supabase
+    
+    // Check if a log entry for today already exists
+    const { data: existingLogs, error } = await supabase
         .from('cashier_logs')
-        .select('*')
+        .select('id')
         .eq('user_id', userId)
-        .is('logout_time', null)
-        .gte('login_time', `${today}T00:00:00Z`)
-        .maybeSingle();
+        .gte('login_time', `${today}T00:00:00Z`);
 
-    if (!existingLog) {
+    if (error) {
+        console.error("Error checking existing logs:", error);
+        return;
+    }
+
+    // Only insert if no logs exist for today
+    if (!existingLogs || existingLogs.length === 0) {
         await supabase.from('cashier_logs').insert([{ user_id: userId }]);
     }
 };
