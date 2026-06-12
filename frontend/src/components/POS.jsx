@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../supabaseClient';
-import { Search, ShoppingCart, Trash2, Package, CheckCircle, Loader2, Plus, Minus, Tag, Send } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Package, CheckCircle, Loader2, Plus, Minus, Tag, Send, Clock } from 'lucide-react';
 import Calculator from './Calculator';
 import confetti from 'canvas-confetti';
 
@@ -50,6 +50,9 @@ export default function POS({ session, selectedDepotId }) {
   const [previewInvoice, setPreviewInvoice] = useState(null);
   const [previewDeliveryNote, setPreviewDeliveryNote] = useState(null); // NEW
   const [printFormat, setPrintFormat] = useState('auto'); // 'auto', 'A4', or 'ticket'
+  const [draftInvoices, setDraftInvoices] = useState([]);
+  const [isDraftsModalOpen, setIsDraftsModalOpen] = useState(false);
+  const [draftSearchTerm, setDraftSearchTerm] = useState('');
 
   // Helper to get effective format
   const getEffectiveFormat = () => {
@@ -175,7 +178,12 @@ export default function POS({ session, selectedDepotId }) {
         let currentInvoice = activeInvoice;
         if (!currentInvoice || currentInvoice.number === 'TEMP') {
             const { data, error } = await supabase.from('factures')
-                .insert([{ number: `FAC-${Date.now().toString().slice(-6)}`, user_id: session?.user?.id, created_at: new Date().toISOString() }])
+                .insert([{ 
+                  number: `FAC-${Date.now().toString().slice(-6)}`, 
+                  user_id: session?.user?.id, 
+                  created_at: new Date().toISOString(),
+                  status: 'draft'
+                }])
                 .select()
                 .single();
             if (error) return alert("Erreur de création de facture.");
@@ -208,6 +216,76 @@ export default function POS({ session, selectedDepotId }) {
             return next;
         });
     }
+  };
+
+  const parkCurrentInvoice = async () => {
+    if (!activeInvoice) return;
+    
+    // Update guest info in DB before parking if names are provided
+    if (clientName || clientPhone) {
+        await supabase.from('factures').update({
+            guest_name: clientName,
+            guest_contact: clientPhone
+        }).eq('id', activeInvoice.id);
+    }
+
+    setActiveInvoice(null);
+    setInvoiceItems([]);
+    setClientName('');
+    setClientPhone('');
+    setAdvanceAmount(0);
+    setGlobalDiscount({ value: 0, type: '%' });
+    setPaymentMode('cash');
+    setIsCalculatorOpen(false);
+    fetchDraftInvoices(); // Update badge
+  };
+
+  const fetchDraftInvoices = async () => {
+    const { data, error } = await supabase
+      .from('factures')
+      .select('*, facture_items(*)')
+      .eq('status', 'draft')
+      .order('created_at', { ascending: false });
+    
+    if (error) console.error("Error fetching drafts:", error);
+    if (data) setDraftInvoices(data.filter(inv => inv.facture_items.length > 0));
+  };
+
+  const resumeInvoice = async (invoice) => {
+    setIsProcessing(true);
+    try {
+        const { data: items, error } = await supabase
+            .from('facture_items')
+            .select('*, produits(*)')
+            .eq('facture_id', invoice.id);
+        
+        if (error) throw error;
+
+        const formattedItems = items.map(item => ({
+            ...item.produits,
+            item_id: item.id,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            discount: item.discount_value ? { value: item.discount_value, type: item.discount_type } : null,
+            total: item.total
+        }));
+
+        setActiveInvoice(invoice);
+        setInvoiceItems(formattedItems);
+        setClientName(invoice.guest_name || '');
+        setClientPhone(invoice.guest_contact || '');
+        setIsDraftsModalOpen(false);
+    } catch (e) {
+        alert("Erreur lors de la reprise: " + e.message);
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
+  const deleteDraftInvoice = async (invoiceId) => {
+    if (!window.confirm("Supprimer cette facture en attente ?")) return;
+    await supabase.from('factures').delete().eq('id', invoiceId);
+    fetchDraftInvoices();
   };
 
   function calculateItemTotal(item) {
@@ -558,6 +636,7 @@ export default function POS({ session, selectedDepotId }) {
     if (selectedDepotId) {
       fetchDepot();
       fetchData();
+      fetchDraftInvoices();
     }
   }, [selectedDepotId]);
 
@@ -591,7 +670,20 @@ export default function POS({ session, selectedDepotId }) {
   return (
     <div className="flex flex-col gap-2 h-full p-2 pb-16">
       <div className="bg-white rounded-xl p-2 shadow-sm border border-emerald-100 flex items-center justify-between">
-        <div className="text-base font-black">Facture: {activeInvoice?.number || '...'}</div>
+        <div className="text-base font-black flex items-center gap-4">
+            <span>Facture: {activeInvoice?.number || '...'}</span>
+            <button 
+                onClick={() => { fetchDraftInvoices(); setIsDraftsModalOpen(true); }}
+                className="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1 rounded-lg font-black text-[12px] uppercase transition-all flex items-center gap-2 relative"
+            >
+                <Clock size={14} /> En attente
+                {draftInvoices.length > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full border-2 border-white animate-bounce">
+                        {draftInvoices.length}
+                    </span>
+                )}
+            </button>
+        </div>
         <div className="flex items-center gap-3">
             <button 
                 onClick={() => openDiscountModalForItem(null)}
@@ -609,7 +701,16 @@ export default function POS({ session, selectedDepotId }) {
           <div className="col-span-12 lg:col-span-8 bg-white rounded-xl shadow-sm border border-emerald-100 flex flex-col min-h-0 overflow-hidden">
             <div className="p-2 border-b border-emerald-50 bg-emerald-50/30 flex items-center justify-between">
               <h3 className="font-black text-gray-700 uppercase text-[15px] flex items-center gap-2"><ShoppingCart size={12} className="text-emerald-500" /> Panier</h3>
-              <span className="bg-emerald-500 text-white px-1.5 py-0.5 rounded-full text-[14px] font-black">{invoiceItems.length}</span>
+              <div className="flex items-center gap-2">
+                  <button 
+                      onClick={parkCurrentInvoice}
+                      disabled={!activeInvoice}
+                      className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-2 py-1 rounded-lg font-black text-[11px] uppercase transition-all disabled:opacity-50"
+                  >
+                      Mettre en attente
+                  </button>
+                  <span className="bg-emerald-500 text-white px-1.5 py-0.5 rounded-full text-[14px] font-black">{invoiceItems.length}</span>
+              </div>
             </div>
             {/* Cart Header */}
             <div className="grid grid-cols-12 gap-1 px-2 py-1 bg-emerald-50 text-[14px] font-black text-emerald-800 uppercase border-b border-emerald-100">
@@ -1195,6 +1296,74 @@ export default function POS({ session, selectedDepotId }) {
                     </div>
                 </div>
             )}
+      {isDraftsModalOpen && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-emerald-950/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-2xl font-black text-gray-800 uppercase flex items-center gap-2">
+                <Clock className="text-emerald-600" /> Factures en attente
+              </h3>
+              <button onClick={() => { setIsDraftsModalOpen(false); setDraftSearchTerm(''); }} className="text-gray-400 hover:text-gray-600 font-bold text-xl">✕</button>
+            </div>
+
+            <div className="mb-6 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400" size={18} />
+              <input 
+                type="text" 
+                placeholder="Chercher par nom, téléphone ou N°..." 
+                className="w-full bg-emerald-50 border-2 border-emerald-100 rounded-2xl py-3 pl-12 pr-4 text-base font-bold outline-none focus:border-emerald-500 transition-all"
+                value={draftSearchTerm}
+                onChange={(e) => setDraftSearchTerm(e.target.value)}
+                autoFocus
+              />
+            </div>
+            
+            <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+              {draftInvoices.filter(inv => {
+                const term = draftSearchTerm.toLowerCase();
+                return inv.number.toLowerCase().includes(term) || 
+                       (inv.guest_name || '').toLowerCase().includes(term) || 
+                       (inv.guest_contact || '').toLowerCase().includes(term);
+              }).length === 0 ? (
+                <div className="text-center py-12 text-gray-400 font-bold uppercase tracking-widest">
+                  {draftSearchTerm ? 'Aucun résultat trouvé' : 'Aucune facture en attente'}
+                </div>
+              ) : (
+                draftInvoices.filter(inv => {
+                    const term = draftSearchTerm.toLowerCase();
+                    return inv.number.toLowerCase().includes(term) || 
+                           (inv.guest_name || '').toLowerCase().includes(term) || 
+                           (inv.guest_contact || '').toLowerCase().includes(term);
+                }).map(inv => (
+                  <div key={inv.id} className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 flex items-center justify-between hover:bg-emerald-50 transition-colors cursor-pointer" onClick={() => resumeInvoice(inv)}>
+                    <div className="flex flex-col">
+                      <div className="font-black text-emerald-800 uppercase">{inv.number}</div>
+                      <div className="text-[12px] font-bold text-emerald-600/70">
+                        {new Date(inv.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                      <div className="mt-1 text-gray-700 font-black uppercase text-[13px]">
+                        {inv.guest_name || 'Client Anonyme'} {inv.guest_contact ? `(${inv.guest_contact})` : ''}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <div className="text-[11px] font-black text-gray-400 uppercase">Articles</div>
+                        <div className="text-lg font-black text-emerald-700">{inv.facture_items.length}</div>
+                      </div>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); deleteDraftInvoice(inv.id); }}
+                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
