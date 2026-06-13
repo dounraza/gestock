@@ -312,7 +312,7 @@ const handleCancelInvoice = async (invoice) => {
         {/* Sales */}
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-emerald-100">
             <h3 className="text-[13px] font-black uppercase text-emerald-600 tracking-wider mb-2">Ventes (Global/Mois/Jour)</h3>
-            <p className="text-2xl font-black text-slate-800">{financialStats.sales.global.toLocaleString()} Ar</p>
+            <p className="text-2xl font-black text-slate-800">{financialStats.sales.daily.toLocaleString()} Ar</p>
             <div className="flex gap-4 mt-2 text-[13px] font-bold text-slate-500">
                 <span>Mois: {financialStats.sales.monthly.toLocaleString()}</span>
                 <span>Jour: {financialStats.sales.daily.toLocaleString()}</span>
