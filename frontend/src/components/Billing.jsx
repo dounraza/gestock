@@ -244,9 +244,9 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
         .from('factures')
         .select('depot_id')
         .eq('id', invoice.id)
-        .single();
+        .maybeSingle();
         
-      if (invError) throw invError;
+      if (invError || !invoiceData) throw new Error(invError?.message || "Facture introuvable");
       const depotId = invoiceData.depot_id;
 
       const { data: items, error: itemsError } = await supabase
@@ -301,9 +301,9 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
         .from('factures')
         .select('depot_id')
         .eq('id', invoice.id)
-        .single();
+        .maybeSingle();
         
-      if (invError) throw invError;
+      if (invError || !invoiceData) throw new Error(invError?.message || "Facture introuvable");
       const depotId = invoiceData.depot_id;
 
       const { data: items, error: itemsError } = await supabase
@@ -434,14 +434,20 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
         totalBrut += lineBrut;
 
         // Correctly handle discount fields
-        // Checking for nested object or flat fields
-        const discValue = item.discount?.value || item.discount_value || item.discount || 0;
-        const discType = item.discount?.type || item.discount_type || '%'; 
-        
-        // Ensure discount is treated correctly based on type
-        const discountVal = (discType === '%' || discType === 'percentage') 
-            ? (lineBrut * parseFloat(discValue) / 100) 
-            : parseFloat(discValue);
+        let discountVal = 0;
+        if (item.discount_type === 'custom' && item.discount_value) {
+            const dv = typeof item.discount_value === 'string' ? JSON.parse(item.discount_value) : item.discount_value;
+            const baseD = parseFloat(dv.baseDiscount) || 0;
+            let supD = parseFloat(dv.superiorDiscount) || 0;
+            if (supD === 0 && baseD > 0) supD = baseD * qpu;
+            discountVal = (superior * supD) + (base * baseD);
+        } else {
+            const discValue = item.discount?.value || item.discount_value || item.discount || 0;
+            const discType = item.discount?.type || item.discount_type || '%'; 
+            discountVal = (discType === '%' || discType === 'percentage') 
+                ? (lineBrut * parseFloat(discValue) / 100) 
+                : parseFloat(discValue);
+        }
         
         totalRemisePartielle += discountVal;
 
@@ -1033,9 +1039,18 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                                   const priceBase = Number(item.unit_price) || 0;
                                   const lineBrutTotal = (superior * priceSup) + (base * priceBase);
                                   
-                                  const discValue = item.discount?.value || item.discount_value || 0;
-                                  const discType = item.discount?.type || item.discount_type || 'Ar';
-                                  const lineDiscount = discType === '%' ? (lineBrutTotal * parseFloat(discValue) / 100) : parseFloat(discValue);
+                                  let lineDiscount = 0;
+                                  if (item.discount_type === 'custom' && item.discount_value) {
+                                      const dv = typeof item.discount_value === 'string' ? JSON.parse(item.discount_value) : item.discount_value;
+                                      const baseD = parseFloat(dv.baseDiscount) || 0;
+                                      let supD = parseFloat(dv.superiorDiscount) || 0;
+                                      if (supD === 0 && baseD > 0) supD = baseD * qpu;
+                                      lineDiscount = (superior * supD) + (base * baseD);
+                                  } else {
+                                      const discValue = item.discount?.value || item.discount_value || 0;
+                                      const discType = item.discount?.type || item.discount_type || 'Ar';
+                                      lineDiscount = discType === '%' ? (lineBrutTotal * parseFloat(discValue) / 100) : parseFloat(discValue);
+                                  }
                                   const lineNetTotal = lineBrutTotal - lineDiscount;
 
                                   return (
@@ -1197,7 +1212,16 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
                                 const totalLineBrut = (superior * priceSup) + (base * priceBase);
                                 totalBrut += totalLineBrut;
                                 
-                                const discVal = i.discount ? (i.discount.type === '%' ? (totalLineBrut * parseFloat(i.discount.value) / 100) : parseFloat(i.discount.value)) : 0;
+                                let discVal = 0;
+                                if (i.discount_type === 'custom' && i.discount_value) {
+                                    const dv = typeof i.discount_value === 'string' ? JSON.parse(i.discount_value) : i.discount_value;
+                                    const baseD = parseFloat(dv.baseDiscount) || 0;
+                                    let supD = parseFloat(dv.superiorDiscount) || 0;
+                                    if (supD === 0 && baseD > 0) supD = baseD * qpu;
+                                    discVal = (superior * supD) + (base * baseD);
+                                } else {
+                                    discVal = i.discount ? (i.discount.type === '%' ? (totalLineBrut * parseFloat(i.discount.value) / 100) : parseFloat(i.discount.value)) : 0;
+                                }
                                 totalRemisePartielle += discVal;
                             });
                             

@@ -27,7 +27,7 @@ export default function POS({ session, selectedDepotId }) {
             .from('admin_settings')
             .select('value')
             .eq('key', 'admin_code')
-            .single();
+            .maybeSingle();
         if (error) {
             console.error("Erreur récupération code admin :", error);
         } else if (data) {
@@ -140,7 +140,7 @@ export default function POS({ session, selectedDepotId }) {
     });
 
     // We also need the current total to update Supabase correctly if we are accumulating
-    const { data: currentItem } = await supabase.from('facture_items').select('total').eq('id', itemId).single();
+    const { data: currentItem } = await supabase.from('facture_items').select('total').eq('id', itemId).maybeSingle();
     const newTotal = (currentItem?.total || 0) + totalAmount;
 
     await supabase.from('facture_items').update({ quantity: quantity, total: newTotal }).eq('id', itemId);
@@ -185,8 +185,8 @@ export default function POS({ session, selectedDepotId }) {
                   status: 'draft'
                 }])
                 .select()
-                .single();
-            if (error) return alert("Erreur de création de facture.");
+                .maybeSingle();
+            if (error || !data) return alert("Erreur de création de facture.");
             currentInvoice = data;
             setActiveInvoice(data);
         }
@@ -201,7 +201,7 @@ export default function POS({ session, selectedDepotId }) {
             const { data, error } = await supabase.from('facture_items')
                 .insert([{ facture_id: currentInvoice.id, produit_id: product.id, quantity: 0, unit_price: product.price }])
                 .select()
-                .single();
+                .maybeSingle();
             if (data) {
                 console.log("POS - Item added to invoiceItems:", { ...product, item_id: data.id, quantity: 0, unit_price: product.price });
                 setInvoiceItems(prev => [...prev, { ...product, item_id: data.id, quantity: 0, unit_price: product.price, discount: null }]);
@@ -288,6 +288,25 @@ export default function POS({ session, selectedDepotId }) {
     fetchDraftInvoices();
   };
 
+  const calculateItemDiscount = (item) => {
+    if (!item.discount) return 0;
+    const q = Number(item.quantity) || 0;
+    const qpu = Number(item.quantite_par_unite) || 1;
+    const superior = Math.floor(q / qpu);
+    const base = q % qpu;
+    
+    const baseDisc = parseFloat(item.discount.baseDiscount) || 0;
+    let supDisc = parseFloat(item.discount.superiorDiscount) || 0;
+    
+    // Si la remise par carton n'est pas définie mais celle par paquet l'est,
+    // on l'applique proportionnellement au carton.
+    if (supDisc === 0 && baseDisc > 0) {
+        supDisc = baseDisc * qpu;
+    }
+    
+    return (superior * (isNaN(supDisc) ? 0 : supDisc)) + (base * (isNaN(baseDisc) ? 0 : baseDisc));
+  };
+
   function calculateItemTotal(item) {
     const q = Number(item.quantity) || 0;
     const qpu = Number(item.quantite_par_unite) || 1;
@@ -299,15 +318,7 @@ export default function POS({ session, selectedDepotId }) {
 
     const baseTotalBrut = (superior * priceSup) + (base * priceBase);
     
-    // Safety check: ensure discount object exists and has valid numbers
-    if (!item.discount || (typeof item.discount !== 'object')) return baseTotalBrut;
-
-    const baseDisc = parseFloat(item.discount.baseDiscount) || 0;
-    const supDisc = parseFloat(item.discount.superiorDiscount) || 0;
-    
-    const totalDiscount = (superior * (isNaN(supDisc) ? 0 : supDisc)) + (base * (isNaN(baseDisc) ? 0 : baseDisc));
-    
-    return baseTotalBrut - totalDiscount;
+    return baseTotalBrut - calculateItemDiscount(item);
   }
 
   const updateInvoiceGuestInfo = (field, value) => setActiveInvoice(prev => ({ ...prev, [field]: value }));
@@ -412,11 +423,11 @@ export default function POS({ session, selectedDepotId }) {
         client_id: clientId, // Link to client table
         guest_name: clientName,
         guest_contact: clientPhone
-      }).eq('id', activeInvoice.id).select().single();
+      }).eq('id', activeInvoice.id).select().maybeSingle();
 
-      if (updateError) {
+      if (updateError || !updatedInvoice) {
         console.error("Update invoice error:", updateError);
-        throw updateError;
+        throw new Error(updateError?.message || "Erreur mise à jour facture");
       }
       console.log("Invoice updated.");
 
@@ -474,21 +485,17 @@ export default function POS({ session, selectedDepotId }) {
 
       // a. Remises par produit
       for (const item of invoiceItems) {
-        if (item.discount && item.discount.value > 0) {
-          const lineBrut = Number(item.quantity) * Number(item.unit_price);
-          const montantCalcule = item.discount.type === '%' 
-            ? (lineBrut * (Number(item.discount.value) / 100)) 
-            : Number(item.discount.value);
-
+        const itemDiscountAmount = calculateItemDiscount(item);
+        if (itemDiscountAmount > 0) {
           await supabase.from('remises').insert([{
             facture_id: activeInvoice.id,
             facture_number: updatedInvoice.number,
             produit_id: item.id,
             facture_item_id: item.item_id,
             type_remise: 'produit',
-            valeur: Number(item.discount.value),
-            type_valeur: item.discount.type,
-            montant_calcule: montantCalcule,
+            valeur: Number(item.discount.baseDiscount || 0),
+            type_valeur: 'Ar',
+            montant_calcule: itemDiscountAmount,
             user_id: session?.user?.id,
             date: current_date,
             month: current_month,
@@ -612,7 +619,7 @@ export default function POS({ session, selectedDepotId }) {
   useEffect(() => {
     const fetchDepot = async () => {
         if (!selectedDepotId) return;
-        const { data, error } = await supabase.from('depots').select('*').eq('id', selectedDepotId).single();
+        const { data, error } = await supabase.from('depots').select('*').eq('id', selectedDepotId).maybeSingle();
         if (data) setCurrentDepotInfo(data);
     };
     
@@ -663,14 +670,7 @@ export default function POS({ session, selectedDepotId }) {
   }, 0), [invoiceItems]);
 
   const lineDiscountsTotal = useMemo(() => invoiceItems.reduce((acc, item) => {
-      if (!item.discount) return acc;
-      const baseDisc = Number(item.discount.baseDiscount) || 0;
-      const supDisc = Number(item.discount.superiorDiscount) || 0;
-      const q = Number(item.quantity) || 0;
-      const qpu = Number(item.quantite_par_unite) || 1;
-      const superior = Math.floor(q / qpu);
-      const base = q % qpu;
-      return acc + (superior * supDisc) + (base * baseDisc);
+      return acc + calculateItemDiscount(item);
   }, 0), [invoiceItems]);
 
   const globalDiscountAmount = useMemo(() => {
@@ -705,15 +705,6 @@ export default function POS({ session, selectedDepotId }) {
     }
   };
 
-  const totalDiscount = useMemo(() => {
-    return invoiceItems.reduce((acc, item) => {
-        if (!item.discount) return acc;
-        const baseTotal = item.quantity * item.unit_price;
-        const disc = parseFloat(item.discount.value);
-        const discountAmount = item.discount.type === '%' ? (baseTotal * (disc / 100)) : disc;
-        return acc + discountAmount;
-    }, 0) + globalDiscountAmount;
-  }, [invoiceItems, globalDiscountAmount]);
 
   return (
     <div className="flex flex-col gap-2 h-full p-2 pb-16">
@@ -800,15 +791,7 @@ export default function POS({ session, selectedDepotId }) {
                   <div className="col-span-2 text-center">
                     <button onClick={(e) => { e.stopPropagation(); openDiscountModalForItem(item); }} className="px-2 py-1 text-[13px] font-black text-orange-600 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors">
                       {(() => {
-                          if (!item.discount) return '+ Remise';
-                          const q = Number(item.quantity) || 0;
-                          const qpu = Number(item.quantite_par_unite) || 1;
-                          const superior = Math.floor(q / qpu);
-                          const base = q % qpu;
-                          const baseDisc = parseFloat(item.discount.baseDiscount || 0) || 0;
-                          const supDisc = parseFloat(item.discount.superiorDiscount || 0) || 0;
-                          const totalDisc = (superior * supDisc) + (base * baseDisc);
-                          
+                          const totalDisc = calculateItemDiscount(item);
                           return totalDisc > 0 ? `${totalDisc.toLocaleString()} Ar` : '+ Remise';
                       })()}
                     </button>
