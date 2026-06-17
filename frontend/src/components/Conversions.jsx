@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { Box, Loader2, Save, Trash2, Edit2 } from 'lucide-react';
+import { Box, Loader2, Save, Trash2, Edit2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function Conversions({ session }) {
   const [unites, setUnites] = useState([]);
   const [newUnite, setNewUnite] = useState({ nom: '', unite_mesure: '', facteur: '' });
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchUnites();
@@ -20,6 +23,15 @@ export default function Conversions({ session }) {
     }
     if (data) setUnites(data);
   };
+
+  // Filter and Paginate
+  const filteredUnites = unites.filter(u => 
+    u.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.unite_mesure.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  const totalPages = Math.ceil(filteredUnites.length / itemsPerPage);
+  const paginatedUnites = filteredUnites.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const addUnite = async (e) => {
     e.preventDefault();
@@ -92,7 +104,18 @@ export default function Conversions({ session }) {
           </button>
         </form>
 
-        <div className="border-t border-emerald-50 pt-8">
+        <div className="border-t border-emerald-50 pt-8 space-y-6">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <input 
+                type="text" 
+                placeholder="Rechercher par nom ou unité..." 
+                className="w-full bg-white border border-emerald-100 rounded-2xl py-3 px-12 text-lg font-bold shadow-sm focus:ring-2 focus:ring-emerald-500/20 outline-none" 
+                value={searchTerm} 
+                onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}} 
+            />
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -104,7 +127,7 @@ export default function Conversions({ session }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-emerald-50">
-                {unites.map(u => (
+                {paginatedUnites.map(u => (
                   <tr key={u.id} className="group hover:bg-emerald-50/30 transition-colors">
                     <td className="py-4 text-lg font-bold text-gray-700">{u.nom}</td>
                     <td className="py-4 text-lg text-gray-600 font-medium">{u.unite_mesure}</td>
@@ -117,7 +140,7 @@ export default function Conversions({ session }) {
                     </td>
                   </tr>
                 ))}
-                {unites.length === 0 && (
+                {paginatedUnites.length === 0 && (
                   <tr>
                     <td colSpan="4" className="py-10 text-center text-gray-400 font-bold uppercase text-[16px] tracking-widest">Aucune unité standard enregistrée</td>
                   </tr>
@@ -125,6 +148,14 @@ export default function Conversions({ session }) {
               </tbody>
             </table>
           </div>
+          
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-4 mt-6">
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 bg-emerald-50 rounded-xl disabled:opacity-50"><ChevronLeft size={20} className="text-emerald-600" /></button>
+                <span className="font-bold text-gray-600">Page {currentPage} sur {totalPages}</span>
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 bg-emerald-50 rounded-xl disabled:opacity-50"><ChevronRight size={20} className="text-emerald-600" /></button>
+            </div>
+          )}
         </div>
       </div>
     </div>
