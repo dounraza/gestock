@@ -184,27 +184,14 @@ export default function Inventory({ selectedDepotId }) {
       const { data: units } = await supabase.from('unites_standards').select('*').order('nom');
       
       if (prods) {
-        // Map stock quantity to the one from the selected depot
-        const formattedProds = prods.map(p => {
-          const depotStock = p.stocks?.find(s => s.depot_id === selectedDepotId);
-          return {
-            ...p,
-            stock_quantity: depotStock ? Number(depotStock.quantity) : 0
-          };
-        });
+        // Use stock_quantity directly from the 'produits' table
+        const formattedProds = prods.map(p => ({
+          ...p,
+          stock_quantity: Number(p.stock_quantity) || 0
+        }));
         
-        // Find selected depot object using the fresh list
-        const selectedDepot = (depotList || []).find(d => d.id === selectedDepotId);
-        
-        // If it's 'Dépôt Principal', show all products. Otherwise, only show with stock.
-        const isPrincipal = selectedDepot && selectedDepot.name.toLowerCase().includes('principal');
-        
-        const productsToDisplay = isPrincipal 
-          ? formattedProds 
-          : formattedProds.filter(p => p.stock_quantity > 0);
-        
-        setProducts(formattedProds); // Keep all for search/filtering
-        setFilteredProducts(productsToDisplay);
+        setProducts(formattedProds);
+        setFilteredProducts(formattedProds);
       }
       if (cats) setCategories(cats);
       if (sups) setSuppliers(sups);
@@ -1198,32 +1185,32 @@ export default function Inventory({ selectedDepotId }) {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Qté par {formData.unite_superieure || 'sup.'}</label>
-                    <input required type="number" placeholder="Quantité" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold" value={formData.stock_quantity} onChange={e => setFormData({...formData, stock_quantity: e.target.value})} />
+                    <input required type="text" placeholder="Quantité" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold" value={formData.stock_quantity} onChange={e => { if (/^\d*$/.test(e.target.value)) setFormData({...formData, stock_quantity: e.target.value}) }} />
                   </div>
                   {formData.quantite_par_unite > 1 && (
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Qté par ({formData.unite_base})</label>
-                      <input type="number" placeholder="Quantité par unité" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold" value={formData.stock_quantity_base} onChange={e => setFormData({...formData, stock_quantity_base: e.target.value})} />
+                      <input type="text" placeholder="Quantité par unité" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold" value={formData.stock_quantity_base} onChange={e => { if (/^\d*$/.test(e.target.value)) setFormData({...formData, stock_quantity_base: e.target.value}) }} />
                     </div>
                   )}
                   
                 </div>
                 <div className="space-y-1">
                   <label className="text-[14px] font-bold text-emerald-600 uppercase ml-1">Prix d'Achat (MGA)</label>
-                  <input type="number" placeholder="Prix d'achat" className="w-full bg-emerald-50/30 border border-emerald-100 rounded-xl px-4 py-3 outline-none font-black text-emerald-700" value={formData.purchase_price} onChange={e => setFormData({...formData, purchase_price: e.target.value})} />
+                  <input type="text" placeholder="Prix d'achat" className="w-full bg-emerald-50/30 border border-emerald-100 rounded-xl px-4 py-3 outline-none font-black text-emerald-700" value={formData.purchase_price} onChange={e => { if (/^\d*$/.test(e.target.value)) setFormData({...formData, purchase_price: e.target.value}) }} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-[12px] font-bold text-gray-400 uppercase ml-1">
                       Prix de vente (MGA) / {formData.unite_base || 'unité'}
                     </label>
-                    <input required type="number" placeholder="Prix Unité" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
+                    <input required type="text" placeholder="Prix Unité" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold" value={formData.price} onChange={e => { if (/^\d*$/.test(e.target.value)) setFormData({...formData, price: e.target.value}) }} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">
                       Prix de vente (MGA)/ {formData.unite_superieure || 'sup.'}
                     </label>
-                    <input type="number" placeholder="Prix Supérieur" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold text-emerald-600" value={formData.price_superior} onChange={e => setFormData({...formData, price_superior: e.target.value})} />
+                    <input type="text" placeholder="Prix Supérieur" className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 outline-none font-bold text-emerald-600" value={formData.price_superior} onChange={e => { if (/^\d*$/.test(e.target.value)) setFormData({...formData, price_superior: e.target.value}) }} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -1244,40 +1231,37 @@ export default function Inventory({ selectedDepotId }) {
                 </div>
               </div>
 
-              {/* Units & Conversion - Improved style like ProductList */}
-              <div className="bg-orange-50/50 p-6 rounded-3xl border border-orange-100 space-y-4">
-                  <h4 className="text-orange-700 font-black uppercase text-sm tracking-widest flex items-center gap-2">
-                      <Package size={16} /> Configuration des Unités (Colisage)
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Units & Conversion */}
+              <div className="space-y-3">
+                  <h4 className="text-[14px] font-black text-orange-600 uppercase tracking-widest border-b border-orange-50 pb-1">Configuration des Unités (Colisage)</h4>
+                  <div className="grid grid-cols-3 gap-3">
                       <div className="space-y-1">
-                          <label className="text-[12px] font-black text-orange-600/70 uppercase ml-1">Qté par {formData.unite_superieure || 'CARTON'}</label>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Qté par {formData.unite_superieure || 'sup.'}</label>
                           <input 
-                              type="number" required min="1"
-                              className="w-full bg-white border border-orange-200 rounded-xl px-4 py-3 font-black text-xl text-orange-700 outline-none"
+                              type="text" readOnly
+                              className="w-full bg-gray-100 border-0 rounded-xl px-4 py-3 font-bold text-base outline-none cursor-not-allowed"
                               value={formData.quantite_par_unite}
-                              onChange={e => setFormData({...formData, quantite_par_unite: e.target.value})}
                           />
                       </div>
                       <div className="space-y-1">
-                          <label className="text-[12px] font-black text-orange-600/70 uppercase ml-1">Nom Unité Sup.</label>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Unité Sup.</label>
                           <input 
-                              className="w-full bg-white border border-orange-200 rounded-xl px-4 py-3 font-bold uppercase outline-none"
+                              readOnly
+                              className="w-full bg-gray-100 border-0 rounded-xl px-4 py-3 font-bold text-base uppercase outline-none cursor-not-allowed"
                               value={formData.unite_superieure}
-                              onChange={e => setFormData({...formData, unite_superieure: e.target.value.toUpperCase()})}
                           />
                       </div>
                       <div className="space-y-1">
-                          <label className="text-[12px] font-black text-orange-600/70 uppercase ml-1">Nom Unité Base</label>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Unité Base</label>
                           <input 
-                              className="w-full bg-white border border-orange-200 rounded-xl px-4 py-3 font-bold uppercase outline-none"
+                              readOnly
+                              className="w-full bg-gray-100 border-0 rounded-xl px-4 py-3 font-bold text-base uppercase outline-none cursor-not-allowed"
                               value={formData.unite_base}
-                              onChange={e => setFormData({...formData, unite_base: e.target.value.toUpperCase()})}
                           />
                       </div>
                   </div>
-                  <p className="text-orange-600/60 text-[11px] font-bold italic px-1">
-                      * 1 {formData.unite_superieure || 'CARTON'} contient {formData.quantite_par_unite} {formData.unite_base || 'PCE'}
+                  <p className="text-gray-400 text-[11px] font-bold italic px-1">
+                      * 1 {formData.unite_superieure || 'SUP'} contient {formData.quantite_par_unite || 0} {formData.unite_base || 'UNITÉ'}
                   </p>
               </div>
               

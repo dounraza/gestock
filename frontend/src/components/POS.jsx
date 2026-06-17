@@ -624,28 +624,26 @@ export default function POS({ session, selectedDepotId }) {
     };
     
     const fetchData = async () => {
-      // Fetch products and join with stocks table for the selected depot
+      // Fetch products directly
       let query = supabase
         .from('produits')
         .select(`
           *,
-          categories:categories(*),
-          stocks!inner(*)
+          categories:categories(*)
         `)
-        .eq('stocks.depot_id', selectedDepotId)
         .order('name');
 
       const { data, error } = await query;
       
       if (error) {
-        console.error("Error fetching products with stock:", error);
+        console.error("Error fetching products:", error);
       }
 
       if (data) {
-        // Map stock quantity from the joined stocks table
+        // Use stock_quantity directly from the 'produits' table
         const formattedData = data.map(p => ({
           ...p,
-          stock_quantity: p.stocks?.[0]?.quantity || 0
+          stock_quantity: Number(p.stock_quantity) || 0
         }));
         setProducts(formattedData);
         setFilteredProducts(formattedData);
