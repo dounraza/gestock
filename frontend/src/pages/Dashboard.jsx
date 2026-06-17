@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { 
@@ -82,35 +82,40 @@ export default function Dashboard({ session }) {
   const [pendingNavigation, setPendingNavigation] = useState(null);
 
   const [userRole, setUserRole] = useState(null);
-useEffect(() => {
-  const fetchUserRole = async () => {
-      if (!session?.user?.id) return;
-      const { data } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-      if (data && data.role) {
-          setUserRole(data.role);
-          if (data.role === 'caissier') {
-              logCashierEntry(session.user.id);
-          }
-      } else {
-          setUserRole('user'); // Default
-      }
-  };
-  fetchUserRole();
+  const hasLoggedEntry = useRef(false);
 
-  const fetchAdminCode = async () => {
-      const { data } = await supabase
-          .from('admin_settings')
-          .select('value')
-          .eq('key', 'admin_code')
-          .single();
-      if (data) setDbAdminCode(data.value);
-  };
-  fetchAdminCode();
-}, [session]);
+  useEffect(() => {
+    const fetchUserRole = async () => {
+        if (!session?.user?.id || hasLoggedEntry.current) return;
+        
+        const { data } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+
+        if (data && data.role) {
+            setUserRole(data.role);
+            if (data.role === 'caissier' && !hasLoggedEntry.current) {
+                hasLoggedEntry.current = true;
+                await logCashierEntry(session.user.id);
+            }
+        } else {
+            setUserRole('user'); // Default
+        }
+    };
+    fetchUserRole();
+
+    const fetchAdminCode = async () => {
+        const { data } = await supabase
+            .from('admin_settings')
+            .select('value')
+            .eq('key', 'admin_code')
+            .single();
+        if (data) setDbAdminCode(data.value);
+    };
+    fetchAdminCode();
+  }, [session?.user?.id]);
 
 const logCashierEntry = async (userId) => {
     const today = new Date().toISOString().split('T')[0];
