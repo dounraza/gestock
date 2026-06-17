@@ -55,6 +55,9 @@ export default function StockEntry() {
 
   // Quick Product Creation States
   const [showProductModal, setShowProductModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedBL, setSelectedBL] = useState(null);
+  const [blDetails, setBLDetails] = useState([]);
   const [categories, setCategories] = useState([]);
   const [unites, setUnites] = useState([]);
   const [productFormData, setProductFormData] = useState({
@@ -140,61 +143,48 @@ export default function StockEntry() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      if (activeTab === 'with-supplier') {
-        const { data, error } = await supabase
-          .from('delivery_note_items')
-          .select(`
+      const { data, error } = await supabase
+        .from('delivery_note_items')
+        .select(`
+          delivery_note_id,
+          line_total_purchase,
+          created_at,
+          delivery_notes (
             id,
-            quantity,
-            purchase_price_per_unit,
-            line_total_purchase,
-            unit,
-            created_at,
-            delivery_notes (
-              bl_number,
-              bl_date,
-              payment_type,
-              fournisseurs!delivery_notes_supplier_id_fkey (
-                name
-              )
-            ),
-            produits!delivery_note_items_product_id_fkey (
+            bl_number,
+            bl_date,
+            payment_type,
+            supplier_id,
+            fournisseurs!delivery_notes_supplier_id_fkey (
               name
             )
-          `)
-          .not('delivery_notes.supplier_id', 'is', null)
-          .order('created_at', { ascending: false });
+          )
+        `)
+        .order('created_at', { ascending: false });
 
-        if (error) throw error;
-        console.log("StockEntry: Fetched with-supplier data:", data);
-        setWithSupplierData(data || []);
-      } else {
-        // Fetch entries that have NO supplier (or movements without BL)
-        const { data, error } = await supabase
-          .from('delivery_note_items')
-          .select(`
+      if (error) throw error;
+
+      // Aggregation logic
+      const grouped = data.reduce((acc, item) => {
+        const id = item.delivery_note_id || 'sans-bl-' + item.created_at;
+        if (!acc[id]) {
+          acc[id] = {
             id,
-            quantity,
-            purchase_price_per_unit,
-            line_total_purchase,
-            unit,
-            created_at,
-            delivery_notes (
-              bl_number,
-              bl_date,
-              payment_type
-            ),
-            produits!delivery_note_items_product_id_fkey (
-              name
-            )
-          `)
-          .is('delivery_notes.supplier_id', null)
-          .order('created_at', { ascending: false });
+            delivery_note_id: item.delivery_note_id,
+            line_total_purchase: 0,
+            delivery_notes: item.delivery_notes,
+            created_at: item.created_at,
+            reason: 'Approvisionnement' // Default reason
+          };
+        }
+        acc[id].line_total_purchase += parseFloat(item.line_total_purchase || 0);
+        return acc;
+      }, {});
 
-        if (error) throw error;
-        console.log("StockEntry: Fetched without-supplier data:", data);
-        setWithoutSupplierData(data || []);
-      }
+      const processedData = Object.values(grouped);
+      
+      setWithSupplierData(processedData.filter(item => item.delivery_notes?.supplier_id));
+      setWithoutSupplierData(processedData.filter(item => !item.delivery_notes?.supplier_id));
 
     } catch (err) {
       console.error("Error fetching stock entries:", err);
@@ -764,12 +754,9 @@ export default function StockEntry() {
                     <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Date</th>
                     <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Fournisseur</th>
                     <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">N° BL</th>
-                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Désignation</th>
                     <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Paiement</th>
-                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-center">Qté</th>
-                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Unité</th>
-                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-right">P.A.U</th>
                     <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-right">P.A.T</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-emerald-50/30">
@@ -787,44 +774,60 @@ export default function StockEntry() {
                         </span>
                       </td>
                       <td className="px-6 py-3.5">
-                        <p className="text-base font-bold text-gray-700">{item.produits?.name}</p>
-                      </td>
-                      <td className="px-6 py-3.5">
                         <span className={`px-2 py-0.5 rounded-md text-[15px] font-bold uppercase ${item.delivery_notes?.payment_type === 'credit' ? 'bg-orange-50 text-orange-600 border border-orange-100/50' : 'bg-blue-50 text-blue-600 border border-blue-100/50'}`}>
                           {item.delivery_notes?.payment_type === 'credit' ? 'Crédit' : 'Direct'}
                         </span>
                       </td>
-                      <td className="px-6 py-3.5 text-center">
-                        <p className="text-base font-bold text-emerald-600">{item.quantity}</p>
-                      </td>
-                      <td className="px-6 py-3.5">
-                        <p className="text-[16px] font-medium text-gray-400 uppercase tracking-wider">{item.unit === 'base' ? 'Unité' : (item.unit || 'Unité')}</p>
-                      </td>
-                      <td className="px-6 py-3.5 text-right">
-                        <p className="text-base font-bold text-gray-600">{parseFloat(item.purchase_price_per_unit).toLocaleString()} Ar</p>
-                      </td>
                       <td className="px-6 py-3.5 text-right">
                         <p className="text-base font-bold text-emerald-700">{parseFloat(item.line_total_purchase).toLocaleString()} Ar</p>
+                      </td>
+                      <td className="px-6 py-3.5 text-center">
+                        <button className="text-emerald-600 font-bold hover:text-emerald-800 uppercase tracking-widest text-sm" onClick={async () => {
+                            console.log("DEBUG: item structure:", item);
+                            const noteId = item.delivery_note_id || item.delivery_notes?.id;
+                            console.log("DEBUG: BL details fetch triggered for delivery_note_id:", noteId);
+                            
+                            if (!noteId) {
+                                console.warn("Cannot fetch details: noteId is undefined or null");
+                                setSelectedBL({ bl_number: 'N/A' });
+                                setBLDetails([]);
+                                setShowDetailsModal(true);
+                                return;
+                            }
+                            
+                            const { data, error } = await supabase.from('delivery_note_items').select('*, produits!delivery_note_items_product_id_fkey(name)').eq('delivery_note_id', noteId);
+                            console.log("DEBUG: BL details fetch result:", data, error);
+                            setSelectedBL(item.delivery_notes);
+                            setBLDetails(data || []);
+                            setShowDetailsModal(true);
+                        }}>Détails</button>
                       </td>
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan="9" className="p-20 text-center text-gray-400 font-bold uppercase text-[15px] tracking-widest">Aucune donnée trouvée</td>
+                      <td colSpan="6" className="p-20 text-center text-gray-400 font-bold uppercase text-[15px] tracking-widest">Aucune donnée trouvée</td>
                     </tr>
                   )}
                 </tbody>
+                <tfoot>
+                  <tr className="bg-emerald-50/50">
+                    <td colSpan="4" className="px-6 py-4 text-base font-black text-emerald-900 uppercase tracking-widest text-right">Total Général</td>
+                    <td className="px-6 py-4 text-lg font-black text-emerald-900 text-right">
+                      {withSupplierData.filter(item => item.delivery_notes?.bl_number).reduce((acc, item) => acc + parseFloat(item.line_total_purchase || 0), 0).toLocaleString()} Ar
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
               </table>
             ) : (
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead className="sticky top-0 z-20 bg-emerald-50/50 shadow-sm backdrop-blur-md">
                   <tr>
                     <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Date</th>
-                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Motif</th>
-                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Désignation</th>
-                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-center">Qté</th>
-                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Unité</th>
-                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-right">P.A.U</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">Fournisseur</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50">N° BL</th>
                     <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-right">P.A.T</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100/50 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-emerald-50/30">
@@ -837,32 +840,108 @@ export default function StockEntry() {
                         <p className="text-[16px] font-bold text-emerald-600 uppercase tracking-widest">{item.reason || '-'}</p>
                       </td>
                       <td className="px-6 py-3.5">
-                        <p className="text-base font-bold text-gray-700">{item.produits?.name}</p>
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100/50 rounded-md text-[15px] font-bold uppercase">
+                          {item.delivery_notes?.bl_number || '-'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3.5 text-right">
+                        <p className="text-base font-bold text-emerald-700">{(item.line_total_purchase || 0).toLocaleString()} Ar</p>
                       </td>
                       <td className="px-6 py-3.5 text-center">
-                        <p className="text-base font-bold text-emerald-600">{item.quantity}</p>
-                      </td>
-                      <td className="px-6 py-3.5">
-                        <p className="text-[16px] font-medium text-gray-400 uppercase tracking-wider">{item.unit || 'Unité'}</p>
-                      </td>
-                      <td className="px-6 py-3.5 text-right">
-                        <p className="text-base font-bold text-gray-600">{(item.price_at_movement || 0).toLocaleString()} Ar</p>
-                      </td>
-                      <td className="px-6 py-3.5 text-right">
-                        <p className="text-base font-bold text-emerald-700">{(item.quantity * (item.price_at_movement || 0)).toLocaleString()} Ar</p>
+                        <button className="text-emerald-600 font-bold hover:text-emerald-800 uppercase tracking-widest text-sm" onClick={async () => {
+                            const noteId = item.delivery_note_id || item.delivery_notes?.id;
+                            console.log("DEBUG: BL details fetch for noteId:", noteId);
+                            
+                            if (!noteId) {
+                                console.warn("Cannot fetch details: noteId is undefined or null");
+                                setSelectedBL({ bl_number: 'N/A' });
+                                setBLDetails([]);
+                                setShowDetailsModal(true);
+                                return;
+                            }
+
+                            const { data, error } = await supabase.from('delivery_note_items').select('*, produits!delivery_note_items_product_id_fkey(name)').eq('delivery_note_id', noteId);
+                            console.log("DEBUG: BL details fetch result:", data);
+                            if (error) console.error("Error fetching details:", error);
+                            
+                            // Ensure selectedBL includes the bl_number for display
+                            setSelectedBL({
+                                bl_number: item.delivery_notes?.bl_number || 'Sans BL'
+                            });
+                            setBLDetails(data || []);
+                            setShowDetailsModal(true);
+                        }}>Détails</button>
                       </td>
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan="7" className="p-20 text-center text-gray-400 font-bold uppercase text-[15px] tracking-widest">Aucune donnée trouvée</td>
+                      <td colSpan="5" className="p-20 text-center text-gray-400 font-bold uppercase text-[15px] tracking-widest">Aucune donnée trouvée</td>
                     </tr>
                   )}
                 </tbody>
+                <tfoot>
+                  <tr className="bg-emerald-50/50">
+                    <td colSpan="3" className="px-6 py-4 text-base font-black text-emerald-900 uppercase tracking-widest text-right">Total Général</td>
+                    <td className="px-6 py-4 text-lg font-black text-emerald-900 text-right">
+                      {withoutSupplierData.reduce((acc, item) => acc + parseFloat(item.line_total_purchase || 0), 0).toLocaleString()} Ar
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
               </table>
             )}
           </div>
         )}
       </div>
+
+      {/* BL Details Modal */}
+      {showDetailsModal && selectedBL && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/20 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200 border border-emerald-50">
+            <div className="p-6 border-b border-emerald-50 flex justify-between items-center bg-emerald-50/20">
+              <div className="flex flex-col">
+                <h3 className="text-xl font-bold text-emerald-900 uppercase tracking-widest">
+                  Détails BL: {selectedBL.bl_number}
+                </h3>
+                <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md mt-1 w-fit">
+                  Total: {blDetails.reduce((acc, item) => acc + parseFloat(item.line_total_purchase || 0), 0).toLocaleString()} Ar
+                </span>
+              </div>
+              <button onClick={() => setShowDetailsModal(false)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-white text-gray-400 hover:text-red-500 shadow-sm transition-all"><X size={20} /></button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-emerald-50 text-gray-400 uppercase text-xs font-bold tracking-widest">
+                    <th className="pb-2">Produit</th>
+                    <th className="pb-2 text-center">Qté</th>
+                    <th className="pb-2 text-center">Unité</th>
+                    <th className="pb-2 text-right">P.A.U</th>
+                    <th className="pb-2 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-emerald-50">
+                  {blDetails.map((item, idx) => (
+                    <tr key={idx}>
+                      <td className="py-3 font-bold text-gray-700">{item.produits?.name}</td>
+                      <td className="py-3 text-center text-emerald-600 font-bold">{item.quantity}</td>
+                      <td className="py-3 text-center font-bold text-gray-600 uppercase text-xs">
+                        {item.unit === 'superior' 
+                          ? (products.find(p => p.name === item.produits?.name)?.unite_superieure || 'Colis') 
+                          : (products.find(p => p.name === item.produits?.name)?.unite_base || 'Unité')}
+                      </td>
+                      <td className="py-3 text-right font-bold text-gray-600">{parseFloat(item.purchase_price_per_unit).toLocaleString()} Ar</td>
+                      <td className="py-3 text-right font-bold text-gray-800">{parseFloat(item.line_total_purchase).toLocaleString()} Ar</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Product Quick Creation Modal */}
       {showProductModal && (
