@@ -226,12 +226,15 @@ export default function Inventory({ selectedDepotId }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    console.log("DEBUG: handleSave formData:", formData);
     setIsSubmitting(true);
     
     const inputQuantity = parseInt(formData.stock_quantity) || 0;
     const inputQuantityBase = parseInt(formData.stock_quantity_base) || 0;
     const factor = parseInt(formData.quantite_par_unite) || 1;
     const stockQty = (inputQuantity * factor) + inputQuantityBase;
+    
+    console.log("DEBUG: stockQty calculation:", { inputQuantity, inputQuantityBase, factor, stockQty });
 
     if (stockQty < 0) {
       alert("La quantité en stock ne peut pas être négative.");
@@ -247,6 +250,7 @@ export default function Inventory({ selectedDepotId }) {
       category_id: formData.category_id || null,
       fournisseur_id: formData.fournisseur_id || null,
       description: formData.description || '',
+      stock_quantity: stockQty,
       quantite_par_unite: parseInt(formData.quantite_par_unite) || 1,
       unite_base: formData.unite_base || 'unité',
       unite_superieure: formData.unite_superieure || '',
@@ -271,8 +275,11 @@ export default function Inventory({ selectedDepotId }) {
         .update(payload)
         .eq('id', editingProduct.id);
       
-      if (error) alert(error.message);
-      else {
+      if (error) {
+        console.error("DEBUG: Produits update error:", error);
+        alert("Erreur mise à jour produit: " + error.message);
+      } else {
+        console.log("DEBUG: Produits update successful");
         // Mettre à jour le stock du dépôt spécifique
         if (selectedDepotId) {
           await supabase.from('stocks').upsert({
@@ -1238,9 +1245,10 @@ export default function Inventory({ selectedDepotId }) {
                       <div className="space-y-1">
                           <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Qté par {formData.unite_superieure || 'sup.'}</label>
                           <input 
-                              type="text" readOnly
-                              className="w-full bg-gray-100 border-0 rounded-xl px-4 py-3 font-bold text-base outline-none cursor-not-allowed"
+                              type="text"
+                              className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 font-bold text-base outline-none"
                               value={formData.quantite_par_unite}
+                              onChange={e => { if (/^\d*$/.test(e.target.value)) setFormData({...formData, quantite_par_unite: e.target.value}) }}
                           />
                       </div>
                       <div className="space-y-1">
